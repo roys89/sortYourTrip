@@ -18,7 +18,7 @@ export const store = configureStore({
     hotels: hotelReducer,
     transfers: transferReducer,
     activities: activityReducer,
-    markup: markupReducer,
+    markup: markupReducer, 
     price: priceReducer,
     notifications: notificationReducer,
   }

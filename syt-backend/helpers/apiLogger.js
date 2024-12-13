@@ -14,7 +14,7 @@ class ApiLogger {
     try {
       dateObj = new Date(date);
       return dateObj.toISOString().split('T')[0];
-    } catch (error) {
+    } catch (error) { 
       console.error('Error formatting date:', error);
       return 'invalid-date';
     }

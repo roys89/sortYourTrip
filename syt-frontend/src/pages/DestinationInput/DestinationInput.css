@@ -1,0 +1,10 @@
+.destination-input-container {
+  padding: 16px;
+  margin: 120px auto; /* Increase margin on top and bottom */
+  max-width: 600px;  /* Limit width on larger screens */
+  width: 100%;       /* Ensure full width on mobile */
+}
+
+button {
+  margin-top: 20px;
+}

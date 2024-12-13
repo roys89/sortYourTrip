@@ -1,0 +1,26 @@
+/* src/components/SignUp/SignUp.css */
+.signup-form {
+    width: 100%;
+    padding: 20px;
+  }
+  
+  .grid-container {
+    padding: 20px;
+    border-radius: 8px;
+  }
+  
+  .social-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+  }
+  
+  @media (max-width: 600px) {
+    .signup-form {
+      padding: 10px;
+    }
+    
+    .grid-container {
+      padding: 10px;
+    }
+  }

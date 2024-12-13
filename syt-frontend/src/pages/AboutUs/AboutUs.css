@@ -1,0 +1,136 @@
+.aboutus-container {
+    padding: 40px 20px;
+    margin-top: 80px; /* Space for navbar */
+    background-color: #fdf2e9;
+  }
+  
+  .aboutus-heading {
+    color: #333;
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+  
+  .aboutus-intro {
+    color: #666;
+    margin-bottom: 40px;
+    font-size: 1.2rem;
+  }
+  
+  .aboutus-section {
+    margin-bottom: 40px;
+  }
+  
+  .aboutus-section-heading {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  
+  .aboutus-text {
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  
+  /* What We Offer Section */
+  .aboutus-card {
+    display: flex;
+    flex-direction: column;
+    height: 500px; /* Increased height */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease-in-out;
+    background-color: #ffffff; /* White background for the card */
+  }
+  
+  .aboutus-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .aboutus-card-image {
+    width: 100%;
+    height: 350px; /* Increased height for the image */
+    object-fit: contain;
+    background-color: #f0f0f0;
+    padding: 15px;
+  }
+  
+  .aboutus-card-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .aboutus-feature-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 12px;
+    color: #333;
+  }
+  
+  .aboutus-feature-description {
+    font-size: 1rem;
+    color: #666;
+    flex-grow: 1;
+    line-height: 1.5;
+  }
+  
+  /* Why Choose Us Section */
+  .aboutus-text {
+    margin-bottom: 10px;
+  }
+  
+  /* Responsive styles */
+  @media (max-width: 960px) {
+    .aboutus-container {
+      padding: 30px 15px;
+    }
+  
+    .aboutus-section-heading {
+      font-size: 1.8rem;
+    }
+  
+    .aboutus-card {
+      height: 400px;
+    }
+  
+    .aboutus-card-image {
+      height: 220px;
+    }
+  }
+  
+  @media (max-width: 600px) {
+    .aboutus-container {
+      padding: 20px 10px;
+      margin-top: 60px;
+    }
+  
+    .aboutus-heading {
+      font-size: 2rem;
+    }
+  
+    .aboutus-section-heading {
+      font-size: 1.5rem;
+    }
+  
+    .aboutus-intro {
+      font-size: 1rem;
+    }
+  
+    .aboutus-card {
+      height: 380px;
+    }
+  
+    .aboutus-card-image {
+      height: 200px;
+    }
+  
+    .aboutus-feature-title {
+      font-size: 1.2rem;
+    }
+  
+    .aboutus-feature-description {
+      font-size: 0.9rem;
+    }
+  }

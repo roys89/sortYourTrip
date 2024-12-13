@@ -1,0 +1,51 @@
+/* Testimony.css */
+.testimony-container {
+    padding: 2rem 1rem;
+    margin-top: 2rem;
+    width: 100%;
+  }
+  
+  .testimony-title {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  
+  .testimony-slider .slick-dots {
+    bottom: -20px;
+  }
+  
+  .testimony-card {
+    width: 100%;
+    max-width: 600px; /* Make the card wider */
+    min-height: 300px; /* Reduced the height */
+    padding: 1.5rem; /* Reduced padding to lessen height */
+    margin-bottom: 2rem;
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease-in-out;
+  }
+  
+  .testimony-card.dark {
+    background-color: #424242; /* Darker background for dark mode */
+  }
+  
+  .testimony-avatar {
+    width: 48px; /* Reduced avatar size */
+    height: 48px;
+    margin-bottom: 0.75rem; /* Reduced space between avatar and text */
+  }
+  
+  .testimony-text {
+    text-align: center;
+  }
+  
+  @media (max-width: 960px) {
+    .testimony-card {
+      max-width: 100%; /* Make sure cards are responsive */
+    }
+  }
+  

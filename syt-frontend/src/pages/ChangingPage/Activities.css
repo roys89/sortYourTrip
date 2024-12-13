@@ -1,0 +1,92 @@
+.activities-page {
+    margin-top: 100px;
+  }
+  
+  .activity-card {
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    transition: box-shadow 0.3s;
+  }
+  
+  .activity-card:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  }
+  
+  .activity-header {
+    margin-bottom: 32px;
+  }
+  
+  .activity-image-container {
+    width: 25%;
+    min-height: 200px;
+  }
+  
+  .activity-card-grid {
+    flex-direction: column;
+  }
+  
+  .activity-image-container-grid {
+    width: 100%;
+    height: 200px;
+  }
+  
+  .activity-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    min-height: 200px;
+  }
+  
+  .activity-content {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    position: relative;
+  }
+  
+  .activity-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-right: 140px; /* Make space for the button */
+  }
+  
+  .activity-button {
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .load-more-button {
+    margin-top: 16px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  @media (max-width: 899px) {
+    .activity-card {
+      flex-direction: column;
+    }
+  
+    .activity-image-container {
+      width: 100%;
+    }
+  
+    .activity-content {
+      flex-direction: column;
+    }
+  
+    .activity-details {
+      padding-right: 0;
+      margin-bottom: 16px;
+    }
+  
+    .activity-button {
+      position: static;
+      transform: none;
+      display: flex;
+      justify-content: flex-end;
+    }
+  }

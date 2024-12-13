@@ -1,0 +1,54 @@
+.preferences-form {
+  padding: 10px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.preference-card {
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 20px;
+  border-radius: 30px;
+}
+
+.budget-container {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  flex-direction: row;
+}
+
+.budget-option {
+  flex: 0 1 calc(33.33% - 16px);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 30px;
+}
+
+.budget-option .MuiRadio-root {
+  padding: 0;
+  margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+  .budget-container {
+    flex-direction: column;
+  }
+
+  .budget-option {
+    flex: 1;
+  }
+}

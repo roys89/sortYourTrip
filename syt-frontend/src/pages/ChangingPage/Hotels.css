@@ -1,0 +1,154 @@
+/* Layout styles */
+.hotels-page {
+    margin-top: 100px;
+  }
+  
+  /* Header styles */
+  .hotels-header {
+    margin-bottom: 2rem;
+  }
+  
+  /* Hotel card styles */
+  .hotel-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease;
+    margin-bottom: 1rem;
+  }
+  
+  .hotel-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  .hotel-image-container {
+    width: 100%;
+    height: 200px;
+  }
+  
+  @media (min-width: 768px) {
+    .hotel-image-container {
+      width: 256px;
+      height: 192px;
+    }
+  }
+  
+  .hotel-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .hotel-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  /* Star rating styles */
+  .star-rating {
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Button styles */
+  .load-more-button {
+    margin: 2rem auto;
+    min-width: 200px;
+  }
+  
+  /* Filter menu styles */
+  .filter-menu-container {
+    margin-left: auto;
+  }
+  
+  /* Loading spinner container */
+  .loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+  }
+  
+  /* Error message styles */
+  .error-container {
+    text-align: center;
+    padding: 2rem;
+    margin-top: 2rem;
+  }
+  
+  /* No results message */
+  .no-results {
+    text-align: center;
+    padding: 3rem 0;
+    color: #6b7280;
+  }
+  
+  /* Grid view styles */
+  .hotels-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 1024px) {
+    .hotels-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  /* Price display styles */
+  .price-container {
+    margin-top: auto;
+  }
+  
+  .starting-price {
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+  
+  .price-amount {
+    color: #2563eb;
+    font-weight: 600;
+    font-size: 1.25rem;
+  }
+  
+  /* Boarding details styles */
+  .boarding-details {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+  
+  /* Back button styles */
+  .back-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  /* Modal styles */
+  .hotel-modal {
+    max-width: 90vw;
+    max-height: 90vh;
+    margin: 2rem auto;
+    overflow-y: auto;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 640px) {
+    .hotels-page {
+      margin-top: 1rem;
+    }
+  
+    .hotel-content {
+      padding: 0.75rem;
+    }
+  
+    .hotels-header {
+      margin-bottom: 1.5rem;
+    }
+  }

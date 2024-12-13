@@ -1,0 +1,61 @@
+/* ItineraryInquiryPage.css */
+.inquiry-container {
+  background-image: url('../../../public/assets/images/itback.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  height: 100vh; /* Full viewport height */
+  width: 100vw; /* Full viewport width */
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: fixed;
+  top: 0; /* Starts from the top of the page */
+  left: 0;
+  right: 0;
+  z-index: 1; /* Ensure it's below the content */
+}
+
+.inquiry-box {
+  width: 100%;
+  max-width: 1200px;
+  height: calc(100vh - 100px); /* Maintains space for navbar */
+  margin-top: 64px; /* Space for navbar */
+  overflow-y: auto;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  box-sizing: border-box;
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+}
+
+.completion-text {
+  margin-top: 20px;
+  font-weight: bold;
+}
+
+@media only screen and (max-width: 600px) {
+  .inquiry-container {
+    height: 100vh;
+  }
+
+  .inquiry-box {
+    height: calc(100vh - 80px);
+    margin-top: 56px; /* Adjust for smaller mobile navbar */
+    padding: 16px;
+    border-radius: 16px;
+  }
+}

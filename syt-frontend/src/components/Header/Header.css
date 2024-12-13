@@ -1,0 +1,69 @@
+/* Step content box */
+.step-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  transition: transform 0.3s ease-in-out, background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  height: 100%;
+  text-align: center;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.step-number {
+  color: #f08080; /* Original color */
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.step-image {
+  width: 100%;
+  max-width: 300px; /* Default size for larger screens */
+  height: auto;
+  border-radius: 10px;
+  margin-bottom: 1rem; /* Add spacing below the image */
+}
+
+/* Hover effect */
+.step-content:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .step-content {
+    max-width: 85%; /* Slightly smaller cards on mobile */
+    padding: 1rem;  /* Reduce padding a bit */
+    margin: 0 auto; /* Center the cards */
+  }
+
+  .step-number {
+    font-size: 2rem; /* Adjust the step number size for mobile */
+  }
+
+  .step-image {
+    max-width: 250px; /* Slightly reduce image size */
+  }
+}
+
+@media (max-width: 480px) {
+  .step-content {
+    max-width: 90%; /* Further reduce the card width for smaller screens */
+    padding: 0.8rem;
+    margin: 0 auto; /* Center cards */
+  }
+
+  .step-number {
+    font-size: 1.8rem; /* Further reduce the step number size */
+  }
+
+  .step-image {
+    max-width: 220px; /* Further reduce image size for smaller screens */
+  }
+}

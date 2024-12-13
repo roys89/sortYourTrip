@@ -1,0 +1,50 @@
+/* src/components/ItineraryInquiryForm/DepartureDateForm/DepartureDateForm.css */
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center the form horizontally */
+  justify-content: center;
+  width: 100%;
+  max-width: 500px; /* Optional: limit width of the form */
+  margin: 0 auto; /* Ensure the form is centered horizontally */
+  padding: 20px; /* Added padding for better spacing */
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between; /* Space between buttons */
+  width: 100%; /* Ensure buttons take full width of their container */
+}
+
+.next-button, .back-button {
+  width: 48%; /* Ensure the buttons are equal width */
+}
+
+@media only screen and (max-width: 600px) {
+  .next-button, .back-button {
+    width: 100%; /* Stack buttons on smaller screens */
+  }
+
+  .MuiTextField-root {
+    width: 100%; /* Ensure the input field takes full width */
+  }
+}
+
+/* Ensure the calendar icon is visible */
+.MuiSvgIcon-root {
+  visibility: visible !important; /* Ensure the calendar icon is visible */
+  display: inline-block !important; /* Ensure the calendar icon is displayed */
+}
+
+/* Add padding to the input field to prevent overlap with the icon */
+.MuiInputBase-root {
+  padding-right: 40px; /* Add space for the calendar icon */
+}
+
+/* Ensure the input adornment (icon container) is properly aligned */
+.MuiInputAdornment-root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

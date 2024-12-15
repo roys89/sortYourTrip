@@ -1,6 +1,7 @@
 // src/redux/slices/authSlice.js
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { resetItineraryState } from './itinerarySlice'; // Import the action from itinerarySlice
 
 const initialState = {
   user: null,
@@ -58,7 +59,7 @@ export const checkAuthStatus = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   'auth/logout',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
@@ -67,6 +68,10 @@ export const logout = createAsyncThunk(
         });
       }
       localStorage.removeItem('token');
+      
+      // Dispatch resetItineraryState to clear the itinerary on logout
+      dispatch(resetItineraryState());
+      
       return null;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -98,6 +103,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      
       // Register cases
       .addCase(register.pending, (state) => {
         state.loading = true;
@@ -112,6 +118,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      
       // Check auth status cases
       .addCase(checkAuthStatus.pending, (state) => {
         state.loading = true;
@@ -126,6 +133,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
       })
+      
       // Logout cases
       .addCase(logout.fulfilled, (state) => {
         state.user = null;

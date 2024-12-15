@@ -8,7 +8,8 @@ const {
 
 const {
   getActivityDetails,
-  getAvailableActivities
+  getAvailableActivities,
+  createActivityBookingReference
 } = require('../../controllers/itineraryController/activityController');
 
 const {
@@ -19,9 +20,9 @@ const {
 const {
   replaceHotel,
   replaceActivity,
-  removeActivity
+  removeActivity,
+  updateActivityWithBookingRef,  // Add these imports
 } = require('../../controllers/itineraryController/itineraryModificationController');
-
 const router = express.Router();
 
 // Middleware to check inquiry token where needed
@@ -43,10 +44,15 @@ router.put('/:itineraryToken/prices', updateItineraryPrices);
 router.put('/:itineraryToken/activity', checkInquiryToken, replaceActivity);
 router.delete('/:itineraryToken/activity', checkInquiryToken, removeActivity);
 router.put('/:itineraryToken/hotel', checkInquiryToken, replaceHotel);
+router.put('/:itineraryToken/activity/booking-ref', 
+  checkInquiryToken, 
+  updateActivityWithBookingRef     // Use the imported function
+);
 
 // Activity routes
 router.get('/activities/:inquiryToken/:cityName/:date', getAvailableActivities);
 router.post('/product-info/:activityCode', checkInquiryToken, getActivityDetails);
+router.post('/activity/reference', checkInquiryToken, createActivityBookingReference);
 
 // Hotel routes
 router.get('/hotels/:inquiryToken/:cityName/:date', checkInquiryToken, getAvailableHotels);

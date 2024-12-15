@@ -167,6 +167,7 @@ const itinerarySlice = createSlice({
 
        state.loading = false;
        state.data = action.payload;
+       state.itineraryToken = action.payload.itineraryToken; 
        state.error = null;
      })
      .addCase(fetchItinerary.rejected, (state, action) => {

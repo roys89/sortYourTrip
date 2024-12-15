@@ -339,12 +339,33 @@ const getAvailableActivities = async (req, res) => {
   }
 };
 
+const { createActivityReference } = require('../../services/activityServices/activityBookingReferenceService');
 
+const createActivityBookingReference = async (req, res) => {
+  const { activityCode, searchId, startTime, gradeCode } = req.body;
+  const inquiryToken = req.headers['x-inquiry-token'];
+  const { cityName, date } = req.query;
+
+  try {
+    const reference = await createActivityReference({
+      productcode: activityCode,
+      searchId: searchId,
+      starttime: startTime,
+      productoptioncode: gradeCode
+    }, inquiryToken, cityName, date);
+
+    res.json(reference);
+  } catch (error) {
+    console.error('Error creating activity booking reference:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 
 module.exports = {
   getCityActivities,
   getActivityCountsForCities,
   getActivityDetails,
-  getAvailableActivities
+  getAvailableActivities,
+  createActivityBookingReference
 };

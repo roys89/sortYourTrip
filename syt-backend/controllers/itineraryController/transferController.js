@@ -1,5 +1,6 @@
 // controllers/transferController.js
 const TransferGetQuotesService = require('../../services/transferServices/transferGetQuoteSservice');
+const TransferQuoteDetailsService = require('../../services/transferServices/transferQuoteDetailsService');
 
 exports.getGroundTransfer = async (transferData) => {
   try {
@@ -43,17 +44,36 @@ exports.getGroundTransfer = async (transferData) => {
       );
 
       if (suitableQuote) {
-        return {
-          type: "ground",
-          selectedQuote: suitableQuote,
-          totalTravelers,
-          origin: quoteParams.origin,
-          destination: quoteParams.destination,
-          quotation_id: quoteData.quotation_id,
-          distance: quoteData.distance,
-          duration: quoteData.duration,
-          logDetails: quoteResponse.logDetails,
-        };
+        // Create the city name string in the same format as getTransferQuotes
+        const cityName = `${quoteParams.origin.city} to ${quoteParams.destination.city}`;
+        
+        // Pass inquiryToken and cityName to getQuoteDetails
+        const detailedQuoteResponse = await TransferQuoteDetailsService.getQuoteDetails(
+          quoteData.quotation_id, 
+          suitableQuote.quote_id,
+          transferData.inquiryToken,  // Pass the inquiryToken
+          cityName,                   // Pass the cityName
+          transferData.startDate      // Pass the date
+        );
+
+        if (detailedQuoteResponse.success) {
+          return {
+            type: "ground",
+            selectedQuote: detailedQuoteResponse.data,
+            totalTravelers,
+            origin: quoteParams.origin,
+            destination: quoteParams.destination,
+            quotation_id: quoteData.quotation_id,
+            distance: quoteData.distance,
+            duration: quoteData.duration,
+          };
+        } else {
+          return {
+            type: "error",
+            message: "Unable to fetch detailed quote information",
+            error: detailedQuoteResponse.error,
+          };
+        }
       } else {
         return {
           type: "error",

@@ -235,3 +235,55 @@ exports.removeActivity = async (req, res) => {
 };
 
 
+exports.updateActivityWithBookingRef = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { cityName, date, activityCode, bookingReference } = req.body;
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    const itinerary = await Itinerary.findOne({ 
+      itineraryToken,
+      inquiryToken 
+    });
+
+    if (!itinerary) {
+      return res.status(404).json({ message: 'Itinerary not found' });
+    }
+
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) {
+      return res.status(404).json({ message: 'City not found in itinerary' });
+    }
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(
+      day => day.date === date
+    );
+    if (dayIndex === -1) {
+      return res.status(404).json({ message: 'Day not found in itinerary' });
+    }
+
+    const activityIndex = itinerary.cities[cityIndex].days[dayIndex].activities
+      .findIndex(activity => activity.activityCode === activityCode);
+
+    if (activityIndex === -1) {
+      return res.status(404).json({ message: 'Activity not found' });
+    }
+
+    // Update activity with booking reference
+    itinerary.cities[cityIndex].days[dayIndex].activities[activityIndex].bookingReference = {
+      bookingRef: bookingReference.bookingRef,
+      priceValidUntil: bookingReference.priceValidUntil,
+      timeElapsed: bookingReference.timeElapsed,
+      supplierPrice: bookingReference.supplierPrice,
+      price: bookingReference.price,
+      availabilityValidUntil: bookingReference.availabilityValidUntil
+    };
+
+    await itinerary.save();
+    res.json(itinerary);
+
+  } catch (error) {
+    console.error('Error updating activity with booking reference:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

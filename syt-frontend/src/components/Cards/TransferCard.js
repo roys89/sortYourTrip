@@ -9,15 +9,17 @@ const TransferCard = ({ transfer }) => {
     return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
+  const vehicle = transfer.details.selectedQuote?.vehicle;
+
   return (
     <div className="bg-white rounded-xl shadow-[0_3px_10px_rgb(0,0,0,0.2)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 overflow-hidden transform hover:-translate-y-1">
       <div className="flex flex-col lg:flex-row h-full">
         {/* Vehicle Image Container */}
         <div className="w-full lg:w-80 h-48 lg:h-auto relative overflow-hidden">
-          {transfer.details.selectedQuote?.vehicle?.image ? (
+          {vehicle?.vehicleImages?.ve_im_url ? (
             <img 
-              src={transfer.details.selectedQuote.vehicle.image}
-              alt={transfer.details.selectedQuote.vehicle.similar_type}
+              src={vehicle.vehicleImages.ve_im_url}
+              alt={vehicle.ve_similar_types}
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-110"
             />
           ) : (
@@ -36,7 +38,7 @@ const TransferCard = ({ transfer }) => {
                 {formatTransferType(transfer.type)}
               </h3>
               <p className="mt-2 text-gray-600">
-                {transfer.details.selectedQuote?.vehicle?.class} - {transfer.details.selectedQuote?.vehicle?.similar_type}
+                {vehicle?.ve_class} - {vehicle?.ve_similar_types}
               </p>
             </div>
 
@@ -47,22 +49,21 @@ const TransferCard = ({ transfer }) => {
                 <div className="space-y-2">
                   <div>
                     <span className="text-sm font-medium text-gray-700">From:</span>
-                    <p className="text-sm">{transfer.origin?.display_address}</p>
+                    <p className="text-sm">{transfer.details.origin?.display_address}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-700">To:</span>
-                    <p className="text-sm">{transfer.destination?.display_address}</p>
+                    <p className="text-sm">{transfer.details.destination?.display_address}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Additional Info */}
-            {transfer.details.selectedQuote?.additional_info && (
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                {transfer.details.selectedQuote.additional_info}
-              </div>
-            )}
+            {/* Journey Info */}
+            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+              <p>Distance: {transfer.details.distance}</p>
+              <p>Duration: {transfer.details.duration} minutes</p>
+            </div>
           </div>
 
           {/* Price and Actions */}
@@ -70,7 +71,7 @@ const TransferCard = ({ transfer }) => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
               {transfer.details.selectedQuote?.fare && (
                 <span className="text-lg font-semibold text-blue-600 whitespace-nowrap">
-                  {transfer.details.selectedQuote.currency_symbol}{transfer.details.selectedQuote.fare.toLocaleString()}
+                  {transfer.details.selectedQuote.currency_symbol}{Number(transfer.details.selectedQuote.fare).toLocaleString()}
                 </span>
               )}
 

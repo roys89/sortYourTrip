@@ -135,7 +135,18 @@ const ActivitySchema = new Schema({
   tourGrade: TourGradeSchema,
   ageBands: [AgeBandSchema],
   bookingRequirements: BookingRequirementsSchema,
-  pickupHotellist: Schema.Types.Mixed
+  pickupHotellist: Schema.Types.Mixed,
+  bookingReference: {
+    type: {
+      bookingRef: String,
+      priceValidUntil: String,
+      timeElapsed: String,
+      supplierPrice: Number,
+      price: Number,
+      availabilityValidUntil: String
+    },
+    default: null
+  }
 }, { _id: false });
 
 // Transfer Schema

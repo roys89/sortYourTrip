@@ -1,4 +1,3 @@
-// services/activityServices/activityBookingReferenceService.js
 const axios = require('axios');
 const apiLogger = require('../../helpers/apiLogger');
 
@@ -8,7 +7,18 @@ const API_URLS = {
 const API_KEY = 'hhVblqFbLN8ojaRs';
 
 const createActivityReference = async (params, inquiryToken, cityName, date) => {
-  const { productcode, searchId, starttime, productoptioncode } = params;
+  const { productcode: activityCode, searchId, starttime, productoptioncode } = params;
+
+  // Create payload dynamically, only including starttime if it exists
+  const requestPayload = {
+    productcode: activityCode,
+    searchId,
+    productoptioncode
+  };
+
+  if (starttime) {
+    requestPayload.starttime = starttime;
+  }
 
   try {
     // Log request
@@ -18,21 +28,20 @@ const createActivityReference = async (params, inquiryToken, cityName, date) => 
       date,
       apiType: 'activity-booking-reference',
       requestData: {
-        payload: params,
+        payload: requestPayload,
         headers: { 'api-key': API_KEY }
       },
       responseData: null,
-      activityCode: productcode
+      activityCode
     });
 
-    const response = await axios.post(API_URLS.bookingReference, {
-      productcode,
-      searchId, 
-      starttime: starttime || '12:00',
-      productoptioncode
-    }, {
+    const response = await axios.post(API_URLS.bookingReference, requestPayload, {
       headers: { 'api-key': API_KEY }
     });
+
+    if (!response.data?.bookingref) {
+      throw new Error('Invalid booking reference response');
+    }
 
     // Log response
     await apiLogger.logApiData({
@@ -40,14 +49,10 @@ const createActivityReference = async (params, inquiryToken, cityName, date) => 
       cityName,
       date,
       apiType: 'activity-booking-reference',
-      requestData: params,
+      requestData: requestPayload,
       responseData: response.data,
-      activityCode: productcode
+      activityCode
     });
-
-    if (!response.data?.bookingref) {
-      throw new Error('Invalid booking reference response');
-    }
 
     return {
       bookingRef: response.data.bookingref,
@@ -57,7 +62,6 @@ const createActivityReference = async (params, inquiryToken, cityName, date) => 
       price: response.data.price,
       availabilityValidUntil: response.data.availabilityValiduntil
     };
-
   } catch (error) {
     console.error('Error creating activity reference:', error);
     throw error;

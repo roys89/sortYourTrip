@@ -8,11 +8,11 @@ const HeroCarousel = () => {
   const [direction, setDirection] = useState(0);
   
   const images = [
-    '/assets/hero/w1.jpg',
-    '/assets/hero/w2.jpg',
-    '/assets/hero/w3.jpg',
-    '/assets/hero/w4.jpg',
-    '/assets/hero/w5.jpg'
+    '/assets/images/hero/w1.jpg',
+    '/assets/images/hero/w2.jpg',
+    '/assets/images/hero/w3.jpg',
+    '/assets/images/hero/w4.jpg',
+    '/assets/images/hero/w5.jpg'
   ];
 
   const slideVariants = {

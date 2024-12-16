@@ -62,8 +62,14 @@ const ItineraryPage = () => {
   };
 
   const processActivity = async (activity, cityName, date) => {
+    // Check if the activity has a booking reference
+    if (activity.bookingReference && activity.bookingReference._id) {
+      console.log(`Booking reference already exists for activity ${activity.activityName}`);
+      return true;
+    }
+  
     try {
-      // Create booking reference
+      // Create booking reference only if no existing reference
       const referenceResponse = await axios.post(
         'http://localhost:5000/api/itinerary/activity/reference',
         {
@@ -76,7 +82,7 @@ const ItineraryPage = () => {
           headers: { 'X-Inquiry-Token': itineraryInquiryToken }
         }
       );
-
+  
       // Update itinerary with booking reference
       await axios.put(
         `http://localhost:5000/api/itinerary/${itineraryToken}/activity/booking-ref`,
@@ -90,7 +96,7 @@ const ItineraryPage = () => {
           headers: { 'X-Inquiry-Token': itineraryInquiryToken }
         }
       );
-
+  
       return true;
     } catch (error) {
       console.error('Error processing activity:', error);
@@ -126,43 +132,53 @@ const ItineraryPage = () => {
         });
         return;
       }
-
+  
       setIsBooking(true);
       setBookingError(null);
-
+  
       // Calculate total items to process
-      let totalItems = 0;
-      itinerary.cities.forEach(city => {
-        city.days.forEach(day => {
-          totalItems += (day.activities?.length || 0);
-        });
-      });
+      const onlineActivities = itinerary.cities.flatMap(city => 
+        city.days.flatMap(day => 
+          day.activities?.filter(activity => activity.activityType === 'online') || []
+        )
+      );
+  
+      const totalItems = onlineActivities.length;
       setBookingProgress({ current: 0, total: totalItems });
-
-      // Process each city
-      for (const city of itinerary.cities) {
-        for (const day of city.days) {
-          // Process activities
-          if (day.activities) {
-            for (const activity of day.activities) {
-              if (activity.activityType === 'online') {
-                const success = await processActivity(activity, city.city, day.date);
-                if (!success) {
-                  throw new Error(`Failed to process activity ${activity.activityName}`);
-                }
-                setBookingProgress(prev => ({ ...prev, current: prev.current + 1 }));
-              }
-            }
+  
+      // Process activities sequentially
+      for (const activity of onlineActivities) {
+        const cityDay = itinerary.cities
+          .flatMap(city => 
+            city.days.map(day => ({ 
+              cityName: city.city, 
+              date: day.date, 
+              activities: day.activities 
+            }))
+          )
+          .find(item => 
+            item.activities?.some(a => a.activityCode === activity.activityCode)
+          );
+  
+        if (cityDay) {
+          const success = await processActivity(activity, cityDay.cityName, cityDay.date);
+          if (!success) {
+            throw new Error(`Failed to process activity ${activity.activityName}`);
           }
+  
+          setBookingProgress(prev => ({ 
+            ...prev, 
+            current: prev.current + 1 
+          }));
         }
       }
-
+  
       // Proceed with price totals and navigation
       await handlePriceUpdate();
       navigate('/booking-form', { 
         state: { itinerary }
       });
-
+  
     } catch (error) {
       handleBookingError(error);
     } finally {

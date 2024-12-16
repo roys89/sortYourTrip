@@ -561,7 +561,8 @@ exports.getItineraryByInquiryToken = async (req, res) => {
       itineraryToken: itinerary.itineraryToken,
       inquiryToken: itinerary.inquiryToken,
       cities: itinerary.cities,
-      travelersDetails: itinerary.travelersDetails 
+      travelersDetails: itinerary.travelersDetails,
+      priceTotals: itinerary.priceTotals || null
     });
   } catch (error) {
     console.error("Error fetching itinerary by inquiry token:", error);

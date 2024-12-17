@@ -25,16 +25,15 @@ const AppRoutes = () => {
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/auth/*" element={<AuthPage />} />
-        {/* Redirect old auth routes to new ones */}
         <Route path="/login" element={<Navigate to="/auth/login" replace />} />
         <Route path="/register" element={<Navigate to="/auth/register" replace />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
+        <Route path="/destination-input" element={<DestinationInput />} />
+        <Route path="/itinerary-inquiry" element={<ItineraryInquiryPage />} />
         
         {/* Protected Routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/destination-input" element={<ProtectedRoute><DestinationInput /></ProtectedRoute>} />
-        <Route path="/itinerary-inquiry" element={<ProtectedRoute><ItineraryInquiryPage /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><ItineraryPage /></ProtectedRoute>} />
         <Route path="/activities" element={<ProtectedRoute><ActivitiesPage /></ProtectedRoute>} />
         <Route path="/hotels" element={<ProtectedRoute><HotelsPage /></ProtectedRoute>} />

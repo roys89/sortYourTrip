@@ -1,10 +1,10 @@
+// /pages/ItineraryPage/ItineraryPage.js
 import { PictureAsPdf } from '@mui/icons-material';
 import {
   Alert,
   AlertTitle,
   Box,
   Button,
-  CircularProgress,
   Container,
   Typography
 } from '@mui/material';
@@ -12,6 +12,7 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import CityAccordion from '../../components/Itinerary/CityAccordion';
 import PriceSummary from '../../components/Itinerary/PriceSummary';
@@ -37,7 +38,6 @@ const ItineraryPage = () => {
   const location = useLocation();
   const { state } = location;
 
-  // Use the new auth context
   const { isAuthenticated } = useAuth();
 
   const itineraryInquiryToken = state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
@@ -260,32 +260,56 @@ const ItineraryPage = () => {
   // Render loading state
   if (loading || checkingExisting) {
     return (
-      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress color="primary" size={40} />
-        <Typography variant="body1" color="textSecondary" sx={{ mt: 2 }}>
-          {checkingExisting ? 'Checking existing itinerary...' : 'Loading your itinerary...'}
-        </Typography>
-      </Box>
+      <LoadingSpinner 
+        message={checkingExisting 
+          ? "Checking your existing itinerary..." 
+          : "Crafting your perfect journey..."}
+      />
     );
   }
 
   // Render error state
   if (error) {
     return (
-      <Box className="error-message" p={3}>
-        <Typography variant="h6" color="error" gutterBottom>
-          Error loading itinerary
-        </Typography>
-        <Typography variant="body1" color="error">
-          {error}
-        </Typography>
-      </Box>
+      <Container maxWidth="sm">
+        <Box 
+          display="flex" 
+          flexDirection="column" 
+          alignItems="center" 
+          justifyContent="center" 
+          minHeight="60vh"
+          p={3}
+        >
+          <Alert 
+            severity="error" 
+            variant="filled"
+            sx={{ 
+              width: '100%',
+              mb: 2,
+              '& .MuiAlert-message': {
+                width: '100%'
+              }
+            }}
+          >
+            <AlertTitle>Unable to Load Itinerary</AlertTitle>
+            {error}
+          </Alert>
+          <Button 
+            variant="contained" 
+            onClick={() => navigate('/')}
+            sx={{ mt: 2 }}
+          >
+            Return Home
+          </Button>
+        </Box>
+      </Container>
     );
   }
 
+
   // Render loading state
   if (!itinerary) {
-    return null;
+    return <LoadingSpinner message="Preparing your itinerary details..." />;
   }
 
   // Main render
@@ -333,17 +357,26 @@ const ItineraryPage = () => {
         </Box>
 
         {isBooking && (
-          <Box display="flex" flexDirection="column" alignItems="center" my={3}>
-            <CircularProgress size={40} />
-            <Typography variant="body1" color="textSecondary" sx={{ mt: 2 }}>
-              Processing booking {bookingProgress.current} of {bookingProgress.total}
-            </Typography>
+          <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1300 }}>
+            <LoadingSpinner message={`Processing booking ${bookingProgress.current} of ${bookingProgress.total}`} />
           </Box>
         )}
 
         {bookingError && (
-          <Alert severity="error" onClose={() => setBookingError(null)} sx={{ my: 2 }}>
-            <AlertTitle>Error</AlertTitle>
+          <Alert 
+            severity="error" 
+            onClose={() => setBookingError(null)} 
+            sx={{ 
+              my: 2,
+              position: 'fixed',
+              bottom: 16,
+              right: 16,
+              maxWidth: '90%',
+              width: 400,
+              zIndex: 1400
+            }}
+          >
+            <AlertTitle>Booking Error</AlertTitle>
             {bookingError}
           </Alert>
         )}

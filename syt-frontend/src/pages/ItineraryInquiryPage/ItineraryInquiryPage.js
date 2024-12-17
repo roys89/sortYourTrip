@@ -1,4 +1,3 @@
-// src/pages/ItineraryInquiry/ItineraryInquiryPage.js
 import {
   AttachMoney,
   DirectionsWalk,
@@ -22,7 +21,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterLuxon } from "@mui/x-date-pickers/AdapterLuxon";
 import axios from "axios";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import DepartureCityForm from "../../components/ItineraryInquiryForm/DepartureCityForm/DepartureCityForm";
 import DepartureDateForm from "../../components/ItineraryInquiryForm/DepartureDateForm/DepartureDateForm";
@@ -32,11 +31,9 @@ import SelectCityForm from "../../components/ItineraryInquiryForm/SelectCityForm
 import TravelersDetailsForm from "../../components/ItineraryInquiryForm/TravelersDetailsForm/TravelersDetailsForm";
 import SignIn from "../../components/SignIn/SignIn";
 import SignUp from "../../components/SignUp/SignUp";
-import { checkAuthStatus } from "../../redux/slices/authSlice";
 import "./ItineraryInquiryPage.css";
 
 const ItineraryInquiryPage = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -77,6 +74,22 @@ const ItineraryInquiryPage = () => {
     },
   });
 
+  // Update user info when authenticated
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      setItineraryData((prev) => ({
+        ...prev,
+        userInfo: {
+          userId: user._id || "",
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          email: user.email || "",
+          phoneNumber: user.phoneNumber || "",
+        },
+      }));
+    }
+  }, [user, isAuthenticated]);
+
   // Configuration
   const steps = [
     "Select City",
@@ -101,29 +114,8 @@ const ItineraryInquiryPage = () => {
     return !!(destination && destinationType);
   }, [destination, destinationType]);
 
-  // Effects
-  // useEffect(() => {
-  //   dispatch(checkAuthStatus());
-  // }, [dispatch]);
-
-  useEffect(() => {
-    if (user && isAuthenticated) {
-      setItineraryData((prev) => ({
-        ...prev,
-        userInfo: {
-          userId:user._id || "",
-          firstName: user.firstName || "",
-          lastName: user.lastName || "",
-          email: user.email || "",
-          phoneNumber: user.phoneNumber || "",
-        },
-      }));
-    }
-  }, [user, isAuthenticated]);
-
   // Navigation handlers
   const handleNext = useCallback(() => setActiveStep((prev) => prev + 1), []);
-
   const handleBack = useCallback(() => setActiveStep((prev) => prev - 1), []);
 
   // Form handlers
@@ -153,9 +145,7 @@ const ItineraryInquiryPage = () => {
     setItineraryData((prev) => ({
       ...prev,
       preferences: {
-        selectedInterests: Array.isArray(selectedInterests)
-          ? selectedInterests
-          : [],
+        selectedInterests: Array.isArray(selectedInterests) ? selectedInterests : [],
         budget,
       },
     }));
@@ -167,45 +157,44 @@ const ItineraryInquiryPage = () => {
 
   // Cost calculation and submission
   const handleGetCost = useCallback(async () => {
-    if (isAuthenticated) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.post(
-          "http://localhost:5000/api/itineraryInquiry",
-          {
-            ...itineraryData,
-            // Include user ID if needed (though now handled by backend)
-            userId: user?._id 
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-  
-        const { itineraryInquiryToken } = response.data;
-        navigate("/itinerary", { state: { itineraryInquiryToken } });
-      } catch (error) {
-        console.error("Error saving itinerary inquiry:", error);
-        if (error.response?.status === 401) {
-          setIsSignUpPopupOpen(true);
-        }
-      }
-    } else {
+    if (!isAuthenticated) {
       setIsSignUpPopupOpen(true);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        "http://localhost:5000/api/itineraryInquiry",
+        {
+          ...itineraryData,
+          userId: user?._id
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const { itineraryInquiryToken } = response.data;
+      navigate("/itinerary", { state: { itineraryInquiryToken } });
+    } catch (error) {
+      console.error("Error saving itinerary inquiry:", error);
+      if (error.response?.status === 401) {
+        setIsSignUpPopupOpen(true);
+      }
     }
   }, [itineraryData, isAuthenticated, navigate, user]);
+
   // Auth handlers
   const handleSignUpSuccess = useCallback(() => {
-    dispatch(checkAuthStatus());
     setIsSignUpPopupOpen(false);
     handleGetCost();
-  }, [dispatch, handleGetCost]);
+  }, [handleGetCost]);
 
   const handleSignInSuccess = useCallback(() => {
-    dispatch(checkAuthStatus());
     setIsSignUpPopupOpen(false);
     handleGetCost();
-  }, [dispatch, handleGetCost]);
+  }, [handleGetCost]);
 
   // Redirect if invalid state
   if (!isValid) {
@@ -213,7 +202,7 @@ const ItineraryInquiryPage = () => {
     return null;
   }
 
-  // Render functions
+  // Render active step content
   const renderActiveStep = () => {
     switch (activeStep) {
       case 0:
@@ -269,10 +258,7 @@ const ItineraryInquiryPage = () => {
             }
             budget={itineraryData.preferences.budget}
             setBudget={(budget) =>
-              savePreferences(
-                itineraryData.preferences.selectedInterests,
-                budget
-              )
+              savePreferences(itineraryData.preferences.selectedInterests, budget)
             }
           />
         );
@@ -286,42 +272,19 @@ const ItineraryInquiryPage = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterLuxon}>
       <div className="inquiry-container">
-        <Grid
-          container
-          justifyContent="center"
-          sx={{
-            width: '100%',
-            m: 0,
-            p: 0
-          }}
-        >
-          <Grid 
-            item 
-            xs={12} 
-            md={7}
-            lg={6}
-            sx={{
+        <Grid container justifyContent="center" sx={{ width: '100%', m: 0, p: 0 }}>
+          <Grid item xs={12} md={7} lg={6} sx={{ width: '100%', p: { xs: 1, sm: 2 }, height: '100%' }}>
+            <Box className="inquiry-box" sx={{
+              backgroundColor: theme.palette.mode === "dark" ? "rgba(51, 51, 51, 0.9)" : "rgba(255, 209, 174, 0.9)",
+              p: { xs: 2, sm: 3, md: 4 },
+              borderRadius: { xs: '16px', sm: '24px' },
               width: '100%',
-              p: { xs: 1, sm: 2 },
-              height: '100%'
-            }}
-          >
-            <Box
-              className="inquiry-box"
-              sx={{
-                backgroundColor: theme.palette.mode === "dark"
-                  ? "rgba(51, 51, 51, 0.9)"
-                  : "rgba(255, 209, 174, 0.9)",
-                p: { xs: 2, sm: 3, md: 4 },
-                borderRadius: { xs: '16px', sm: '24px' },
-                width: '100%',
-                maxWidth: '900px',
-                mx: 'auto',
-                boxSizing: 'border-box',
-                overflowY: 'auto',
-                overflowX: 'hidden'
-              }}
-            >
+              maxWidth: '900px',
+              mx: 'auto',
+              boxSizing: 'border-box',
+              overflowY: 'auto',
+              overflowX: 'hidden'
+            }}>
               <Stepper 
                 activeStep={activeStep} 
                 alternativeLabel
@@ -372,39 +335,30 @@ const ItineraryInquiryPage = () => {
                 ))}
               </Stepper>
 
-
-              <Box
-                mt={2} // Reduced margin top on mobile
-                sx={{
-                  "& .MuiGrid-container": {
-                    margin: 0,
-                    width: "100%",
-                  },
-                }}
-              >
+              <Box mt={2} sx={{
+                "& .MuiGrid-container": {
+                  margin: 0,
+                  width: "100%",
+                },
+              }}>
                 {renderActiveStep()}
               </Box>
 
-              <Box
-                mt={2}
-                display="flex"
-                justifyContent={activeStep === 0 ? "center" : "space-between"}
-                sx={{
-                  gap: 2,
-                  flexDirection: { xs: "column", sm: "row" },
-                  "& .MuiButton-root": {
-                    width: { xs: "100%", sm: "auto" },
-                    minWidth: { sm: "120px" },
-                  },
-                }}
-              >
+              <Box mt={2} display="flex" justifyContent={activeStep === 0 ? "center" : "space-between"} sx={{
+                gap: 2,
+                flexDirection: { xs: "column", sm: "row" },
+                "& .MuiButton-root": {
+                  width: { xs: "100%", sm: "auto" },
+                  minWidth: { sm: "120px" },
+                },
+              }}>
                 {activeStep > 0 && (
                   <Button
                     onClick={handleBack}
                     variant="outlined"
                     sx={{
                       borderRadius: "30px",
-                      order: { xs: 2, sm: 1 }, // Change button order on mobile
+                      order: { xs: 2, sm: 1 },
                     }}
                   >
                     Back
@@ -422,7 +376,7 @@ const ItineraryInquiryPage = () => {
                   }
                   sx={{
                     borderRadius: "30px",
-                    order: { xs: 1, sm: 2 }, // Change button order on mobile
+                    order: { xs: 1, sm: 2 },
                   }}
                 >
                   {activeStep === 5 ? "Get Cost" : "Next"}
@@ -443,66 +397,43 @@ const ItineraryInquiryPage = () => {
             p: { xs: 1, sm: 2, md: 3 },
           }}
         >
-          <Box
-            sx={{
-              width: "95%",
-              maxWidth: showSignUp ? "800px" : "400px",
-              backgroundColor:
-                theme.palette.mode === "dark"
-                  ? "rgba(46, 46, 46)"
-                  : "rgba(255, 239, 226)",
-              borderRadius: "12px",
-              boxShadow: 24,
-              maxHeight: "90vh",
-              overflowY: "auto",
-              position: "relative",
-              "&:focus": {
-                outline: "none",
-              },
-              // Center scrollbar
-              "&::-webkit-scrollbar": {
-                width: "8px",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "rgba(0,0,0,0.2)",
-                borderRadius: "4px",
-              },
-            }}
-          >
-            <Box
-              sx={{
-                p: { xs: 2, sm: 3 },
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-              }}
-            >
-              <Typography
-                variant="h6"
-                gutterBottom
-                sx={{ textAlign: "center" }}
-              >
+          <Box sx={{
+            width: "95%",
+            maxWidth: showSignUp ? "800px" : "400px",
+            backgroundColor: theme.palette.mode === "dark" ? "rgba(46, 46, 46)" : "rgba(255, 239, 226)",
+            borderRadius: "12px",
+            boxShadow: 24,
+            maxHeight: "90vh",
+            overflowY: "auto",
+            position: "relative",
+            "&:focus": { outline: "none" },
+            "&::-webkit-scrollbar": { width: "8px" },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "rgba(0,0,0,0.2)",
+              borderRadius: "4px",
+            },
+          }}>
+            <Box sx={{
+              p: { xs: 2, sm: 3 },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}>
+              <Typography variant="h6" gutterBottom sx={{ textAlign: "center" }}>
                 Your adventure starts here!
               </Typography>
 
-              <Typography
-                variant="body1"
-                gutterBottom
-                sx={{ textAlign: "center", mb: 2 }}
-              >
-                Sign up or sign in to start crafting your perfect travel
-                itinerary.
+              <Typography variant="body1" gutterBottom sx={{ textAlign: "center", mb: 2 }}>
+                Sign up or sign in to start crafting your perfect travel itinerary.
               </Typography>
 
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 2,
-                  mb: 3,
-                  justifyContent: "center",
-                  width: "100%",
-                }}
-              >
+              <Box sx={{
+                display: "flex",
+                gap: 2,
+                mb: 3,
+                justifyContent: "center",
+                width: "100%",
+              }}>
                 <Button
                   variant="contained"
                   color="primary"

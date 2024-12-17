@@ -16,6 +16,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import CityAccordion from '../../components/Itinerary/CityAccordion';
 import PriceSummary from '../../components/Itinerary/PriceSummary';
 import ModalManager from '../../components/ModalManager';
+import { useAuth } from '../../context/AuthContext';
 import { clearAllActivityStates } from '../../redux/slices/activitySlice';
 import {
   createItinerary
@@ -35,6 +36,9 @@ const ItineraryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = location;
+
+  // Use the new auth context
+  const { isAuthenticated } = useAuth();
 
   const itineraryInquiryToken = state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
 
@@ -79,7 +83,10 @@ const ItineraryPage = () => {
           gradeCode: activity.tourGrade?.gradeCode
         },
         {
-          headers: { 'X-Inquiry-Token': itineraryInquiryToken }
+          headers: { 
+            'X-Inquiry-Token': itineraryInquiryToken,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         }
       );
   
@@ -93,7 +100,10 @@ const ItineraryPage = () => {
           bookingReference: referenceResponse.data
         },
         {
-          headers: { 'X-Inquiry-Token': itineraryInquiryToken }
+          headers: { 
+            'X-Inquiry-Token': itineraryInquiryToken,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         }
       );
   
@@ -107,15 +117,22 @@ const ItineraryPage = () => {
   const handlePriceUpdate = async () => {
     try {
       const totals = calculateItineraryTotal(itinerary, markups, tcsRates);
-      await axios.put(`http://localhost:5000/api/itinerary/${itineraryToken}/prices`, {
-        priceTotals: {
-          ...totals.segmentTotals,
-          subtotal: totals.subtotal,
-          tcsAmount: totals.tcsAmount,
-          tcsRate: totals.tcsRate,
-          grandTotal: totals.grandTotal
+      await axios.put(`http://localhost:5000/api/itinerary/${itineraryToken}/prices`, 
+        {
+          priceTotals: {
+            ...totals.segmentTotals,
+            subtotal: totals.subtotal,
+            tcsAmount: totals.tcsAmount,
+            tcsRate: totals.tcsRate,
+            grandTotal: totals.grandTotal
+          }
+        },
+        {
+          headers: { 
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         }
-      });
+      );
     } catch (error) {
       console.error('Error updating prices:', error);
       throw error;
@@ -124,6 +141,16 @@ const ItineraryPage = () => {
 
   const handleBookTrip = async () => {
     try {
+      // Check authentication
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/auth/login', { 
+          state: { from: location.pathname },
+          replace: true 
+        });
+        return;
+      }
+
       if (!itinerary || !markups || !tcsRates) {
         console.error('Missing required data for booking:', {
           hasItinerary: !!itinerary,
@@ -176,11 +203,23 @@ const ItineraryPage = () => {
       // Proceed with price totals and navigation
       await handlePriceUpdate();
       navigate('/booking-form', { 
-        state: { itinerary }
+        state: { 
+          itinerary,
+          itineraryToken,
+          inquiryToken: itineraryInquiryToken
+        }
       });
   
     } catch (error) {
-      handleBookingError(error);
+      // Handle authentication-related errors
+      if (error.response?.status === 401) {
+        navigate('/auth/login', { 
+          state: { from: location.pathname },
+          replace: true 
+        });
+      } else {
+        handleBookingError(error);
+      }
     } finally {
       setIsBooking(false);
     }
@@ -188,6 +227,16 @@ const ItineraryPage = () => {
 
   // Effects
   useEffect(() => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      navigate('/auth/login', { 
+        state: { from: location.pathname },
+        replace: true 
+      });
+      return;
+    }
+
+    // Existing logic for checking itinerary token
     if (!itineraryInquiryToken) {
       navigate('/', { replace: true });
       return;
@@ -200,11 +249,13 @@ const ItineraryPage = () => {
         await dispatch(createItinerary(itineraryInquiryToken)).unwrap();
       } catch (err) {
         console.error('Error handling itinerary:', err);
+        // Redirect on error
+        navigate('/', { replace: true });
       }
     };
   
     handleItinerary();
-  }, [dispatch, itineraryInquiryToken, navigate]);
+  }, [dispatch, itineraryInquiryToken, navigate, isAuthenticated]);
 
   // Render loading state
   if (loading || checkingExisting) {

@@ -1,4 +1,3 @@
-// src/components/Navbar/Navbar.js
 import {
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
@@ -54,18 +53,30 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
   const handleUserMenuOpen = (event) => setUserMenuAnchor(event.currentTarget);
   const handleUserMenuClose = () => setUserMenuAnchor(null);
 
-  const handleSignInOpen = () => {
+  // Modified auth handlers to support both modal and page navigation
+  const handleSignInClick = () => {
     handleMobileMenuClose();
-    setSignInOpen(true);
+    if (location.pathname.includes('/itinerary') || 
+        location.pathname.includes('/booking') ||
+        location.state?.showModal) {
+      setSignInOpen(true);
+    } else {
+      navigate('/auth/login');
+    }
+  };
+
+  const handleSignUpClick = () => {
+    handleMobileMenuClose();
+    if (location.pathname.includes('/itinerary') || 
+        location.pathname.includes('/booking') ||
+        location.state?.showModal) {
+      setSignUpOpen(true);
+    } else {
+      navigate('/auth/register');
+    }
   };
 
   const handleSignInClose = () => setSignInOpen(false);
-
-  const handleSignUpOpen = () => {
-    handleMobileMenuClose();
-    setSignUpOpen(true);
-  };
-
   const handleSignUpClose = () => setSignUpOpen(false);
 
   const handleLogout = async () => {
@@ -79,7 +90,7 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
     }
   };
 
-  // Create the mobile menu items array
+  // Modified mobile menu items
   const mobileMenuItems = [
     { to: "/", label: "Home" },
     { to: "/about", label: "About Us" },
@@ -92,12 +103,12 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
           { label: "Logout", onClick: handleLogout },
         ]
       : [
-          { label: "Sign In", onClick: handleSignInOpen },
-          { label: "Sign Up", onClick: handleSignUpOpen },
+          { label: "Sign In", onClick: handleSignInClick },
+          { label: "Sign Up", onClick: handleSignUpClick },
         ]),
   ];
 
-  // Create the user menu items array
+  // User menu items remain the same
   const userMenuItems = [
     {
       component: Box,
@@ -212,13 +223,13 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
       ) : (
         <>
           <Button
-            onClick={handleSignInOpen}
+            onClick={handleSignInClick}
             sx={{ color: theme.palette.text.primary }}
           >
             Sign In
           </Button>
           <Button
-            onClick={handleSignUpOpen}
+            onClick={handleSignUpClick}
             sx={{ color: theme.palette.text.primary }}
           >
             Sign Up

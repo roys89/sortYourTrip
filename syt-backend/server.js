@@ -11,6 +11,7 @@ const destinationRoutes = require('./routes/destinationRoutes');
 const cityAirportRoutes = require('./routes/cityAirportRoutes');
 const itineraryInquiryRoutes = require("./routes/itineraryInquiryRoutes");
 const itineraryRoutes = require('./routes/itineraryRoutes/itineraryRoutes');
+const itineraryBookingRoutes = require('./routes/itineraryRoutes/itineraryBookingRoutes');
 const markupRoutes = require('./routes/markupRoutes');
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/cities-with-airports', cityAirportRoutes);
 app.use("/api/itineraryInquiry", itineraryInquiryRoutes);
 app.use("/api/itinerary", itineraryRoutes); 
 app.use("/api/markup", markupRoutes); 
+app.use("/api/bookings", itineraryBookingRoutes); 
 // 404 route handler
 app.use((req, res, next) => {
   res.status(404).send({ message: 'Route not found' });

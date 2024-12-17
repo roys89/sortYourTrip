@@ -1,23 +1,21 @@
-// SignIn.js
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
+  Divider,
+  IconButton,
+  InputAdornment,
   TextField,
-  Typography,
-  useMediaQuery,
-  useTheme
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../redux/slices/authSlice';
-import './SignIn.css';
 
 const SignIn = ({ handleClose }) => {
   const dispatch = useDispatch();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { loading, error } = useSelector(state => state.auth);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -39,136 +37,150 @@ const SignIn = ({ handleClose }) => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // Add Google login logic
-  };
-
-  const handleFacebookLogin = () => {
-    // Add Facebook login logic
-  };
-
   return (
-    <Box 
-      className="sign-in-container"
+    <Box
+      component="form"
+      onSubmit={handleSignIn}
       sx={{
         width: '100%',
-        padding: { xs: 2, sm: 3 },
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxSizing: 'border-box',
+        gap: 2,
+        my: 2
       }}
     >
-      <Box
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ 
+            borderRadius: 2,
+            bgcolor: 'error.lighter'
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+
+      <TextField
+        fullWidth
+        label="Email Address"
+        name="email"
+        type="email"
+        value={formData.email}
+        onChange={handleChange}
+        disabled={loading}
         sx={{
-          width: '100%',
-          maxWidth: '320px',
-          margin: '0 auto',
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 2,
+            bgcolor: 'background.paper',
+          }
+        }}
+      />
+
+      <TextField
+        fullWidth
+        label="Password"
+        name="password"
+        type={showPassword ? 'text' : 'password'}
+        value={formData.password}
+        onChange={handleChange}
+        disabled={loading}
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                onClick={() => setShowPassword(!showPassword)}
+                edge="end"
+              >
+                {showPassword ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 2,
+            bgcolor: 'background.paper',
+          }
+        }}
+      />
+
+      <Button
+        type="submit"
+        fullWidth
+        variant="contained"
+        disabled={loading}
+        sx={{
+          py: 1.5,
+          mt: 1,
+          borderRadius: 2,
+          textTransform: 'none',
+          fontSize: '1rem',
+          fontWeight: 500,
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: 'none',
+          }
         }}
       >
-        <Typography 
-          component="h1" 
-          variant="h5" 
-          sx={{ 
-            textAlign: 'center',
-            mb: 3
-          }}
-        >
-          Sign In
-        </Typography>
-        
-        {error && (
-          <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+        {loading ? 'Signing in...' : 'Sign In'}
+      </Button>
 
-        <Box 
-          component="form" 
-          onSubmit={handleSignIn} 
-          sx={{
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2
-          }}
-        >
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={formData.email}
-            onChange={handleChange}
-            disabled={loading}
-            sx={{ mb: 1 }}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={formData.password}
-            onChange={handleChange}
-            disabled={loading}
-            sx={{ mb: 1 }}
-          />
-          
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            disabled={loading}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </Button>
-
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={handleGoogleLogin}
-            className="google-login-button"
-            sx={{
-              mt: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 1
-            }}
-          >
-            <img src="/assets/icons/google.png" alt="Google" className="social-icon" />
-            Continue with Google
-          </Button>
-
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={handleFacebookLogin}
-            className="facebook-login-button"
-            sx={{
-              mt: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 1
-            }}
-          >
-            <img src="/assets/icons/facebook.png" alt="Facebook" className="social-icon" />
-            Continue with Facebook
-          </Button>
-        </Box>
+      <Box sx={{ position: 'relative', my: 2 }}>
+        <Divider>or</Divider>
       </Box>
+
+      <Button
+        fullWidth
+        variant="outlined"
+        onClick={() => window.location.href = '/auth/google'}
+        className="google-login-button"
+        sx={{
+          py: 1.5,
+          borderRadius: 2,
+          textTransform: 'none',
+          fontSize: '1rem',
+          fontWeight: 500,
+          borderWidth: 2,
+          '&:hover': {
+            borderWidth: 2,
+          }
+        }}
+      >
+        <img 
+          src="/assets/icons/google.png" 
+          alt="Google" 
+          style={{ width: 20, height: 20, marginRight: 8 }} 
+        />
+        Continue with Google
+      </Button>
+
+      <Button
+        fullWidth
+        variant="outlined"
+        onClick={() => window.location.href = '/auth/facebook'}
+        className="facebook-login-button"
+        sx={{
+          py: 1.5,
+          borderRadius: 2,
+          textTransform: 'none',
+          fontSize: '1rem',
+          fontWeight: 500,
+          borderWidth: 2,
+          '&:hover': {
+            borderWidth: 2,
+          }
+        }}
+      >
+        <img 
+          src="/assets/icons/facebook.png" 
+          alt="Facebook" 
+          style={{ width: 20, height: 20, marginRight: 8 }} 
+        />
+        Continue with Facebook
+      </Button>
     </Box>
   );
 };
+
 export default SignIn;

@@ -102,9 +102,9 @@ const ItineraryInquiryPage = () => {
   }, [destination, destinationType]);
 
   // Effects
-  useEffect(() => {
-    dispatch(checkAuthStatus());
-  }, [dispatch]);
+  // useEffect(() => {
+  //   dispatch(checkAuthStatus());
+  // }, [dispatch]);
 
   useEffect(() => {
     if (user && isAuthenticated) {
@@ -168,15 +168,19 @@ const ItineraryInquiryPage = () => {
   const handleGetCost = useCallback(async () => {
     if (isAuthenticated) {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem('token');
         const response = await axios.post(
           "http://localhost:5000/api/itineraryInquiry",
-          itineraryData,
+          {
+            ...itineraryData,
+            // Include user ID if needed (though now handled by backend)
+            userId: user?._id 
+          },
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-
+  
         const { itineraryInquiryToken } = response.data;
         navigate("/itinerary", { state: { itineraryInquiryToken } });
       } catch (error) {
@@ -188,8 +192,7 @@ const ItineraryInquiryPage = () => {
     } else {
       setIsSignUpPopupOpen(true);
     }
-  }, [itineraryData, isAuthenticated, navigate]);
-
+  }, [itineraryData, isAuthenticated, navigate, user]);
   // Auth handlers
   const handleSignUpSuccess = useCallback(() => {
     dispatch(checkAuthStatus());

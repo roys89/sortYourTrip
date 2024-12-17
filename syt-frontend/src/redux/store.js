@@ -2,6 +2,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import activityReducer from './slices/activitySlice';
 import authReducer from './slices/authSlice';
+import bookingReducer from './slices/bookingSlice';
 import flightReducer from './slices/flightSlice';
 import hotelReducer from './slices/hotelSlice';
 import itineraryReducer from './slices/itinerarySlice';
@@ -21,6 +22,7 @@ export const store = configureStore({
     markup: markupReducer, 
     price: priceReducer,
     notifications: notificationReducer,
+    booking: bookingReducer
   }
 });
 

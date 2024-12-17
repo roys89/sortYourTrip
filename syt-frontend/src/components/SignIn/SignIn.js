@@ -7,6 +7,7 @@ import {
   IconButton,
   InputAdornment,
   TextField,
+  useTheme,
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,6 +17,7 @@ const SignIn = ({ handleClose }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector(state => state.auth);
   const [showPassword, setShowPassword] = useState(false);
+  const theme = useTheme();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -54,7 +56,9 @@ const SignIn = ({ handleClose }) => {
           severity="error" 
           sx={{ 
             borderRadius: 2,
-            bgcolor: 'error.lighter'
+            bgcolor: theme.palette.mode === 'light' 
+              ? 'error.lighter' 
+              : 'rgba(211, 47, 47, 0.2)'
           }}
         >
           {error}
@@ -72,7 +76,13 @@ const SignIn = ({ handleClose }) => {
         sx={{
           '& .MuiOutlinedInput-root': {
             borderRadius: 2,
-            bgcolor: 'background.paper',
+            bgcolor: theme.palette.background.paper,
+            '&.Mui-focused fieldset': {
+              borderColor: theme.palette.primary.main,
+            }
+          },
+          '& label.Mui-focused': {
+            color: theme.palette.primary.main,
           }
         }}
       />
@@ -91,6 +101,11 @@ const SignIn = ({ handleClose }) => {
               <IconButton
                 onClick={() => setShowPassword(!showPassword)}
                 edge="end"
+                sx={{
+                  color: theme.palette.mode === 'light' 
+                    ? 'rgba(0,0,0,0.54)' 
+                    : 'rgba(255,255,255,0.7)'
+                }}
               >
                 {showPassword ? <VisibilityOff /> : <Visibility />}
               </IconButton>
@@ -100,7 +115,13 @@ const SignIn = ({ handleClose }) => {
         sx={{
           '& .MuiOutlinedInput-root': {
             borderRadius: 2,
-            bgcolor: 'background.paper',
+            bgcolor: theme.palette.background.paper,
+            '&.Mui-focused fieldset': {
+              borderColor: theme.palette.primary.main,
+            }
+          },
+          '& label.Mui-focused': {
+            color: theme.palette.primary.main,
           }
         }}
       />
@@ -118,8 +139,12 @@ const SignIn = ({ handleClose }) => {
           fontSize: '1rem',
           fontWeight: 500,
           boxShadow: 'none',
+          background: theme.palette.button.hoverGradient,
+          animation: theme.palette.button.hoverAnimation,
+          backgroundSize: '200% 100%',
           '&:hover': {
             boxShadow: 'none',
+            backgroundPosition: 'right center'
           }
         }}
       >
@@ -127,58 +152,82 @@ const SignIn = ({ handleClose }) => {
       </Button>
 
       <Box sx={{ position: 'relative', my: 2 }}>
-        <Divider>or</Divider>
+        <Divider 
+          sx={{ 
+            '&::before, &::after': {
+              borderColor: theme.palette.mode === 'light' 
+                ? 'rgba(0,0,0,0.12)' 
+                : 'rgba(255,255,255,0.2)'
+            }
+          }}
+        >
+          or
+        </Divider>
       </Box>
 
-      <Button
-        fullWidth
-        variant="outlined"
-        onClick={() => window.location.href = '/auth/google'}
-        className="google-login-button"
-        sx={{
-          py: 1.5,
-          borderRadius: 2,
-          textTransform: 'none',
-          fontSize: '1rem',
-          fontWeight: 500,
-          borderWidth: 2,
-          '&:hover': {
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        gap: 2 
+      }}>
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => window.location.href = '/auth/google'}
+          className="google-login-button"
+          sx={{
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '1rem',
+            fontWeight: 500,
             borderWidth: 2,
-          }
-        }}
-      >
-        <img 
-          src="/assets/icons/google.png" 
-          alt="Google" 
-          style={{ width: 20, height: 20, marginRight: 8 }} 
-        />
-        Continue with Google
-      </Button>
+            borderColor: theme.palette.mode === 'light' 
+              ? 'rgba(0,0,0,0.23)' 
+              : 'rgba(255,255,255,0.23)',
+            '&:hover': {
+              borderWidth: 2,
+              borderColor: theme.palette.primary.main
+            }
+          }}
+        >
+          <img 
+            src="/assets/icons/google.png" 
+            alt="Google" 
+            style={{ width: 20, height: 20, marginRight: 8 }} 
+          />
+          Continue with Google
+        </Button>
 
-      <Button
-        fullWidth
-        variant="outlined"
-        onClick={() => window.location.href = '/auth/facebook'}
-        className="facebook-login-button"
-        sx={{
-          py: 1.5,
-          borderRadius: 2,
-          textTransform: 'none',
-          fontSize: '1rem',
-          fontWeight: 500,
-          borderWidth: 2,
-          '&:hover': {
+        <Button
+          fullWidth
+          variant="outlined"
+          onClick={() => window.location.href = '/auth/facebook'}
+          className="facebook-login-button"
+          sx={{
+            py: 1.5,
+            borderRadius: 2,
+            textTransform: 'none',
+            fontSize: '1rem',
+            fontWeight: 500,
             borderWidth: 2,
-          }
-        }}
-      >
-        <img 
-          src="/assets/icons/facebook.png" 
-          alt="Facebook" 
-          style={{ width: 20, height: 20, marginRight: 8 }} 
-        />
-        Continue with Facebook
-      </Button>
+            borderColor: theme.palette.mode === 'light' 
+              ? 'rgba(0,0,0,0.23)' 
+              : 'rgba(255,255,255,0.23)',
+            '&:hover': {
+              borderWidth: 2,
+              borderColor: theme.palette.primary.main
+            }
+          }}
+        >
+          <img 
+            src="/assets/icons/facebook.png" 
+            alt="Facebook" 
+            style={{ width: 20, height: 20, marginRight: 8 }} 
+          />
+          Continue with Facebook
+        </Button>
+      </Box>
     </Box>
   );
 };

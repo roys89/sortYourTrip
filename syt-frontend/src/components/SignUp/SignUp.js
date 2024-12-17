@@ -70,7 +70,6 @@ const SignUp = ({ handleClose }) => {
       return;
     }
   
-    // Trim other fields, but NOT password
     const registrationData = {
       ...formData,
       firstName: formData.firstName.trim(),
@@ -80,7 +79,6 @@ const SignUp = ({ handleClose }) => {
       phoneNumber: formData.phoneNumber.trim(),
       countryCode: formData.countryCode.trim(),
       referralCode: formData.referralCode?.trim(),
-      // Keep password as-is, without trimming
       password: formData.password,
       confirmPassword: formData.confirmPassword
     };
@@ -116,9 +114,11 @@ const SignUp = ({ handleClose }) => {
       onSubmit={handleSubmit}
       sx={{
         width: '100%',
+        maxWidth: '700px', // Increased max width
+        margin: '0 auto', // Center the form
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
+        gap: 3, // Increased gap between elements
         my: 2
       }}
     >
@@ -138,7 +138,7 @@ const SignUp = ({ handleClose }) => {
         </Alert>
       )}
 
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
         <Grid item xs={12} sm={6}>
           <TextField
             {...commonTextFieldProps}
@@ -348,63 +348,63 @@ const SignUp = ({ handleClose }) => {
         <Divider>or</Divider>
       </Box>
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={() => handleSocialLogin('google')}
-            className="google-login-button"
-            sx={{
-              py: 1.5,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontSize: '1rem',
-              fontWeight: 500,
-              borderWidth: 2,
-              '&:hover': {
-                borderWidth: 2,
-              }
-            }}
-          >
-            <img 
-              src="/assets/icons/google.png" 
-              alt="Google" 
-              style={{ width: 20, height: 20, marginRight: 8 }} 
-            />
-            Continue with Google
-          </Button>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={() => handleSocialLogin('facebook')}
-            className="facebook-login-button"
-            sx={{
-              py: 1.5,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontSize: '1rem',
-              fontWeight: 500,
-              borderWidth: 2,
-              '&:hover': {
-                borderWidth: 2,
-              }
-            }}
-          >
-            <img 
-              src="/assets/icons/facebook.png" 
-              alt="Facebook" 
-              style={{ width: 20, height: 20, marginRight: 8 }} 
-            />
-            Continue with Facebook
-          </Button>
-        </Grid>
-      </Grid>
-    </Box>
-  );
-};
-
-export default SignUp;
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        gap: 2 
+      }}>
+        <Button
+         fullWidth
+         variant="outlined"
+         onClick={() => handleSocialLogin('google')}
+         className="google-login-button"
+         sx={{
+           py: 1.5,
+           borderRadius: 2,
+           textTransform: 'none',
+           fontSize: '1rem',
+           fontWeight: 500,
+           borderWidth: 2,
+           '&:hover': {
+             borderWidth: 2,
+           }
+         }}
+       >
+         <img 
+           src="/assets/icons/google.png" 
+           alt="Google" 
+           style={{ width: 20, height: 20, marginRight: 8 }} 
+         />
+         Continue with Google
+       </Button>
+ 
+       <Button
+         fullWidth
+         variant="outlined"
+         onClick={() => handleSocialLogin('facebook')}
+         className="facebook-login-button"
+         sx={{
+           py: 1.5,
+           borderRadius: 2,
+           textTransform: 'none',
+           fontSize: '1rem',
+           fontWeight: 500,
+           borderWidth: 2,
+           '&:hover': {
+             borderWidth: 2,
+           }
+         }}
+       >
+         <img 
+           src="/assets/icons/facebook.png" 
+           alt="Facebook" 
+           style={{ width: 20, height: 20, marginRight: 8 }} 
+         />
+         Continue with Facebook
+       </Button>
+     </Box>
+   </Box>
+ );
+ };
+ 
+ export default SignUp;

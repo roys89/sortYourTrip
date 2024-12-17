@@ -235,7 +235,7 @@ const ItineraryPage = () => {
       });
       return;
     }
-
+  
     // Existing logic for checking itinerary token
     if (!itineraryInquiryToken) {
       navigate('/', { replace: true });
@@ -255,7 +255,7 @@ const ItineraryPage = () => {
     };
   
     handleItinerary();
-  }, [dispatch, itineraryInquiryToken, navigate, isAuthenticated]);
+  }, [dispatch, itineraryInquiryToken, navigate, isAuthenticated, location.pathname]);
 
   // Render loading state
   if (loading || checkingExisting) {

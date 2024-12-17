@@ -524,7 +524,8 @@ exports.getItinerary = async (req, res) => {
       itineraryToken: itinerary.itineraryToken,
       inquiryToken: itinerary.inquiryToken,
       cities: itinerary.cities,
-      travelersDetails: itinerary.travelersDetails 
+      travelersDetails: itinerary.travelersDetails,
+      priceTotals: itinerary.priceTotals || null
     };
 
     res.json(formattedResponse);

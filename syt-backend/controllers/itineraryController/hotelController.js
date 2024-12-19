@@ -176,7 +176,7 @@ const formatHotelDetails = (hotel, search_id, recheckInfo, originalRate) => {
   const recheckRate = recheckInfo?.hotel?.rate;
   const existingPrice = originalRate?.price || 0;
   const priceDifference = (recheckRate?.price || 0) - existingPrice;
-
+  
   // Use recheck rate comments as they're more complete
   const rateComments = recheckRate?.rate_comments || {};
 
@@ -194,10 +194,14 @@ const formatHotelDetails = (hotel, search_id, recheckInfo, originalRate) => {
 
   return {
     hotelCode: hotel.hotel_code,
+    hotelProvider: 'GRNC',
+    cityCode: recheckInfo.hotel.city_code || null,
     name: hotel.name,
     address: hotel.address,
     category: hotel.category,
     description: hotel.description,
+    checkIn: hotel.checkIn || recheckInfo.hotel.checkIn,
+    checkOut: hotel.checkOut || recheckInfo.hotel.checkOut,
     images: [{
       url: hotel.images?.url || hotel.images?.main_image || null,
       variants: [{

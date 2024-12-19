@@ -59,6 +59,7 @@ exports.getGroundTransfer = async (transferData) => {
         if (detailedQuoteResponse.success) {
           return {
             type: "ground",
+            TransferProvider: 'LeAmigo',
             selectedQuote: detailedQuoteResponse.data,
             totalTravelers,
             origin: quoteParams.origin,

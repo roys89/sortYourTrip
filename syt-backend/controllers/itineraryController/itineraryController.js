@@ -199,72 +199,75 @@ exports.createItinerary = async (req, res) => {
 
     // Step 4: Process hotels and create initial structure
     const itineraryDaysByCity = [];
-    const cityActivitiesTracker = {};
+const cityActivitiesTracker = {};
 
-    for (const [index, { city, startDate, endDate }] of cityDayDistribution.entries()) {
-      console.log(`Processing city ${index + 1}/${cityDayDistribution.length}: ${city.city}`);
-      
-      // Get hotel for current city
-      console.log("Getting hotel...");
-      const hotelResponse = await processHotelsForCity(
+for (const [index, { city, startDate, endDate }] of cityDayDistribution.entries()) {
+  console.log(`Processing city ${index + 1}/${cityDayDistribution.length}: ${city.city}`);
+  
+  // Create extended checkout date (1 day after endDate)
+  const extendedCheckoutDate = new Date(endDate);
+  extendedCheckoutDate.setDate(extendedCheckoutDate.getDate() + 1);
+  
+  // Get hotel for current city with extended checkout date
+  console.log("Getting hotel...");
+  const hotelResponse = await processHotelsForCity(
+    {
+      city: city.city,
+      country: city.country,
+      startDate: startDate,
+      endDate: extendedCheckoutDate, // Use extended checkout date here
+      travelersDetails: inquiry.travelersDetails,
+      preferences: inquiry.preferences,
+      inquiryToken: inquiryToken
+    },
+    inquiry,
+    inquiryToken
+  );
+
+  const cityDetails = {
+    city: city.city,
+    cityCode: city.code,
+    country: city.country,
+    startDate,
+    endDate,
+    days: []
+  };
+
+  const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
+
+  // Process each day for the city
+  for (let dayOffset = 0; dayOffset < daysForThisCity; dayOffset++) {
+    const currentDate = new Date(startDate);
+    currentDate.setDate(currentDate.getDate() + dayOffset);
+    const formattedDate = currentDate.toISOString().split("T")[0];
+
+    console.log(`Processing activities for day ${dayOffset + 1}`);
+    const dayActivities = await processActivitiesForDay(
+      city,
+      inquiry,
+      formattedDate,
+      {
+        adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
+        childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat()
+      },
+      inquiryToken,
+      cityActivitiesTracker
+    );
+
+    const dayObject = {
+      date: formattedDate,
+      flights: [],
+      hotels: dayOffset === 0 ? [
         {
-          city: city.city,
-          country: city.country,
-          startDate: startDate,
-          endDate: endDate,
-          travelersDetails: inquiry.travelersDetails,
-          preferences: inquiry.preferences,
-          inquiryToken: inquiryToken
-        },
-        inquiry,
-        inquiryToken
-      );
-
-      // Log the hotelResponse in JSON format
-      // console.log("Hotel Response:", JSON.stringify(hotelResponse, null, 2));
-
-      const cityDetails = {
-        city: city.city,
-        cityCode: city.code,
-        country: city.country,
-        startDate,
-        endDate,
-        days: []
-      };
-
-      const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
-
-      // Process each day for the city
-      for (let dayOffset = 0; dayOffset < daysForThisCity; dayOffset++) {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(currentDate.getDate() + dayOffset);
-        const formattedDate = currentDate.toISOString().split("T")[0];
-
-        console.log(`Processing activities for day ${dayOffset + 1}`);
-        const dayActivities = await processActivitiesForDay(
-          city,
-          inquiry,
-          formattedDate,
-          {
-            adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
-            childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat()
-          },
-          inquiryToken,
-          cityActivitiesTracker
-        );
-
-        const dayObject = {
-          date: formattedDate,
-          flights: [],
-          hotels: dayOffset === 0 ? [
-            {
-              ...hotelResponse,
-              address: hotelResponse.address || null
-            }
-          ] : [],
-          activities: dayActivities.activities || [],
-          transfers: []
-        };
+          ...hotelResponse,
+          address: hotelResponse.address || null,
+          checkIn: startDate.toISOString().split("T")[0],
+          checkOut: extendedCheckoutDate.toISOString().split("T")[0] // Add checkout date explicitly
+        }
+      ] : [],
+      activities: dayActivities.activities || [],
+      transfers: []
+    };
 
 
         // Add departure flight to first day of first city

@@ -2,7 +2,7 @@ import { Box, Card, CardContent, Grid, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { DateTime } from "luxon";
 import React from "react";
-import "./ReviewForm.css"; // Import the CSS for custom styling
+import "./ReviewForm.css";
 
 const ReviewForm = ({ itineraryData }) => {
   const theme = useTheme();
@@ -17,7 +17,6 @@ const ReviewForm = ({ itineraryData }) => {
     includeFerryTransport,
   } = itineraryData;
 
-  // Function to format dates using Luxon
   const formatDate = (date) => {
     return DateTime.fromISO(date).toLocaleString(DateTime.DATE_MED);
   };
@@ -28,29 +27,16 @@ const ReviewForm = ({ itineraryData }) => {
         <Typography variant="body1">
           <strong>Type:</strong> {travelersDetails.type}
         </Typography>
-        {travelersDetails.type === "solo" && (
-          <Typography variant="body1">
-            Age: {travelersDetails.soloAge}
-          </Typography>
-        )}
-        {travelersDetails.type === "couple" && (
-          <>
-            <Typography variant="body1">
-              Adult 1 Age: {travelersDetails.coupleAdult1Age}
-            </Typography>
-            <Typography variant="body1">
-              Adult 2 Age: {travelersDetails.coupleAdult2Age}
-            </Typography>
-          </>
-        )}
-        {(travelersDetails.type === "family" ||
+        {(travelersDetails.type === "solo" || 
+          travelersDetails.type === "couple" || 
+          travelersDetails.type === "family" ||
           travelersDetails.type === "friends") && (
           <Box className="room-scroll-container">
             {travelersDetails.rooms.map((room, index) => (
               <Card
                 className="room-card"
                 key={index}
-                 style={{
+                style={{
                   backgroundColor:
                     theme.palette.mode === "dark"
                       ? "rgba(141, 141, 141, 0.5)"
@@ -67,9 +53,11 @@ const ReviewForm = ({ itineraryData }) => {
                   <Typography variant="body2">
                     <strong>Adults:</strong> {room.adults.join(", ")}
                   </Typography>
-                  <Typography variant="body2">
-                    <strong>Children:</strong> {room.children.join(", ")}
-                  </Typography>
+                  {room.children.length > 0 && (
+                    <Typography variant="body2">
+                      <strong>Children:</strong> {room.children.join(", ")}
+                    </Typography>
+                  )}
                 </CardContent>
               </Card>
             ))}

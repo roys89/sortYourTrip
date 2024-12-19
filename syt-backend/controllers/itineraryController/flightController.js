@@ -56,6 +56,7 @@ const generateMockFlight = async ({
   return {
     type,
     transportationType,
+    flightProvider: 'Self',
     flightCode: `${transportationType === 'flight' ? 'FL' : 'ALT'}-${departureAirport.iataCode}-${arrivalAirport.iataCode}`,
     
     origin: departureAirport.city,
@@ -89,7 +90,7 @@ const generateMockFlight = async ({
     arrivalTime: arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     airline: transportationType === 'flight' ? 'Emirates' : 'Alternative Transport',
     flightDuration: transportationType === 'flight' ? '4h 15m' : (transportationType === 'ground' ? '8h' : '2h 30m'),
-    price: transportationType === 'flight' ? 450 + Math.floor(Math.random() * 200) : (transportationType === 'ground' ? 150 : 250),
+    price: transportationType === 'flight' ? 450 + Math.floor(Math.random() * 2000) : (transportationType === 'ground' ? 1500 : 2500),
     
     travelers: travelers.rooms.map(room => ({
       adults: room.adults.length,

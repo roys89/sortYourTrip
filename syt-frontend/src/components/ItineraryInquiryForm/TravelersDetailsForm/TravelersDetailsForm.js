@@ -13,22 +13,13 @@ import "./TravelersDetailsForm.css";
 const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
   const [travelerType, setTravelerType] = useState("");
   const [rooms, setRooms] = useState([]);
-  const [soloAge, setSoloAge] = useState("");
-  const [coupleAdult1Age, setCoupleAdult1Age] = useState("");
-  const [coupleAdult2Age, setCoupleAdult2Age] = useState("");
-
-  const initialDataLoaded = useRef(false); // Flag to track initial data loading
+  
+  const initialDataLoaded = useRef(false);
 
   useEffect(() => {
     if (travelersDetails && !initialDataLoaded.current) {
-      // Populate the form fields with initial data from travelersDetails
       setTravelerType(travelersDetails.type || "");
       setRooms(travelersDetails.rooms || []);
-      setSoloAge(travelersDetails.soloAge || "");
-      setCoupleAdult1Age(travelersDetails.coupleAdult1Age || "");
-      setCoupleAdult2Age(travelersDetails.coupleAdult2Age || "");
-      
-      // Mark that initial data has been loaded to prevent further updates on mount
       initialDataLoaded.current = true;
     }
   }, [travelersDetails]);
@@ -38,19 +29,17 @@ const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
       saveTravelersDetails({
         type: travelerType,
         rooms,
-        soloAge,
-        coupleAdult1Age,
-        coupleAdult2Age,
       });
     }
-  }, [travelerType, rooms, soloAge, coupleAdult1Age, coupleAdult2Age, saveTravelersDetails]);
+  }, [travelerType, rooms, saveTravelersDetails]);
 
   const handleTypeChange = (event, newType) => {
     setTravelerType(newType);
-    setSoloAge("");
-    setCoupleAdult1Age("");
-    setCoupleAdult2Age("");
-    if (newType === "family" || newType === "friends") {
+    if (newType === "solo") {
+      setRooms([{ adults: [""], children: [] }]);
+    } else if (newType === "couple") {
+      setRooms([{ adults: ["", ""], children: [] }]);
+    } else if (newType === "family" || newType === "friends") {
       setRooms([{ adults: [], children: [] }]);
     } else {
       setRooms([]);
@@ -144,7 +133,7 @@ const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
           width: "100%",
           display: "flex",
           justifyContent: "center",
-        }} // Center the buttons
+        }}
       >
         <ToggleButton value="solo" sx={{ flex: 1, borderRadius: '30px' }}>
           Solo
@@ -161,50 +150,26 @@ const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
       </ToggleButtonGroup>
 
       <Box sx={{ width: "100%" }}>
-        {travelerType === "solo" && (
-          <TextField
-            label="Adult Age"
-            type="number"
-            fullWidth
-            sx={{
-              mb: 3,
-              "& .MuiOutlinedInput-root": {
-                borderRadius: '30px', // Add rounded corners to the adult input field
-              },
-            }}
-            value={soloAge}
-            onChange={(e) => setSoloAge(e.target.value)}
-          />
-        )}
-
-        {travelerType === "couple" && (
+        {(travelerType === "solo" || travelerType === "couple") && rooms[0] && (
           <>
-            <TextField
-              label="Adult 1 Age"
-              type="number"
-              fullWidth
-              sx={{
-                mb: 3,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: '30px',
-                },
-              }}
-              value={coupleAdult1Age}
-              onChange={(e) => setCoupleAdult1Age(e.target.value)}
-            />
-            <TextField
-              label="Adult 2 Age"
-              type="number"
-              fullWidth
-              sx={{
-                mb: 3,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: '30px',
-                },
-              }}
-              value={coupleAdult2Age}
-              onChange={(e) => setCoupleAdult2Age(e.target.value)}
-            />
+            {rooms[0].adults.map((adultAge, index) => (
+              <TextField
+                key={index}
+                label={`Adult ${index + 1} Age`}
+                type="number"
+                fullWidth
+                sx={{
+                  mb: 3,
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: '30px',
+                  },
+                }}
+                value={adultAge}
+                onChange={(e) =>
+                  handleRoomChange(0, "adults", index, e.target.value)
+                }
+              />
+            ))}
           </>
         )}
 
@@ -304,7 +269,7 @@ const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
                       startIcon={<Add />}
                       onClick={() => handleAddAdult(roomIndex)}
                       className="add-button add-adult-button"
-                      sx={{ borderRadius: '30px' }} // Add rounded corners to "Add Adult" button
+                      sx={{ borderRadius: '30px' }}
                     >
                       Add Adult
                     </Button>
@@ -315,7 +280,7 @@ const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
                     startIcon={<Add />}
                     onClick={() => handleAddChild(roomIndex)}
                     className="add-button add-child-button"
-                    sx={{ borderRadius: '30px' }} // Add rounded corners to "Add Child" button
+                    sx={{ borderRadius: '30px' }}
                   >
                     Add Child
                   </Button>
@@ -329,7 +294,7 @@ const TravelersDetailsForm = ({ saveTravelersDetails, travelersDetails }) => {
             variant="contained"
             startIcon={<Add />}
             onClick={handleAddRoom}
-            sx={{ mt: 3, borderRadius: '30px' }} // Add rounded corners to "Add Room" button
+            sx={{ mt: 3, borderRadius: '30px' }}
           >
             Add Room
           </Button>

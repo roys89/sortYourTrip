@@ -111,6 +111,7 @@ const CancellationSchema = new Schema({
 // Activity Schema - Modified to accept strings for inclusions and exclusions
 const ActivitySchema = new Schema({
   activityType: String,
+  activityProvider: String,
   activityCode: String,
   activityName: String,
   lat: Number,

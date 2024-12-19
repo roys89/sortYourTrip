@@ -18,7 +18,7 @@ import {
   useTheme
 } from '@mui/material';
 import axios from 'axios';
-import { Calendar, Check, ChevronLeft, IdCard, Info, MapPin, Send, UserCheck } from 'lucide-react';
+import { Calendar, Check, ChevronLeft, Hotel, IdCard, Info, MapPin, Send, UserCheck } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -90,6 +90,14 @@ const BookingForm = () => {
         : 'rgba(66, 66, 66, 0.5)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)'
+    },
+    roomSection: {
+      backgroundColor: theme.palette.mode === 'light'
+        ? 'rgba(255, 255, 255, 0.2)'
+        : 'rgba(66, 66, 66, 0.2)',
+      borderRadius: '16px',
+      p: 4,
+      mb: 4,
     },
     travelerSection: {
       backgroundColor: theme.palette.mode === 'light'
@@ -218,59 +226,64 @@ const BookingForm = () => {
         setLoading(true);
         const data = await fetchItinerary();
         setItinerary(data);
-
+    
         // Initialize travelers from itinerary data
         if (data.travelersDetails) {
-          const initialTravelers = [];
-          
-          if (data.travelersDetails.type === 'family') {
-            data.travelersDetails.rooms.forEach(room => {
-              // Add adult travelers
-              room.adults.forEach(age => {
-                initialTravelers.push({
-                  title: 'Mr.',
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  phone: '',
-                  dateOfBirth: '',
-                  age: age,
-                  passportNumber: '',
-                  passportIssueDate: '',
-                  passportExpiryDate: '',
-                  nationality: '',
-                  weight: '',
-                  height: '',
-                  preferredLanguage: '',
-                  foodPreference: ''
-                });
-              });
-
-              // Add child travelers
-              room.children?.forEach(age => {
-                initialTravelers.push({
-                  title: 'Mr.',
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  phone: '',
-                  dateOfBirth: '',
-                  age: age,
-                  passportNumber: '',
-                  passportIssueDate: '',
-                  passportExpiryDate: '',
-                  nationality: '',
-                  weight: '',
-                  height: '',
-                  preferredLanguage: '',
-                  foodPreference: ''
-                });
+          const roomsWithTravelers = data.travelersDetails.rooms.map((room, roomIndex) => {
+            const roomTravelers = {
+              roomNumber: roomIndex + 1,
+              travelers: []
+            };
+  
+            // Add adult travelers
+            room.adults?.forEach((age) => {
+              roomTravelers.travelers.push({
+                title: 'Mr.',
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                dateOfBirth: '',
+                age: age,
+                passportNumber: '',
+                passportIssueDate: '',
+                passportExpiryDate: '',
+                nationality: '',
+                weight: '',
+                height: '',
+                preferredLanguage: '',
+                foodPreference: '',
+                type: 'adult'
               });
             });
-          }
-
+  
+            // Add child travelers if any
+            room.children?.forEach((age) => {
+              roomTravelers.travelers.push({
+                title: 'Mr.',
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                dateOfBirth: '',
+                age: age,
+                passportNumber: '',
+                passportIssueDate: '',
+                passportExpiryDate: '',
+                nationality: '',
+                weight: '',
+                height: '',
+                preferredLanguage: '',
+                foodPreference: '',
+                type: 'child'
+              });
+            });
+  
+            return roomTravelers;
+          });
+  
           setFormData({
-            travelers: initialTravelers,
+            rooms: roomsWithTravelers,
             specialRequirements: ''
           });
         }
@@ -284,47 +297,62 @@ const BookingForm = () => {
     getItineraryData();
 }, [authLoading, isAuthenticated, tokens.itinerary, tokens.inquiry, fetchItinerary, navigate, location.pathname, location.search]);
 
-  const handleTravelerChange = (index, field, value) => {
-    setFormData(prev => {
-      const updatedTravelers = [...prev.travelers];
-      updatedTravelers[index] = {
-        ...updatedTravelers[index],
-        [field]: value
-      };
+const handleTravelerChange = (roomIndex, travelerIndex, field, value) => {
+  setFormData(prev => {
+    // Create a copy of the rooms array
+    const updatedRooms = [...prev.rooms];
+    
+    // Get the specific room and update the specific traveler
+    const room = updatedRooms[roomIndex];
+    const updatedTravelers = [...room.travelers];
+    updatedTravelers[travelerIndex] = {
+      ...updatedTravelers[travelerIndex],
+      [field]: value
+    };
 
-      if (field === 'dateOfBirth' && value) {
-        updatedTravelers[index].age = calculateAge(value).toString();
-      }
-
-      return {
-        ...prev,
-        travelers: updatedTravelers
-      };
-    });
-  };
-
-  const validateForm = () => {
-    const isTravelerInfoValid = formData.travelers.every(traveler => 
-      traveler.firstName &&
-      traveler.lastName &&
-      traveler.email &&
-      traveler.phone &&
-      traveler.dateOfBirth &&
-      traveler.passportNumber &&
-      traveler.passportIssueDate &&
-      traveler.passportExpiryDate &&
-      traveler.nationality &&
-      traveler.weight &&
-      traveler.height &&
-      traveler.preferredLanguage &&
-      traveler.foodPreference
-    );
-
-    if (!isTravelerInfoValid) {
-      setError('Please fill in all required fields for all travelers');
-      return false;
+    // If the field is dateOfBirth, update the age
+    if (field === 'dateOfBirth' && value) {
+      updatedTravelers[travelerIndex].age = calculateAge(value).toString();
     }
 
+    // Update the room's travelers
+    updatedRooms[roomIndex] = {
+      ...room,
+      travelers: updatedTravelers
+    };
+
+    // Return the updated form data
+    return {
+      ...prev,
+      rooms: updatedRooms
+    };
+  });
+};
+
+  const validateForm = () => {
+    const isAllRoomsValid = formData.rooms?.every(room =>
+      room.travelers.every(traveler => 
+        traveler.firstName &&
+        traveler.lastName &&
+        traveler.email &&
+        traveler.phone &&
+        traveler.dateOfBirth &&
+        traveler.passportNumber &&
+        traveler.passportIssueDate &&
+        traveler.passportExpiryDate &&
+        traveler.nationality &&
+        traveler.weight &&
+        traveler.height &&
+        traveler.preferredLanguage &&
+        traveler.foodPreference
+      )
+    );
+  
+    if (!isAllRoomsValid) {
+      setError('Please fill in all required fields for all travelers in all rooms');
+      return false;
+    }
+  
     return true;
   };
 
@@ -334,23 +362,43 @@ const BookingForm = () => {
     if (!validateForm()) {
       return;
     }
-
+  
     setLoading(true);
     setError(null);
-
+  
     try {
+      // Transform the form data to match the API structure
+      const transformedTravelersDetails = {
+        type: itinerary.travelersDetails.type,
+        rooms: formData.rooms.map(room => {
+          const adults = room.travelers
+            .filter(t => t.type === 'adult')
+            .map(t => t.age);
+          
+          const children = room.travelers
+            .filter(t => t.type === 'child')
+            .map(t => t.age);
+
+          return {
+            adults,
+            children
+          };
+        })
+      };
+
       const bookingData = transformBookingData(
-        itinerary, 
+        itinerary,
         {
-          travelers: formData.travelers,
-          specialRequirements: formData.specialRequirements
+          travelers: formData.rooms.flatMap(room => room.travelers),
+          rooms: formData.rooms,
+          specialRequirements: formData.specialRequirements,
+          travelersDetails: transformedTravelersDetails
         }
       );
-
-      // Add tokens to booking data
+  
       bookingData.inquiryToken = tokens.inquiry;
       bookingData.itineraryToken = tokens.itinerary;
-
+  
       const result = await dispatch(createBooking(bookingData)).unwrap();
       
       setSuccess(true);
@@ -370,6 +418,7 @@ const BookingForm = () => {
       setLoading(false);
     }
   };
+
 
   // Show loading state for auth or data fetching
   if (authLoading || loading) {
@@ -420,256 +469,265 @@ const BookingForm = () => {
                   <UserCheck size={32} />
                   Complete Your Booking
                 </Typography>
-
+  
                 <Box component="form" onSubmit={handleSubmit}>
-                  {formData.travelers.map((traveler, index) => (
-                    <Box key={index} sx={styles.travelerSection}>
-                      <Typography variant="h6" sx={styles.sectionTitle}>
-                        <UserCheck size={24} />
-                        Traveler {index + 1}
+                  {formData.rooms?.map((room, roomIndex) => (
+                    <Box key={roomIndex} sx={styles.roomSection}>
+                      <Typography variant="h5" sx={styles.sectionTitle}>
+                        <Hotel size={28} />
+                        Room {room.roomNumber}
                       </Typography>
-                      
-                      <Grid container spacing={3}>
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth sx={styles.select}>
-                            <InputLabel>Title</InputLabel>
-                            <Select
-                              value={traveler.title}
-                              onChange={(e) => handleTravelerChange(index, 'title', e.target.value)}
-                              disabled={loading}
-                            >
-                              <MenuItem value="Mr.">Mr.</MenuItem>
-                              <MenuItem value="Mrs.">Mrs.</MenuItem>
-                              <MenuItem value="Ms.">Ms.</MenuItem>
-                              <MenuItem value="Dr.">Dr.</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="First Name"
-                            value={traveler.firstName}
-                            onChange={(e) => handleTravelerChange(index, 'firstName', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Info size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Last Name"
-                            value={traveler.lastName}
-                            onChange={(e) => handleTravelerChange(index, 'lastName', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Info size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Email"
-                            type="email"
-                            value={traveler.email}
-                            onChange={(e) => handleTravelerChange(index, 'email', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Info size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Phone"
-                            value={traveler.phone}
-                            onChange={(e) => handleTravelerChange(index, 'phone', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Info size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Date of Birth"
-                            type="date"
-                            value={traveler.dateOfBirth}
-                            onChange={(e) => handleTravelerChange(index, 'dateOfBirth', e.target.value)}
-                            disabled={loading}
-                            InputLabelProps={{ shrink: true }}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Calendar size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Age"
-                            value={traveler.age}
-                            disabled
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Calendar size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Passport Number"
-                            value={traveler.passportNumber}
-                            onChange={(e) => handleTravelerChange(index, 'passportNumber', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <IdCard size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Nationality"
-                            value={traveler.nationality}
-                            onChange={(e) => handleTravelerChange(index, 'nationality', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <MapPin size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Passport Issue Date"
-                            type="date"
-                            value={traveler.passportIssueDate}
-                            onChange={(e) => handleTravelerChange(index, 'passportIssueDate', e.target.value)}
-                            disabled={loading}
-                            InputLabelProps={{ shrink: true }}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Calendar size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Passport Expiry Date"
-                            type="date"
-                            value={traveler.passportExpiryDate}
-                            onChange={(e) => handleTravelerChange(index, 'passportExpiryDate', e.target.value)}
-                            disabled={loading}
-                            InputLabelProps={{ shrink: true }}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Calendar size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Weight (kg)"
-                            type="number"
-                            value={traveler.weight}
-                            onChange={(e) => handleTravelerChange(index, 'weight', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Info size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            required
-                            fullWidth
-                            label="Height (cm)"
-                            type="number"
-                            value={traveler.height}
-                            onChange={(e) => handleTravelerChange(index, 'height', e.target.value)}
-                            disabled={loading}
-                            sx={styles.textField}
-                            InputProps={{
-                              startAdornment: <Info size={20} style={styles.icon} />
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth required sx={styles.select}>
-                            <InputLabel>Preferred Language</InputLabel>
-                            <Select
-                              value={traveler.preferredLanguage}
-                              onChange={(e) => handleTravelerChange(index, 'preferredLanguage', e.target.value)}
-                              label="Preferred Language"
-                              disabled={loading}
-                            >
-                              <MenuItem value="English">English</MenuItem>
-                              <MenuItem value="Hindi">Hindi</MenuItem>
-                              <MenuItem value="Arabic">Arabic</MenuItem>
-                              <MenuItem value="Spanish">Spanish</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth required sx={styles.select}>
-                            <InputLabel>Food Preference</InputLabel>
-                            <Select
-                              value={traveler.foodPreference}
-                              onChange={(e) => handleTravelerChange(index, 'foodPreference', e.target.value)}
-                              label="Food Preference"
-                              disabled={loading}
-                            >
-                              <MenuItem value="Vegetarian">Vegetarian</MenuItem>
-                              <MenuItem value="Non-Vegetarian">Non-Vegetarian</MenuItem>
-                              <MenuItem value="Vegan">Vegan</MenuItem>
-                              <MenuItem value="Halal">Halal</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-                      </Grid>
+  
+                      {room.travelers.map((traveler, travelerIndex) => (
+                        <Box key={travelerIndex} sx={styles.travelerSection}>
+                          <Typography variant="h6" sx={styles.sectionTitle}>
+                            <UserCheck size={24} />
+                            {traveler.type === 'adult' ? 'Adult' : 'Child'} {travelerIndex + 1}
+                          </Typography>
+                          
+                          <Grid container spacing={3}>
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth sx={styles.select}>
+                                <InputLabel>Title</InputLabel>
+                                <Select
+                                  value={traveler.title}
+                                  onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'title', e.target.value)}
+                                  disabled={loading}
+                                >
+                                  <MenuItem value="Mr.">Mr.</MenuItem>
+                                  <MenuItem value="Mrs.">Mrs.</MenuItem>
+                                  <MenuItem value="Ms.">Ms.</MenuItem>
+                                  <MenuItem value="Dr.">Dr.</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="First Name"
+                                value={traveler.firstName}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'firstName', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Info size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Last Name"
+                                value={traveler.lastName}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'lastName', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Info size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Email"
+                                type="email"
+                                value={traveler.email}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'email', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Info size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Phone"
+                                value={traveler.phone}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'phone', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Info size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Date of Birth"
+                                type="date"
+                                value={traveler.dateOfBirth}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'dateOfBirth', e.target.value)}
+                                disabled={loading}
+                                InputLabelProps={{ shrink: true }}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Calendar size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                fullWidth
+                                label="Age"
+                                value={traveler.age}
+                                disabled
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Calendar size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Passport Number"
+                                value={traveler.passportNumber}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'passportNumber', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <IdCard size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Nationality"
+                                value={traveler.nationality}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'nationality', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <MapPin size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Passport Issue Date"
+                                type="date"
+                                value={traveler.passportIssueDate}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'passportIssueDate', e.target.value)}
+                                disabled={loading}
+                                InputLabelProps={{ shrink: true }}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Calendar size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Passport Expiry Date"
+                                type="date"
+                                value={traveler.passportExpiryDate}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'passportExpiryDate', e.target.value)}
+                                disabled={loading}
+                                InputLabelProps={{ shrink: true }}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Calendar size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Weight (kg)"
+                                type="number"
+                                value={traveler.weight}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'weight', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Info size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <TextField
+                                required
+                                fullWidth
+                                label="Height (cm)"
+                                type="number"
+                                value={traveler.height}
+                                onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'height', e.target.value)}
+                                disabled={loading}
+                                sx={styles.textField}
+                                InputProps={{
+                                  startAdornment: <Info size={20} style={styles.icon} />
+                                }}
+                              />
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth required sx={styles.select}>
+                                <InputLabel>Preferred Language</InputLabel>
+                                <Select
+                                  value={traveler.preferredLanguage}
+                                  onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'preferredLanguage', e.target.value)}
+                                  label="Preferred Language"
+                                  disabled={loading}
+                                >
+                                  <MenuItem value="English">English</MenuItem>
+                                  <MenuItem value="Hindi">Hindi</MenuItem>
+                                  <MenuItem value="Arabic">Arabic</MenuItem>
+                                  <MenuItem value="Spanish">Spanish</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+  
+                            <Grid item xs={12} sm={6}>
+                              <FormControl fullWidth required sx={styles.select}>
+                                <InputLabel>Food Preference</InputLabel>
+                                <Select
+                                  value={traveler.foodPreference}
+                                  onChange={(e) => handleTravelerChange(roomIndex, travelerIndex, 'foodPreference', e.target.value)}
+                                  label="Food Preference"
+                                  disabled={loading}
+                                >
+                                  <MenuItem value="Vegetarian">Vegetarian</MenuItem>
+                                  <MenuItem value="Non-Vegetarian">Non-Vegetarian</MenuItem>
+                                  <MenuItem value="Vegan">Vegan</MenuItem>
+                                  <MenuItem value="Halal">Halal</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      ))}
                     </Box>
                   ))}
-
+  
                   <Box sx={styles.specialRequirements}>
                     <Typography variant="h6" sx={styles.sectionTitle}>
                       <Info size={24} />
@@ -691,7 +749,7 @@ const BookingForm = () => {
                       sx={styles.textField}
                     />
                   </Box>
-
+  
                   <Box
                     display="flex"
                     justifyContent="space-between"
@@ -728,7 +786,7 @@ const BookingForm = () => {
           </Grid>
         </Container>
       </Box>
-
+  
       <Snackbar
         open={!!error}
         autoHideDuration={6000}

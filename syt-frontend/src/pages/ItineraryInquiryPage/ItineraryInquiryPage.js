@@ -55,9 +55,6 @@ const ItineraryInquiryPage = () => {
     travelersDetails: {
       type: "",
       rooms: [],
-      soloAge: "",
-      coupleAdult1Age: "",
-      coupleAdult2Age: "",
     },
     preferences: {
       selectedInterests: [],

@@ -4,6 +4,7 @@ const activitySchema = new mongoose.Schema({
   activityCode: { type: String, required: true },
   duration: { type: String, required: true }, // Duration in hours
   activityType: { type: String, enum: ['offline', 'online'], required: true },
+  activityProvider: { type: String, required: true },
   activityName: { type: String, required: true },
   street: { type: String},
   city: { type: String, required: true },

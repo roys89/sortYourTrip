@@ -1,52 +1,35 @@
-// controllers/itineraryController/ItineraryBookingController.js
-const mongoose = require('mongoose');
-const ItineraryBooking = require('../../models/ItineraryBooking');
+const mongoose = require("mongoose");
+const ItineraryBooking = require("../../models/ItineraryBooking");
 
 class ItineraryBookingController {
-  // Create comprehensive booking
   async createBooking(req, res) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      const {
-        itineraryToken,
-        inquiryToken,
-        travelers,
-        activityBookings,
-        hotelBookings = [],
-        transferBookings = [],
-        flightBookings = [],
-        prices,
-        specialRequirements
-      } = req.body;
+      const bookingData = req.body;
 
-      // Create initial booking record - keeping original booking statuses
-      const booking = new ItineraryBooking({
-        itineraryToken,
-        inquiryToken,
+      // Validate required fields
+      if (!bookingData.itineraryToken || !bookingData.inquiryToken) {
+        throw new Error("Missing required booking tokens");
+      }
+
+      // Check for existing booking
+      const existingBooking = await ItineraryBooking.findOne({
+        itineraryToken: bookingData.itineraryToken,
         userId: req.user._id,
-        travelers,
-        prices,
-        specialRequirements,
-        status: 'pending',
-        // Keep original activityBookings without modifying their status
-        activityBookings,
-        hotelBookings,
-        transferBookings,
-        flightBookings
       });
 
-      // Determine overall booking status
-      const hasBookings = 
-        (activityBookings?.length > 0) ||
-        (hotelBookings?.length > 0) ||
-        (transferBookings?.length > 0) ||
-        (flightBookings?.length > 0);
-
-      if (!hasBookings) {
-        booking.status = 'failed';
+      if (existingBooking) {
+        throw new Error("Booking already exists for this itinerary");
       }
+
+      // Create booking with user ID
+      const booking = new ItineraryBooking({
+        ...bookingData,
+        userId: req.user._id,
+        status: "pending",
+      });
 
       // Save booking
       await booking.save({ session });
@@ -54,135 +37,286 @@ class ItineraryBookingController {
       // Commit transaction
       await session.commitTransaction();
 
-      // Respond with booking details
       res.status(201).json({
         success: true,
-        message: 'Booking created successfully',
-        data: booking
+        message: "Booking created successfully",
+        data: booking,
       });
     } catch (error) {
-      // Abort transaction on error
       await session.abortTransaction();
-      
-      // Log the error
-      console.error('Booking Creation Error:', error);
 
-      // Send error response
-      res.status(500).json({
+      res.status(error.status || 500).json({
         success: false,
-        message: 'Failed to create booking',
-        error: error.message
+        message: error.message || "Failed to create booking",
+        error: error.stack,
       });
     } finally {
-      // End the session
       session.endSession();
     }
   }
 
-  // Retrieve user bookings
-  async getUserBookings(req, res) {
+  async getBookings(req, res) {
     try {
-      const bookings = await ItineraryBooking.find({ 
-        userId: req.user._id 
-      })
-      .sort('-bookingDate')
-      .select('itineraryToken status prices bookingDate');
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const status = req.query.status;
+      const startDate = req.query.startDate;
+      const endDate = req.query.endDate;
+
+      // Build query
+      const query = { userId: req.user._id };
+      if (status) query.status = status;
+      if (startDate && endDate) {
+        query.bookingDate = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        };
+      }
+
+      // Execute query with pagination
+      const bookings = await ItineraryBooking.find(query)
+        .sort({ bookingDate: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .select("-__v");
+
+      // Get total count
+      const total = await ItineraryBooking.countDocuments(query);
 
       res.status(200).json({
         success: true,
-        results: bookings.length,
-        data: bookings
+        data: bookings,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       });
     } catch (error) {
-      console.error('Get User Bookings Error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve bookings',
-        error: error.message
+        message: "Failed to retrieve bookings",
+        error: error.message,
       });
     }
   }
 
-  // Get single booking details
   async getBooking(req, res) {
     try {
-      const booking = await ItineraryBooking.findById(req.params.id);
+      const booking = await ItineraryBooking.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+      });
 
       if (!booking) {
         return res.status(404).json({
           success: false,
-          message: 'Booking not found'
-        });
-      }
-
-      // Ensure user can only access their own bookings
-      if (booking.userId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to view this booking'
+          message: "Booking not found",
         });
       }
 
       res.status(200).json({
         success: true,
-        data: booking
+        data: booking,
       });
     } catch (error) {
-      console.error('Get Booking Error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve booking',
-        error: error.message
+        message: "Failed to retrieve booking",
+        error: error.message,
       });
     }
   }
 
-  // Get booking status
-  async getBookingStatus(req, res) {
+  async updateBookingStatus(req, res) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-      const booking = await ItineraryBooking.findOne({ 
-        itineraryToken: req.params.itineraryToken,
-        userId: req.user._id
+      const { id } = req.params;
+      const { status, component, componentId } = req.body;
+
+      const booking = await ItineraryBooking.findOne({
+        _id: id,
+        userId: req.user._id,
       });
 
       if (!booking) {
-        return res.status(404).json({
-          success: false,
-          message: 'Booking not found'
-        });
+        throw new Error("Booking not found");
       }
+
+      // Update specific component status if provided
+      if (component && componentId) {
+        const validComponents = ["activity", "hotel", "transfer", "flight"];
+        if (!validComponents.includes(component)) {
+          throw new Error("Invalid booking component");
+        }
+
+        // Find and update the specific component
+        switch (component) {
+          case "activity":
+            const activity = booking.activityBookings.find(
+              (a) => a.bookingRef === componentId
+            );
+            if (activity) activity.bookingStatus = status;
+            break;
+          case "hotel":
+            const hotel = booking.hotelBookings.find(
+              (h) => h.hotelCode === componentId
+            );
+            if (hotel) hotel.bookingStatus = status;
+            break;
+          case "transfer":
+            const transfer = booking.transferBookings.find(
+              (t) => t.quotationId === componentId
+            );
+            if (transfer) transfer.bookingStatus = status;
+            break;
+          case "flight":
+            const flight = booking.flightBookings.find(
+              (f) => f.flightCode === componentId
+            );
+            if (flight) flight.bookingStatus = status;
+            break;
+        }
+      }
+
+      // Update overall booking status
+      booking.status = this.calculateOverallStatus(booking);
+
+      // Save changes
+      await booking.save({ session });
+      await session.commitTransaction();
 
       res.status(200).json({
         success: true,
-        data: {
-          status: booking.status,
-          activityBookings: booking.activityBookings.map(activity => ({
-            activityCode: activity.activityCode,
-            status: activity.bookingStatus
-          })),
-          hotelBookings: booking.hotelBookings.map(hotel => ({
-            hotelCode: hotel.hotelCode,
-            status: hotel.bookingStatus
-          })),
-          transferBookings: booking.transferBookings.map(transfer => ({
-            quotationId: transfer.quotationId,
-            status: transfer.bookingStatus
-          })),
-          flightBookings: booking.flightBookings.map(flight => ({
-            flightCode: flight.flightCode,
-            status: flight.bookingStatus
-          }))
-        }
+        message: "Booking status updated successfully",
+        data: booking,
       });
     } catch (error) {
-      console.error('Get Booking Status Error:', error);
+      await session.abortTransaction();
+
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || "Failed to update booking status",
+        error: error.stack,
+      });
+    } finally {
+      session.endSession();
+    }
+  }
+
+  calculateOverallStatus(booking) {
+    // Get all component statuses
+    const statuses = [
+      ...booking.activityBookings.map((a) => a.bookingStatus),
+      ...booking.hotelBookings.map((h) => h.bookingStatus),
+      ...booking.transferBookings.map((t) => t.bookingStatus),
+      ...booking.flightBookings.map((f) => f.bookingStatus),
+    ];
+
+    if (statuses.length === 0) return "pending";
+
+    // If any component failed, mark as failed
+    if (statuses.includes("failed")) return "failed";
+
+    // If all confirmed, mark as confirmed
+    if (statuses.every((s) => s === "confirmed")) return "confirmed";
+
+    // If any cancelled, mark as cancelled
+    if (statuses.includes("cancelled")) return "cancelled";
+
+    // If some pending and some confirmed, mark as processing
+    if (statuses.includes("pending") && statuses.includes("confirmed"))
+      return "processing";
+
+    // Default to pending
+    return "pending";
+  }
+
+  async cancelBooking(req, res) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const booking = await ItineraryBooking.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+      });
+
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      // Check if booking can be cancelled
+      if (["confirmed", "cancelled", "failed"].includes(booking.status)) {
+        throw new Error(`Cannot cancel booking in ${booking.status} status`);
+      }
+
+      // Update all component statuses to cancelled
+      booking.activityBookings.forEach((a) => (a.bookingStatus = "cancelled"));
+      booking.hotelBookings.forEach((h) => (h.bookingStatus = "cancelled"));
+      booking.transferBookings.forEach((t) => (t.bookingStatus = "cancelled"));
+      booking.flightBookings.forEach((f) => (f.bookingStatus = "cancelled"));
+
+      // Update overall status
+      booking.status = "cancelled";
+
+      await booking.save({ session });
+      await session.commitTransaction();
+
+      res.status(200).json({
+        success: true,
+        message: "Booking cancelled successfully",
+        data: booking,
+      });
+    } catch (error) {
+      await session.abortTransaction();
+
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || "Failed to cancel booking",
+        error: error.stack,
+      });
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async getBookingStats(req, res) {
+    try {
+      const stats = await ItineraryBooking.aggregate([
+        { $match: { userId: mongoose.Types.ObjectId(req.user._id) } },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            totalAmount: { $sum: "$prices.grandTotal" },
+          },
+        },
+        {
+          $project: {
+            status: "$_id",
+            count: 1,
+            totalAmount: { $round: ["$totalAmount", 2] },
+            _id: 0,
+          },
+        },
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve booking status',
-        error: error.message
+        message: "Failed to retrieve booking statistics",
+        error: error.message,
       });
     }
   }
 }
 
-module.exports = new  ItineraryBookingController();
+module.exports = new ItineraryBookingController();

@@ -83,6 +83,7 @@ const getCityActivities = async (req) => {
             activityCode: activity.activityCode,
             activityName: activity.activityName,
             activityType: 'offline',
+            activityProvider: 'Self',
             duration: activity.duration,
             street: activity.street,
             city: activity.city,
@@ -166,6 +167,7 @@ const getCityActivities = async (req) => {
         return {
           searchId: searchId,
           activityType: 'online',
+          activityProvider: 'GRNC',
           activityCode: activity.activityCode,
           activityName: productInfo.title,
           lat: activity.lat,

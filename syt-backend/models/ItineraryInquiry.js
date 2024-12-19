@@ -21,18 +21,15 @@ const itineraryInquirySchema = new mongoose.Schema({
     destination_id: Number,
   },
   departureDates: {
-    startDate: { type: Date, required: true },  // store Luxon DateTime as ISO date
+    startDate: { type: Date, required: true },
     endDate: { type: Date, required: true }
   },
   travelersDetails: {
     type: { type: String, required: true },
     rooms: [{
-      adults: [String],  // store ages as strings
+      adults: [String],
       children: [String]
     }],
-    soloAge: String,
-    coupleAdult1Age: String,
-    coupleAdult2Age: String,
   },
   preferences: {
     selectedInterests: [String],

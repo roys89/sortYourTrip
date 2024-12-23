@@ -1,102 +1,226 @@
-import { Avatar, Box, Card, CardContent, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import React from 'react';
-import Slider from 'react-slick';
-import 'slick-carousel/slick/slick-theme.css';
-import 'slick-carousel/slick/slick.css';
-import './Testimony.css'; // Import the CSS file
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
 
 const testimonials = [
   {
-    name: 'John Doe',
-    image: '/path-to-image/john.jpg', // Replace with actual image path
-    testimony: 'This tour was absolutely amazing! The guides were so knowledgeable and friendly.',
+    name: 'Clara Benson',
+    avatar: '/assets/testimony/avatar/1f.jpg',
+    images: [
+      '/assets/testimony/images/001.jpg',
+      '/assets/testimony/images/002.jpg',
+      '/assets/testimony/images/003.jpg',
+      '/assets/testimony/images/004.jpg'
+    ],
+    rating: 5,
+    quote: "Lorem Ipsum Dolor sit amet, consectur at cupidator",
+    testimony: 'Lorem ipsum dolor sit amet, consectetur at cupidatat non proident,sunt in culpa qui officia deserunt mollit anim id est laborum.'
   },
   {
-    name: 'Jane Smith',
-    image: '/path-to-image/jane.jpg', // Replace with actual image path
-    testimony: 'I had the trip of a lifetime thanks to SortYourTrip! Everything was perfectly organized.',
+    name: 'John Smith',
+    avatar: '/assets/testimony/avatar/1m.jpg',
+    images: [
+      '/assets/testimony/images/005.jpg',
+      '/assets/testimony/images/006.jpg',
+      '/assets/testimony/images/007.jpg',
+      '/assets/testimony/images/008.jpg'
+    ],
+    rating: 5,
+    quote: "Another amazing experience",
+    testimony: 'Another wonderful testimonial about the amazing travel experience.'
   },
   {
-    name: 'Sam Wilson',
-    image: '/path-to-image/sam.jpg', // Replace with actual image path
-    testimony: 'I will definitely book with SortYourTrip again! It was such an effortless experience.',
+    name: 'Sarah Parker',
+    avatar: '/assets/testimony/avatar/2f.jpg',
+    images: [
+      '/assets/testimony/images/009.jpg',
+      '/assets/testimony/images/010.jpg',
+      '/assets/testimony/images/011.jpg',
+      '/assets/testimony/images/012.jpg'
+    ],
+    rating: 5,
+    quote: "The best travel experience ever",
+    testimony: 'A glowing review of the incredible journey and experiences.'
   },
+  {
+    name: 'Mike Johnson',
+    avatar: '/assets/testimony/avatar/2m.jpg',
+    images: [
+      '/assets/testimony/images/013.jpg',
+      '/assets/testimony/images/014.jpg',
+      '/assets/testimony/images/015.jpg',
+      '/assets/testimony/images/016.jpg'
+    ],
+    rating: 5,
+    quote: "Unforgettable memories made",
+    testimony: 'Sharing memories of an unforgettable travel experience.'
+  },
+  {
+    name: 'Emily Davis',
+    avatar: '/assets/testimony/avatar/3f.jpg',
+    images: [
+      '/assets/testimony/images/017.jpg',
+      '/assets/testimony/images/018.jpg',
+      '/assets/testimony/images/019.jpg',
+      '/assets/testimony/images/020.jpg'
+    ],
+    rating: 5,
+    quote: "Perfect vacation planning",
+    testimony: 'Describing the perfectly planned vacation experience.'
+  }
 ];
 
 const Testimony = () => {
-  const theme = useTheme();
+  const [activeIndex, setActiveIndex] = useState(2);
+  const [direction, setDirection] = useState(0);
+  const avatarSize = 100;
 
-  const settings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 2, // Show 2 cards at a time
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 4000,
-    responsive: [
-      {
-        breakpoint: 960,
-        settings: {
-          slidesToShow: 1, // Show 1 card on smaller screens
-        },
-      },
-    ],
+  const moveSlider = (newDirection) => {
+    setDirection(newDirection === 'next' ? 1 : -1);
+    setActiveIndex(prev => {
+      if (newDirection === 'next') {
+        return prev === testimonials.length - 1 ? 0 : prev + 1;
+      }
+      return prev === 0 ? testimonials.length - 1 : prev - 1;
+    });
+  };
+
+  const getVisibleAvatars = () => {
+    let visibleOnes = [];
+    const totalItems = testimonials.length;
+
+    for (let i = -2; i <= 2; i++) {
+      let index = (activeIndex + i + totalItems) % totalItems;
+      visibleOnes.push({
+        data: testimonials[index],
+        offset: i,
+        index
+      });
+    }
+    return visibleOnes;
   };
 
   return (
-    <Box
-      className="testimony-container"
-      sx={{
-        bgcolor: theme.palette.background.default, // Same background as the page
-      }}
-    >
-      <Typography
-        variant="h1"
-        className="testimony-title"
-        color="text.primary"
-        sx={{
-          fontWeight: "bold",
-          mb: 4,
-          fontSize: {
-            xs: "1.8rem", 
-            sm: "2.5rem", 
-            md: "3rem", 
-            lg: "3.5rem", 
-          },
-        }}
-        gutterBottom
-      >
-        What Our Customers Say
-      </Typography>
-      <Slider {...settings} className="testimony-slider">
-        {testimonials.map((testimonial, index) => (
-          <Box key={index} sx={{ padding: '0 10px' }}>
-            <Card
-              className={`testimony-card ${theme.palette.mode === 'dark' ? 'dark' : ''}`}
-              sx={{
-                backgroundColor: theme.palette.newsletterCard.main, // Use custom color here
+    <div className="max-w-6xl mx-auto py-16">
+      <h2 className="text-center text-4xl font-bold text-teal-900 mb-2">
+        Stories From Our Journey-Takers
+      </h2>
+      
+      <p className="text-center text-teal-600 text-lg mb-12">
+        Real travelers, real stories. See what they have to say about their journeys!
+      </p>
+
+      {/* Avatar Carousel */}
+      <div className="relative h-64 flex items-center justify-center mb-8">
+        <button
+          onClick={() => moveSlider('prev')}
+          className="absolute left-0 md:left-32 p-2 bg-teal-900 text-white rounded-full hover:bg-teal-600 transition-colors z-10"
+        >
+          <ChevronLeft size={24} />
+        </button>
+
+        <div className="flex items-center justify-center relative h-full overflow-hidden"
+             style={{ width: 'calc(100% - 256px)' }}>
+          <AnimatePresence initial={false} custom={direction}>
+            <motion.div 
+              key={activeIndex}
+              className="flex items-center justify-center gap-16 absolute"
+              custom={direction}
+              initial={{ x: direction > 0 ? 500 : -500 }}
+              animate={{ x: 0 }}
+              exit={{ x: direction > 0 ? -500 : 500 }}
+              transition={{
+                x: { type: "spring", stiffness: 300, damping: 30 }
               }}
             >
-              <Avatar
-                alt={testimonial.name}
-                src={testimonial.image}
-                className="testimony-avatar"
-              />
-              <CardContent className="testimony-text">
-                <Typography variant="h6" color="text.primary" gutterBottom>
-                  {testimonial.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {testimonial.testimony}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-        ))}
-      </Slider>
-    </Box>
+              {getVisibleAvatars().map(({ data, offset, index }) => (
+                <motion.div
+                  key={index}
+                  animate={{
+                    scale: offset === 0 ? 1.5 : 1,
+                    opacity: offset === 0 ? 1 : 0.5,
+                    filter: offset === 0 ? 'grayscale(0%)' : 'grayscale(40%)'
+                  }}
+                  transition={{
+                    duration: 0.5,
+                    ease: "easeInOut"
+                  }}
+                  style={{
+                    width: avatarSize,
+                    height: avatarSize
+                  }}
+                  className="flex-shrink-0"
+                >
+                  <img
+                    src={data.avatar}
+                    alt={data.name}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <button
+          onClick={() => moveSlider('next')}
+          className="absolute right-0 md:right-32 p-2 bg-teal-900 text-white rounded-full hover:bg-teal-600 transition-colors z-10"
+        >
+          <ChevronRight size={24} />
+        </button>
+      </div>
+
+      {/* Testimonial Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeIndex}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-8"
+        >
+          <div className="text-center">
+            <div className="text-3xl text-teal-900 mb-2">
+              {'★'.repeat(testimonials[activeIndex].rating)}
+            </div>
+            <h3 className="text-3xl font-bold text-teal-900">
+              {testimonials[activeIndex].name}
+            </h3>
+          </div>
+
+          <div className="bg-orange-50 rounded-2xl p-8 shadow-lg">
+            <div className="grid grid-cols-2 gap-8">
+              {/* Left Side */}
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="w-40 h-40 rounded-full overflow-hidden mb-6">
+                  <img
+                    src={testimonials[activeIndex].avatar}
+                    alt={testimonials[activeIndex].name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <p className="text-teal-600 text-lg leading-relaxed max-w-md">
+                  {testimonials[activeIndex].testimony}
+                </p>
+              </div>
+
+              {/* Right Side - Images */}
+              <div className="grid grid-cols-2 gap-4">
+                {testimonials[activeIndex].images.map((image, idx) => (
+                  <img
+                    key={idx}
+                    src={image}
+                    alt={`Travel moment ${idx + 1}`}
+                    className="w-full aspect-square object-cover rounded-lg transition-transform duration-300 hover:scale-105"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    </div>
   );
 };
 

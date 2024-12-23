@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Variant Schema for image variants
+// Variant Schema for image variants (unchanged)
 const VariantSchema = new Schema({
   height: Number,
   width: Number,
   url: String
 }, { _id: false });
 
-// Image Schema
+// Updated Image Schema to match activityController return
 const ImageSchema = new Schema({
   imageSource: String,
   caption: String,
@@ -16,7 +16,7 @@ const ImageSchema = new Schema({
   variants: [VariantSchema]
 }, { _id: false });
 
-// Booking Question Schema
+// Booking Question Schema (unchanged)
 const BookingQuestionSchema = new Schema({
   sortOrder: Number,
   questionId: Number,
@@ -28,14 +28,14 @@ const BookingQuestionSchema = new Schema({
   allowedAnswers: [String]
 }, { _id: false });
 
-// Language Service Schema
+// Language Service Schema (unchanged)
 const LangServiceSchema = new Schema({
   type: String,
   language: String,
   legacyGuide: String
 }, { _id: false });
 
-// Tour Grade Schema
+// Tour Grade Schema (unchanged)
 const TourGradeSchema = new Schema({
   gradeCode: String,
   encryptgradeCode: String,
@@ -43,7 +43,7 @@ const TourGradeSchema = new Schema({
   langServices: [LangServiceSchema]
 }, { _id: false });
 
-// Age Band Schema
+// Age Band Schema (unchanged)
 const AgeBandSchema = new Schema({
   ageBand: String,
   startAge: Number,
@@ -52,14 +52,20 @@ const AgeBandSchema = new Schema({
   maxTravelersPerBooking: Number
 }, { _id: false });
 
-// Booking Requirements Schema
+// Booking Requirements Schema (unchanged)
 const BookingRequirementsSchema = new Schema({
   minTravelersPerBooking: Number,
   maxTravelersPerBooking: Number,
   requiresAdultForBooking: Boolean
 }, { _id: false });
 
-// Package Details Schema
+// Departure Time Schema (new)
+const DepartureTimeSchema = new Schema({
+  time: String,
+  code: String
+}, { _id: false });
+
+// Package Details Schema (updated to match activityController)
 const PackageDetailsSchema = new Schema({
   amount: Number,
   currency: String,
@@ -69,7 +75,7 @@ const PackageDetailsSchema = new Schema({
   description: String
 }, { _id: false });
 
-// Itinerary Item Schema
+// Itinerary Item Schema (unchanged)
 const ItineraryItemSchema = new Schema({
   pointOfInterestLocation: Schema.Types.Mixed,
   duration: String,
@@ -80,7 +86,7 @@ const ItineraryItemSchema = new Schema({
   stopduration: String
 }, { _id: false });
 
-// Itinerary Schema
+// Itinerary Schema (unchanged)
 const ActivityItinerarySchema = new Schema({
   itineraryType: String,
   skipTheLine: Boolean,
@@ -95,78 +101,98 @@ const ActivityItinerarySchema = new Schema({
   routes: Schema.Types.Mixed
 }, { _id: false });
 
-// Additional Info Schema
+// Additional Info Schema (unchanged)
 const AdditionalInfoSchema = new Schema({
   type: String,
   description: String
 }, { _id: false });
 
-// Cancellation Schema
+// Cancellation Schema (unchanged)
 const CancellationSchema = new Schema({
   dayRangeMin: Number,
   percentageRefundable: Number,
   dayRangeMax: Number
 }, { _id: false });
 
-// Activity Schema - Modified to accept strings for inclusions and exclusions
+// Updated Activity Schema to match activityController return
 const ActivitySchema = new Schema({
-  activityType: String,
+  searchId: String,
+  activityType: {
+    type: String,
+    enum: ['online', 'offline']
+  },
   activityProvider: String,
   activityCode: String,
   activityName: String,
   lat: Number,
   long: Number,
-  searchId: String,  // Added searchId field
-  packageDetails: PackageDetailsSchema,
-  images: [ImageSchema],
+  selectedTime: String,
+  timeSlot: String,
+  isFlexibleTiming: Boolean,
+  departureTime: DepartureTimeSchema,
+  duration: Number,
+  
+  // Location details for offline activities
+  street: String,
+  city: String,
+  state: String,
+  country: String,
+  continent: String,
+  postalCode: String,
+  fullAddress: String,
+  
+  // Activity details
   description: String,
-  inclusions: {
-    type: Schema.Types.Mixed,
-    default: ''
-  },
-  exclusions: {
-    type: Schema.Types.Mixed,
-    default: ''
-  },
+  inclusions: Schema.Types.Mixed,
+  exclusions: Schema.Types.Mixed,
+  
+  // Package and pricing
+  packageDetails: PackageDetailsSchema,
+  
+  // Additional details from activityController
+  images: [ImageSchema],
   itinerary: ActivityItinerarySchema,
   additionalInfo: [AdditionalInfoSchema],
   bookingQuestions: [BookingQuestionSchema],
   cancellationFromTourDate: [CancellationSchema],
+  
+  // Tour and booking specifics
   groupCode: String,
   tourGrade: TourGradeSchema,
   ageBands: [AgeBandSchema],
   bookingRequirements: BookingRequirementsSchema,
+  
+  // Additional metadata
+  budget: String,
+  openTime: String,
+  closeTime: String,
+  activityPeriod: String,
+  category: String,
+  imageUrl: String,
+  rating: Number,
+  ranking: Number,
+  preference: [String],
+  mandatory: Boolean,
+  
+  // Pickup and availability
   pickupHotellist: Schema.Types.Mixed,
-  bookingReference: {
-    type: {
-      bookingRef: String,
-      priceValidUntil: String,
-      timeElapsed: String,
-      supplierPrice: Number,
-      price: Number,
-      availabilityValidUntil: String
-    },
-    default: null
-  }
+  availabilityDetails: Schema.Types.Mixed
 }, { _id: false });
 
-// Transfer Schema
+// Transfer, Flight, and Hotel Schemas remain unchanged
 const TransferSchema = new Schema({
   type: Schema.Types.Mixed
 }, { _id: false, strict: false });
 
-// Flight Schema
 const FlightSchema = new Schema({
   type: Schema.Types.Mixed
 }, { _id: false, strict: false });
 
-// Hotel Schema
 const HotelSchema = new Schema({
   type: Schema.Types.Mixed
 }, { _id: false, strict: false });
 
-
-// Day Schema
+// Day Schema (unchanged)
 const DaySchema = new Schema({
   date: String,
   flights: {
@@ -187,7 +213,7 @@ const DaySchema = new Schema({
   }
 }, { _id: false });
 
-// City Schema
+// City Schema (unchanged)
 const CitySchema = new Schema({
   city: String,
   cityCode: String,
@@ -197,7 +223,7 @@ const CitySchema = new Schema({
   days: [DaySchema]
 }, { _id: false });
 
-// Traveler Schema
+// Travelers Details Schema (unchanged)
 const TravelersDetailsSchema = new Schema({
   type: String,
   rooms: [{
@@ -210,7 +236,7 @@ const TravelersDetailsSchema = new Schema({
   coupleAdult2Age: String
 }, { _id: false });
 
-// Price Schema
+// Price Schema (unchanged)
 const PriceTotalsSchema = new Schema({
   activities: Number,
   hotels: Number,
@@ -222,8 +248,7 @@ const PriceTotalsSchema = new Schema({
   grandTotal: Number
 }, { _id: false });
 
-
-// Main Itinerary Schema
+// Main Itinerary Schema (unchanged)
 const ItinerarySchema = new Schema(
   {
     itineraryToken: {

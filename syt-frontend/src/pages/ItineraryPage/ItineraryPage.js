@@ -1,14 +1,13 @@
-// /pages/ItineraryPage/ItineraryPage.js
 import { PictureAsPdf } from '@mui/icons-material';
 import {
   Alert,
   AlertTitle,
-  Box,
   Button,
   Container,
   Typography
 } from '@mui/material';
 import axios from 'axios';
+import { AnimatePresence, motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -19,12 +18,18 @@ import PriceSummary from '../../components/Itinerary/PriceSummary';
 import ModalManager from '../../components/ModalManager';
 import { useAuth } from '../../context/AuthContext';
 import { clearAllActivityStates } from '../../redux/slices/activitySlice';
-import {
-  createItinerary
-} from '../../redux/slices/itinerarySlice';
+import { createItinerary } from '../../redux/slices/itinerarySlice';
 import { generateItineraryPDF } from '../../utils/pdfGenerator';
 import { calculateItineraryTotal } from '../../utils/priceCalculations';
 import './ItineraryPage.css';
+import backgroundImage from './w3.jpg';
+
+// Set the background image as a CSS variable
+document.documentElement.style.setProperty(
+  '--background-image',
+  `url(${backgroundImage})`
+);
+
 
 const ItineraryPage = () => {
   // States
@@ -37,7 +42,6 @@ const ItineraryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = location;
-
   const { isAuthenticated } = useAuth();
 
   const itineraryInquiryToken = state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
@@ -66,14 +70,12 @@ const ItineraryPage = () => {
   };
 
   const processActivity = async (activity, cityName, date) => {
-    // Check if the activity has a booking reference
     if (activity.bookingReference && activity.bookingReference._id) {
       console.log(`Booking reference already exists for activity ${activity.activityName}`);
       return true;
     }
   
     try {
-      // Create booking reference only if no existing reference
       const referenceResponse = await axios.post(
         'http://localhost:5000/api/itinerary/activity/reference',
         {
@@ -90,7 +92,6 @@ const ItineraryPage = () => {
         }
       );
   
-      // Update itinerary with booking reference
       await axios.put(
         `http://localhost:5000/api/itinerary/${itineraryToken}/activity/booking-ref`,
         {
@@ -117,7 +118,8 @@ const ItineraryPage = () => {
   const handlePriceUpdate = async () => {
     try {
       const totals = calculateItineraryTotal(itinerary, markups, tcsRates);
-      await axios.put(`http://localhost:5000/api/itinerary/${itineraryToken}/prices`, 
+      await axios.put(
+        `http://localhost:5000/api/itinerary/${itineraryToken}/prices`, 
         {
           priceTotals: {
             ...totals.segmentTotals,
@@ -141,7 +143,6 @@ const ItineraryPage = () => {
 
   const handleBookTrip = async () => {
     try {
-      // Check authentication
       const token = localStorage.getItem('token');
       if (!token) {
         navigate('/auth/login', { 
@@ -163,7 +164,6 @@ const ItineraryPage = () => {
       setIsBooking(true);
       setBookingError(null);
   
-      // Calculate total items to process
       const onlineActivities = itinerary.cities.flatMap(city => 
         city.days.flatMap(day => 
           day.activities?.filter(activity => activity.activityType === 'online') || []
@@ -173,7 +173,6 @@ const ItineraryPage = () => {
       const totalItems = onlineActivities.length;
       setBookingProgress({ current: 0, total: totalItems });
   
-      // Process activities sequentially
       for (const activity of onlineActivities) {
         const cityDay = itinerary.cities
           .flatMap(city => 
@@ -200,7 +199,6 @@ const ItineraryPage = () => {
         }
       }
   
-      // Proceed with price totals and navigation
       await handlePriceUpdate();
       navigate('/booking-form', { 
         state: { 
@@ -211,7 +209,6 @@ const ItineraryPage = () => {
       });
   
     } catch (error) {
-      // Handle authentication-related errors
       if (error.response?.status === 401) {
         navigate('/auth/login', { 
           state: { from: location.pathname },
@@ -225,9 +222,7 @@ const ItineraryPage = () => {
     }
   };
 
-  // Effects
   useEffect(() => {
-    // Check if user is authenticated
     if (!isAuthenticated) {
       navigate('/auth/login', { 
         state: { from: location.pathname },
@@ -236,7 +231,6 @@ const ItineraryPage = () => {
       return;
     }
   
-    // Existing logic for checking itinerary token
     if (!itineraryInquiryToken) {
       navigate('/', { replace: true });
       return;
@@ -249,7 +243,6 @@ const ItineraryPage = () => {
         await dispatch(createItinerary(itineraryInquiryToken)).unwrap();
       } catch (err) {
         console.error('Error handling itinerary:', err);
-        // Redirect on error
         navigate('/', { replace: true });
       }
     };
@@ -257,132 +250,182 @@ const ItineraryPage = () => {
     handleItinerary();
   }, [dispatch, itineraryInquiryToken, navigate, isAuthenticated, location.pathname]);
 
-  // Render loading state
   if (loading || checkingExisting) {
     return (
-      <LoadingSpinner 
-        message={checkingExisting 
-          ? "Checking your existing itinerary..." 
-          : "Crafting your perfect journey..."}
-      />
+      <div className="loading-container flex-center">
+        <LoadingSpinner 
+          message={checkingExisting 
+            ? "Checking your existing itinerary..." 
+            : "Crafting your perfect journey..."}
+        />
+      </div>
     );
   }
 
-  // Render error state
   if (error) {
     return (
-      <Container maxWidth="sm">
-        <Box 
-          display="flex" 
-          flexDirection="column" 
-          alignItems="center" 
-          justifyContent="center" 
-          minHeight="60vh"
-          p={3}
-        >
-          <Alert 
-            severity="error" 
-            variant="filled"
-            sx={{ 
-              width: '100%',
-              mb: 2,
-              '& .MuiAlert-message': {
-                width: '100%'
-              }
-            }}
+      <div className="error-container flex-center">
+        <Container maxWidth="sm">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card"
           >
-            <AlertTitle>Unable to Load Itinerary</AlertTitle>
-            {error}
-          </Alert>
-          <Button 
-            variant="contained" 
-            onClick={() => navigate('/')}
-            sx={{ mt: 2 }}
-          >
-            Return Home
-          </Button>
-        </Box>
-      </Container>
+            <Alert 
+              severity="error" 
+              variant="filled"
+              className="error-alert"
+            >
+              <AlertTitle>Unable to Load Itinerary</AlertTitle>
+              {error}
+            </Alert>
+            <Button 
+              variant="contained" 
+              onClick={() => navigate('/')}
+              className="button-outline mt-4"
+            >
+              Return Home
+            </Button>
+          </motion.div>
+        </Container>
+      </div>
     );
   }
 
-
-  // Render loading state
   if (!itinerary) {
-    return <LoadingSpinner message="Preparing your itinerary details..." />;
+    return (
+      <div className="loading-container flex-center">
+        <LoadingSpinner message="Preparing your itinerary details..." />
+      </div>
+    );
   }
 
-  // Main render
   return (
     <ErrorBoundary>
-      <Container maxWidth="lg" className="itinerary-container">
-        <Typography variant="h3" className="itinerary-title" gutterBottom>
-          Your Itinerary
-        </Typography>
-        
-        {itinerary.cities?.map((city, index) => (
-          <CityAccordion 
-            key={`${city.city}-${index}`}
-            city={city}
-            inquiryToken={itineraryInquiryToken}
-            travelersDetails={itinerary.travelersDetails}
-          />
-        ))}
-  
-        {itinerary && <PriceSummary itinerary={itinerary} />}
+      <div className="itinerary-page">
+        {/* Background Image with Blur */}
+        <div className="background-blur" />
 
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-          <Typography variant="h3" className="itinerary-title">
-            Want to book your trip?
-          </Typography>
-          <Box>
-            <Button
-              variant="outlined"
-              startIcon={<PictureAsPdf />}
-              onClick={handleDownloadPDF}
-              sx={{ mr: 2 }}
-              disabled={isBooking}
-            >
-              Download PDF
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleBookTrip}
-              disabled={isBooking}
-            >
-              {isBooking ? 'Processing...' : 'Book Your Trip'}
-            </Button>
-          </Box>
-        </Box>
-
-        {isBooking && (
-          <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1300 }}>
-            <LoadingSpinner message={`Processing booking ${bookingProgress.current} of ${bookingProgress.total}`} />
-          </Box>
-        )}
-
-        {bookingError && (
-          <Alert 
-            severity="error" 
-            onClose={() => setBookingError(null)} 
-            sx={{ 
-              my: 2,
-              position: 'fixed',
-              bottom: 16,
-              right: 16,
-              maxWidth: '90%',
-              width: 400,
-              zIndex: 1400
-            }}
+        <Container maxWidth="lg" className="container">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
           >
-            <AlertTitle>Booking Error</AlertTitle>
-            {bookingError}
-          </Alert>
-        )}
+            <Typography 
+              variant="h3" 
+              className="itinerary-title"
+            >
+              Your Itinerary
+            </Typography>
+          </motion.div>
+          
+          <AnimatePresence mode="wait">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="space-y-6"
+            >
+              {itinerary.cities?.map((city, index) => (
+                <motion.div
+                  key={`${city.city}-${index}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <CityAccordion 
+                    city={city}
+                    inquiryToken={itineraryInquiryToken}
+                    travelersDetails={itinerary.travelersDetails}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          </AnimatePresence>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="summary-card glass-card"
+          >
+            {itinerary && <PriceSummary itinerary={itinerary} />}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="booking-section"
+          >
+            <Typography variant="h3" className="booking-title">
+              Want to book your trip?
+            </Typography>
+            <div className="button-group">
+              <Button
+                variant="outlined"
+                startIcon={<PictureAsPdf />}
+                onClick={handleDownloadPDF}
+                disabled={isBooking}
+                className="button-outline"
+              >
+                Download PDF
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleBookTrip}
+                disabled={isBooking}
+                className="button-gradient"
+              >
+                {isBooking ? 'Processing...' : 'Book Your Trip'}
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Loading Overlay */}
+          <AnimatePresence>
+            {isBooking && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="loading-overlay"
+              >
+                <div className="loading-content">
+                  <div className="loading-spinner" />
+                  <p className="loading-text">
+                    Processing booking {bookingProgress.current} of {bookingProgress.total}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Error Toast */}
+          <AnimatePresence>
+            {bookingError && (
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 50 }}
+                className="error-toast"
+              >
+                <AlertTitle className="error-title">Booking Error</AlertTitle>
+                <p className="error-message">{bookingError}</p>
+                <button 
+                  onClick={() => setBookingError(null)}
+                  className="close-button"
+                >
+                  ×
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Container>
 
         <ModalManager />
-      </Container>
+      </div>
     </ErrorBoundary>
   );
 };

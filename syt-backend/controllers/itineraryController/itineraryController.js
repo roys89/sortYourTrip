@@ -97,6 +97,9 @@ const processActivitiesForDay = async (city, inquiry, formattedDate, travelers, 
       cityActivitiesTracker[destination_code] = new Set();
     }
 
+    // Add isFirstDay calculation here
+    const isFirstDay = new Date(formattedDate).getTime() === new Date(city.startDate).getTime();
+
     const requestData = {
       body: {
         city: {
@@ -113,14 +116,14 @@ const processActivitiesForDay = async (city, inquiry, formattedDate, travelers, 
         travelers,
         inquiryToken,
         excludedActivityCodes: Array.from(cityActivitiesTracker[destination_code]),
+        day: {
+          isFirstDay  // Pass only first day flag
+        }
       }
     };
 
+    
     const activityResponse = await getCityActivities(requestData);
-
-    // Added console log for activity response
-    // console.log(`Activity Response for ${city.city} on ${formattedDate}:`, 
-    //   JSON.stringify(activityResponse, null, 2));
 
     if (!activityResponse || !Array.isArray(activityResponse)) {
       return {
@@ -130,6 +133,7 @@ const processActivitiesForDay = async (city, inquiry, formattedDate, travelers, 
       };
     }
 
+    // Track selected activities
     activityResponse.forEach(activity => {
       if (activity.activityCode) {
         cityActivitiesTracker[destination_code].add(activity.activityCode);
@@ -241,6 +245,10 @@ for (const [index, { city, startDate, endDate }] of cityDayDistribution.entries(
     currentDate.setDate(currentDate.getDate() + dayOffset);
     const formattedDate = currentDate.toISOString().split("T")[0];
 
+    // Add correct day context
+    const isFirstDay = dayOffset === 0;
+    const isLastDay = dayOffset === daysForThisCity - 1;
+
     console.log(`Processing activities for day ${dayOffset + 1}`);
     const dayActivities = await processActivitiesForDay(
       city,
@@ -251,7 +259,8 @@ for (const [index, { city, startDate, endDate }] of cityDayDistribution.entries(
         childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat()
       },
       inquiryToken,
-      cityActivitiesTracker
+      cityActivitiesTracker,
+      { isFirstDay, isLastDay }  // Add this day context
     );
 
     const dayObject = {

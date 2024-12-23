@@ -1,6 +1,6 @@
-// components/Itinerary/DayAccordion.js
 import { Button } from '@mui/material';
-import { Plus } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronDown, Plus } from 'lucide-react';
 import { DateTime } from 'luxon';
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,6 +10,7 @@ import ActivityCard from '../Cards/ActivityCard';
 import FlightCard from '../Cards/FlightCard';
 import HotelCard from '../Cards/HotelCard';
 import TransferCard from '../Cards/TransferCard';
+import './DayAccordion.css';
 
 const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,105 +44,132 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
     });
   };
 
+  // Animation variants
+  const contentVariants = {
+    hidden: { 
+      height: 0,
+      opacity: 0,
+      transition: { duration: 0.2 }
+    },
+    visible: { 
+      height: "auto",
+      opacity: 1,
+      transition: { duration: 0.3 }
+    }
+  };
+
   return (
-    <div className="mb-2">
+    <div className="day-accordion">
       <button
-        className="w-full p-3 bg-gray-200 hover:bg-gray-300 text-gray-800 flex justify-between items-center rounded-t transition duration-150"
+        className="day-header"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center space-x-2">
-          <span className="font-medium">
-            {formatDate(day.date)}
-          </span>
-        </div>
-        <span className="text-xl transform transition-transform duration-200">
-          {isOpen ? '−' : '+'}
-        </span>
+        <span className="day-date">{formatDate(day.date)}</span>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="day-icon" />
+        </motion.div>
       </button>
 
-      {isOpen && (
-        <div className="p-4 border border-t-0 rounded-b bg-white space-y-4">
-          {/* Flights Section */}
-          {day.flights?.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg text-gray-700">Flights</h3>
-              {day.flights.map((flight, index) => (
-                <FlightCard 
-                  key={`flight-${index}`} 
-                  flight={flight} 
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Hotels Section */}
-          {day.hotels?.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg text-gray-700">Accommodations</h3>
-              {day.hotels.map((hotel, index) => (
-                <HotelCard 
-                  key={`hotel-${index}`} 
-                  hotel={hotel}
-                  city={city}
-                  date={day.date}
-                  inquiryToken={inquiryToken}
-                  itineraryToken={itineraryToken}
-                  travelersDetails={travelersDetails}
-                  showChange={true}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Transfers Section */}
-          {day.transfers?.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg text-gray-700">Transfers</h3>
-              {day.transfers.map((transfer, index) => (
-                <TransferCard 
-                  key={`transfer-${index}`} 
-                  transfer={transfer} 
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Activities Section */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-lg text-gray-700">Activities</h3>
-            {day.activities?.map((activity, index) => (
-              <ActivityCard 
-                key={`activity-${index}`}
-                activity={activity}
-                city={city}
-                date={day.date}
-                inquiryToken={inquiryToken}
-                itineraryToken={itineraryToken}
-                travelersDetails={travelersDetails}
-                showRemove={true}
-              />
-            ))}
-            
-            {/* Add Activity Button - Only show if less than 3 activities */}
-            {(!day.activities || day.activities.length < 3) && (
-              <Button
-                variant="outlined"
-                startIcon={<Plus className="w-4 h-4" />}
-                onClick={handleAddActivity}
-                fullWidth
-                sx={{ 
-                  mt: 2,
-                  py: 1,
-                  borderRadius: '8px',
-                  textTransform: 'none'
-                }}
-              >
-                Add Activity ({3 - (day.activities?.length || 0)} remaining)
-              </Button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={contentVariants}
+            className="day-content"
+          >
+            {/* Flights Section */}
+            {day.flights?.length > 0 && (
+              <div className="section-container">
+                <h3 className="section-title">Flights</h3>
+                <div className="cards-container">
+                  {day.flights.map((flight, index) => (
+                    <FlightCard 
+                      key={`flight-${index}`} 
+                      flight={flight} 
+                    />
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
-        </div>
-      )}
+
+            {/* Hotels Section */}
+            {day.hotels?.length > 0 && (
+              <div className="section-container">
+                <h3 className="section-title">Accommodations</h3>
+                <div className="cards-container">
+                  {day.hotels.map((hotel, index) => (
+                    <HotelCard 
+                      key={`hotel-${index}`} 
+                      hotel={hotel}
+                      city={city}
+                      date={day.date}
+                      inquiryToken={inquiryToken}
+                      itineraryToken={itineraryToken}
+                      travelersDetails={travelersDetails}
+                      showChange={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Transfers Section */}
+            {day.transfers?.length > 0 && (
+              <div className="section-container">
+                <h3 className="section-title">Transfers</h3>
+                <div className="cards-container">
+                  {day.transfers.map((transfer, index) => (
+                    <TransferCard 
+                      key={`transfer-${index}`} 
+                      transfer={transfer} 
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Activities Section */}
+            <div className="section-container">
+              <h3 className="section-title">Activities</h3>
+              <div className="cards-container">
+                {day.activities?.map((activity, index) => (
+                  <ActivityCard 
+                    key={`activity-${index}`}
+                    activity={activity}
+                    city={city}
+                    date={day.date}
+                    inquiryToken={inquiryToken}
+                    itineraryToken={itineraryToken}
+                    travelersDetails={travelersDetails}
+                    showRemove={true}
+                  />
+                ))}
+              </div>
+              
+              {(!day.activities || day.activities.length < 3) && (
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<Plus className="w-4 h-4" />}
+                    onClick={handleAddActivity}
+                    className="add-activity-button"
+                  >
+                    Add Activity ({3 - (day.activities?.length || 0)} remaining)
+                  </Button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

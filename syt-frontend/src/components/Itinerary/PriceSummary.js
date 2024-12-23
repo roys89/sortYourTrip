@@ -1,9 +1,10 @@
-// components/PriceSummary.js
-import { Box, Paper, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
+import { motion } from 'framer-motion';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMarkupSettings } from '../../redux/slices/markupSlice';
 import { calculateItineraryTotal } from '../../utils/priceCalculations';
+import './PriceSummary.css';
 
 const PriceSummary = ({ itinerary }) => {
   const dispatch = useDispatch();
@@ -17,39 +18,85 @@ const PriceSummary = ({ itinerary }) => {
   }, [dispatch, lastUpdated]);
 
   const totals = calculateItineraryTotal(itinerary, markups, tcsRates);
-  
+
+  // Animation variants for Framer Motion
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0 }
+  };
+
+  const formatAmount = (amount) => {
+    return `₹${amount.toLocaleString('en-IN')}`;
+  };
+
   return (
-    <Paper elevation={2} sx={{ p: 3 }}>
-      <Typography variant="h6" gutterBottom>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="price-summary-container"
+    >
+      {/* Header Section */}
+      <Typography variant="h6" className="price-summary-title">
         Price Summary
       </Typography>
-      
-      {Object.entries(totals.segmentTotals).map(([segment, amount]) => (
-        <Box key={segment} display="flex" justifyContent="space-between" mb={1}>
-          <Typography>
-            {segment.charAt(0).toUpperCase() + segment.slice(1)}
-          </Typography>
-          <Typography>
-            ₹{amount.toLocaleString('en-IN')}
-          </Typography>
-        </Box>
-      ))}
 
-      <Box mt={2} pt={2} borderTop={1} borderColor="divider">
-        <Box display="flex" justifyContent="space-between" mb={1}>
-          <Typography>Subtotal</Typography>
-          <Typography>₹{totals.subtotal.toLocaleString('en-IN')}</Typography>
-        </Box>
-        <Box display="flex" justifyContent="space-between" mb={1}>
-          <Typography>TCS ({totals.tcsRate}%)</Typography>
-          <Typography>₹{totals.tcsAmount.toLocaleString('en-IN')}</Typography>
-        </Box>
-        <Box display="flex" justifyContent="space-between" mt={2} pt={2} borderTop={1} borderColor="divider">
-          <Typography variant="h6">Total</Typography>
-          <Typography variant="h6">₹{totals.grandTotal.toLocaleString('en-IN')}</Typography>
-        </Box>
-      </Box>
-    </Paper>
+      {/* Segment Totals */}
+      <div className="segment-totals">
+        {Object.entries(totals.segmentTotals).map(([segment, amount]) => (
+          <motion.div
+            key={segment}
+            variants={itemVariants}
+            className="segment-item"
+          >
+            <Typography className="segment-name">
+              {segment.charAt(0).toUpperCase() + segment.slice(1)}
+            </Typography>
+            <Typography className="segment-amount">
+              {formatAmount(amount)}
+            </Typography>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Subtotal Section */}
+      <motion.div variants={itemVariants} className="summary-section">
+        <div className="summary-row">
+          <Typography className="summary-label">Subtotal</Typography>
+          <Typography className="summary-amount">
+            {formatAmount(totals.subtotal)}
+          </Typography>
+        </div>
+        <div className="summary-row">
+          <Typography className="summary-label">
+            TCS ({totals.tcsRate}%)
+          </Typography>
+          <Typography className="summary-amount">
+            {formatAmount(totals.tcsAmount)}
+          </Typography>
+        </div>
+      </motion.div>
+
+      {/* Total Section */}
+      <motion.div variants={itemVariants} className="total-section">
+        <Typography variant="h6" className="total-label">Total</Typography>
+        <Typography variant="h6" className="total-amount">
+          {formatAmount(totals.grandTotal)}
+        </Typography>
+      </motion.div>
+    </motion.div>
   );
 };
 

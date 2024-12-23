@@ -13,6 +13,7 @@ const itineraryInquiryRoutes = require("./routes/itineraryInquiryRoutes");
 const itineraryRoutes = require('./routes/itineraryRoutes/itineraryRoutes');
 const itineraryBookingRoutes = require('./routes/itineraryRoutes/itineraryBookingRoutes');
 const markupRoutes = require('./routes/markupRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 const app = express();
 
 // Increase payload size limit - Add these lines before other middleware
@@ -42,6 +43,7 @@ app.use("/api/itineraryInquiry", itineraryInquiryRoutes);
 app.use("/api/itinerary", itineraryRoutes); 
 app.use("/api/markup", markupRoutes); 
 app.use("/api/bookings", itineraryBookingRoutes); 
+app.use('/api/activities', activityRoutes);
 // 404 route handler
 app.use((req, res, next) => {
   res.status(404).send({ message: 'Route not found' });

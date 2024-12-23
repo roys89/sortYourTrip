@@ -1,0 +1,278 @@
+/* Card.css - Generic reusable styles for cards */
+
+/* Base card styles for common card-like elements */
+.common-card-base {
+    background-color: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(12px);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    border: 1px solid rgba(55, 65, 81, 0.5);
+  }
+  
+  /* Light mode card styles */
+  [data-theme='light'] .common-card-base {
+    background-color: rgba(229, 231, 235, 0.5);
+    border: 1px solid rgba(156, 163, 175, 0.5);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  }
+  
+  /* Text color adjustments for light mode */
+  [data-theme='light'] .common-card-base .text-white {
+    color: #1F2937; /* Dark gray for light mode headers/important text */
+  }
+  
+  [data-theme='light'] .common-card-base .text-gray-300 {
+    color: #4B5563; /* Darker gray for secondary text in light mode */
+  }
+  
+  [data-theme='light'] .common-card-base .text-gray-100 {
+    color: #374151; /* Even darker gray for light mode details */
+  }
+  
+  .common-card-base:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transform: translateY(-0.25rem);
+  }
+  
+  /* Rest of the CSS remains the same as in the previous implementation */
+  .common-image-container {
+    width: 100%;
+    height: 12rem;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  @media (min-width: 1024px) {
+    .common-image-container {
+      width: 20rem;
+      height: auto;
+    }
+  }
+  
+  .common-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    z-index: 10;
+  }
+  
+  .common-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+  
+  .common-image:hover {
+    transform: scale(1.1);
+  }
+  
+  /* Generic price styles */
+  .common-price-base {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: rgb(147, 197, 253);
+  }
+  
+  /* Light mode price styles */
+  [data-theme='light'] .common-price-base {
+    color: rgb(37, 99, 235);
+  }
+  
+  /* Generic button styles remain the same */
+  .common-button-base {
+    padding: 0.5rem 1rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  
+  .common-button-base:hover {
+    transform: scale(1.05);
+  }
+  
+  .common-button-view {
+    background-color: rgba(59, 130, 246, 0.8);
+  }
+  
+  .common-button-view:hover {
+    background-color: rgba(59, 130, 246, 0.9);
+  }
+  
+  .common-button-change {
+    background-color: rgba(34, 197, 94, 0.8);
+  }
+  
+  .common-button-change:hover {
+    background-color: rgba(34, 197, 94, 0.9);
+  }
+  
+  .common-button-remove {
+    background-color: rgba(239, 68, 68, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  
+  .common-button-remove:hover {
+    background-color: rgba(239, 68, 68, 0.9);
+  }
+  
+  .common-button-remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .common-button-remove:disabled:hover {
+    transform: none;
+  }
+  
+  /* Generic error section */
+  .common-error-base {
+    padding: 0.75rem;
+    background-color: rgba(127, 29, 29, 0.3);
+    color: rgb(254, 202, 202);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid rgba(185, 28, 28, 0.5);
+  }/* Card.css - Generic reusable styles for cards */
+  
+  /* Base card styles for common card-like elements */
+  .common-card-base {
+    background-color: rgba(17, 24, 39, 0.5);
+    backdrop-filter: blur(12px);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    border: 1px solid rgba(55, 65, 81, 0.5);
+  }
+  
+  /* Light mode card styles */
+  [data-theme='light'] .common-card-base {
+    background-color: rgba(229, 231, 235, 0.5);
+    border: 1px solid rgba(156, 163, 175, 0.5);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  }
+  
+  .common-card-base:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transform: translateY(-0.25rem);
+  }
+  
+  /* Generic image container for consistent image styling */
+  .common-image-container {
+    width: 100%;
+    height: 12rem;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  @media (min-width: 1024px) {
+    .common-image-container {
+      width: 20rem;
+      height: auto;
+    }
+  }
+  
+  .common-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    z-index: 10;
+  }
+  
+  .common-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+  
+  .common-image:hover {
+    transform: scale(1.1);
+  }
+  
+  /* Generic price styles */
+  .common-price-base {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: rgb(147, 197, 253);
+  }
+  
+  /* Light mode price styles */
+  [data-theme='light'] .common-price-base {
+    color: rgb(37, 99, 235);
+  }
+  
+  /* Generic button styles */
+  .common-button-base {
+    padding: 0.5rem 1rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  
+  .common-button-base:hover {
+    transform: scale(1.05);
+  }
+  
+  .common-button-view {
+    background-color: rgba(59, 130, 246, 0.8);
+  }
+  
+  .common-button-view:hover {
+    background-color: rgba(59, 130, 246, 0.9);
+  }
+  
+  .common-button-change {
+    background-color: rgba(34, 197, 94, 0.8);
+  }
+  
+  .common-button-change:hover {
+    background-color: rgba(34, 197, 94, 0.9);
+  }
+  
+  .common-button-remove {
+    background-color: rgba(239, 68, 68, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  
+  .common-button-remove:hover {
+    background-color: rgba(239, 68, 68, 0.9);
+  }
+  
+  .common-button-remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .common-button-remove:disabled:hover {
+    transform: none;
+  }
+  
+  /* Generic error section */
+  .common-error-base {
+    padding: 0.75rem;
+    background-color: rgba(127, 29, 29, 0.3);
+    color: rgb(254, 202, 202);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid rgba(185, 28, 28, 0.5);
+  }

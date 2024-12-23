@@ -3,9 +3,50 @@
   background: linear-gradient(135deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
   position: relative;
   overflow-x: hidden;
+  padding-top: 80px; /* Add top padding for navbar */
+}
+.background-blur {
+  position: fixed;
+  inset: 0;
+  background-image: var(--background-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  transform: scale(1.1);
+  z-index: 0;
+  pointer-events: none;
+  
+  /* Base filter that will be modified by theme */
+  filter: blur(8px);
+  opacity: 1;
+  
+  /* Add smooth transition for background image and filters */
+  transition: 
+    background-image 0.5s ease-in-out,
+    opacity 0.5s ease-in-out,
+    filter 0.5s ease-in-out,
+    transform 0.5s ease-in-out;
 }
 
-.background-blur {
+/* Dark mode specific styling */
+[data-theme='dark'] .background-blur {
+  filter: blur(8px) brightness(0.4);
+}
+
+/* Light mode specific styling */
+[data-theme='light'] .background-blur {
+  filter: blur(8px) brightness(0.8) contrast(0.9) saturate(1.2);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes backgroundFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}.background-blur {
   position: fixed; /* Changed from absolute to fixed */
   inset: 0;
   background-image: var(--background-image);
@@ -16,13 +57,29 @@
   transform: scale(1.1);
   z-index: 0;
   pointer-events: none; /* Ensures the overlay doesn't interfere with interactions */
+  
+  /* Add smooth transition for background image */
+  transition: 
+    background-image 0.5s ease-in-out,
+    opacity 0.5s ease-in-out,
+    filter 0.5s ease-in-out,
+    transform 0.5s ease-in-out;
+  opacity: 1;
+}
+
+/* Optional: Add a fade effect between background images */
+@keyframes backgroundFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .container {
   position: relative;
   z-index: 10;
-  padding: 2rem 1rem;
-  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -45,7 +102,7 @@
 }
 
 .summary-card {
-  margin-top: 2rem;
+  margin-top: 5.5rem; /* Increased gap between city accordion and price summary */
 }
 
 
@@ -54,8 +111,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1rem; /* Add gap between buttons */
 }
 
 .booking-title {
@@ -66,6 +122,8 @@
 
 .button-group {
   display: flex;
+  flex-direction: row; /* Ensure buttons are in the same row */
+  width: 100%;
   gap: 1rem;
 }
 
@@ -191,11 +249,12 @@
   }
 
   .booking-section {
-    flex-direction: column;
+    flex-direction: row;
     align-items: stretch;
   }
 
-  .button-group {
-    flex-direction: column;
+
+ .button-group {
+    flex-direction: row;
   }
 }

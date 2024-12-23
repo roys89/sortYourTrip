@@ -127,6 +127,7 @@ const ActivitySchema = new Schema({
   lat: Number,
   long: Number,
   selectedTime: String,
+  endTime: String,  // Added endTime field
   timeSlot: String,
   isFlexibleTiming: Boolean,
   departureTime: DepartureTimeSchema,

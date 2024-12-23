@@ -4,7 +4,9 @@ import {
   AlertTitle,
   Button,
   Container,
-  Typography
+  Grid,
+  Typography,
+  useTheme
 } from '@mui/material';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -22,20 +24,38 @@ import { createItinerary } from '../../redux/slices/itinerarySlice';
 import { generateItineraryPDF } from '../../utils/pdfGenerator';
 import { calculateItineraryTotal } from '../../utils/priceCalculations';
 import './ItineraryPage.css';
-import backgroundImage from './w3.jpg';
-
-// Set the background image as a CSS variable
-document.documentElement.style.setProperty(
-  '--background-image',
-  `url(${backgroundImage})`
-);
-
+import backgroundImageLight from './w2.jpg';
+import backgroundImageDark from './w3.jpg';
 
 const ItineraryPage = () => {
+  const theme = useTheme();
+  
   // States
   const [isBooking, setIsBooking] = useState(false);
   const [bookingError, setBookingError] = useState(null);
   const [bookingProgress, setBookingProgress] = useState({ current: 0, total: 0 });
+
+  // Select background image based on theme mode
+  const backgroundImage = theme.palette.mode === 'dark' 
+    ? backgroundImageDark 
+    : backgroundImageLight;
+
+  // Set the background image as a CSS variable
+  useEffect(() => {
+    // Add data attribute for theme
+    document.documentElement.setAttribute('data-theme', theme.palette.mode);
+
+    // Add a small delay to create a more natural transition
+    const timer = setTimeout(() => {
+      document.documentElement.style.setProperty(
+        '--background-image',
+        `url(${backgroundImage})`
+      );
+    }, 50);
+
+    // Clean up the timer to prevent memory leaks
+    return () => clearTimeout(timer);
+  }, [backgroundImage, theme.palette.mode]);
 
   // Hooks
   const dispatch = useDispatch();
@@ -257,6 +277,7 @@ const ItineraryPage = () => {
           message={checkingExisting 
             ? "Checking your existing itinerary..." 
             : "Crafting your perfect journey..."}
+          sx={{ color: theme.palette.text.primary }}
         />
       </div>
     );
@@ -275,6 +296,11 @@ const ItineraryPage = () => {
               severity="error" 
               variant="filled"
               className="error-alert"
+              sx={{ 
+                '& .MuiAlert-message': {
+                  color: theme.palette.error.contrastText
+                }
+              }}
             >
               <AlertTitle>Unable to Load Itinerary</AlertTitle>
               {error}
@@ -283,6 +309,7 @@ const ItineraryPage = () => {
               variant="contained" 
               onClick={() => navigate('/')}
               className="button-outline mt-4"
+              sx={{ color: theme.palette.text.primary }}
             >
               Return Home
             </Button>
@@ -295,7 +322,10 @@ const ItineraryPage = () => {
   if (!itinerary) {
     return (
       <div className="loading-container flex-center">
-        <LoadingSpinner message="Preparing your itinerary details..." />
+        <LoadingSpinner 
+          message="Preparing your itinerary details..." 
+          sx={{ color: theme.palette.text.primary }}
+        />
       </div>
     );
   }
@@ -303,87 +333,116 @@ const ItineraryPage = () => {
   return (
     <ErrorBoundary>
       <div className="itinerary-page">
-        {/* Background Image with Blur */}
         <div className="background-blur" />
 
-        <Container maxWidth="lg" className="container">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <Typography 
-              variant="h3" 
-              className="itinerary-title"
-            >
-              Your Itinerary
-            </Typography>
-          </motion.div>
-          
-          <AnimatePresence mode="wait">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {itinerary.cities?.map((city, index) => (
-                <motion.div
-                  key={`${city.city}-${index}`}
+        <Container maxWidth="xl" className="container" sx={{ px: { xs: 0.5, sm: 1, md: 2 } }}>
+          <Grid container spacing={2}>
+            {/* Left Column - City Accordions */}
+            <Grid item xs={12} md={8} sx={{ pr: { md: 1 } }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <Typography 
+                  variant="h3" 
+                  className="itinerary-title"
+                  sx={{ color: theme.palette.text.primary }}
+                >
+                  Your Itinerary
+                </Typography>
+              </motion.div>
+              
+              <AnimatePresence mode="wait">
+                <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-6"
                 >
-                  <CityAccordion 
-                    city={city}
-                    inquiryToken={itineraryInquiryToken}
-                    travelersDetails={itinerary.travelersDetails}
-                  />
+                  {itinerary.cities?.map((city, index) => (
+                    <motion.div
+                      key={`${city.city}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <CityAccordion 
+                        city={city}
+                        inquiryToken={itineraryInquiryToken}
+                        travelersDetails={itinerary.travelersDetails}
+                      />
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="summary-card glass-card"
-          >
-            {itinerary && <PriceSummary itinerary={itinerary} />}
-          </motion.div>
+              </AnimatePresence>
+            </Grid>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="booking-section"
-          >
-            <Typography variant="h3" className="booking-title">
-              Want to book your trip?
-            </Typography>
-            <div className="button-group">
-              <Button
-                variant="outlined"
-                startIcon={<PictureAsPdf />}
-                onClick={handleDownloadPDF}
-                disabled={isBooking}
-                className="button-outline"
+            {/* Right Column - Price Summary and Actions */}
+            <Grid item xs={12} md={4} sx={{ pl: { md: 1 } }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="summary-card glass-card"
               >
-                Download PDF
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleBookTrip}
-                disabled={isBooking}
-                className="button-gradient"
-              >
-                {isBooking ? 'Processing...' : 'Book Your Trip'}
-              </Button>
-            </div>
-          </motion.div>
+                {itinerary && <PriceSummary itinerary={itinerary} />}
+              </motion.div>
 
-          {/* Loading Overlay */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="booking-section"
+                style={{ 
+                  width: '100%', 
+                  marginTop: '1rem' 
+                }}
+              >
+                <div 
+                  className="button-group" 
+                  style={{ 
+                    width: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '0.75rem' 
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<PictureAsPdf sx={{ color: "white" }} />}
+                    onClick={handleDownloadPDF}
+                    disabled={isBooking}
+                    className="button-outline"
+                    sx={{ 
+                      color: theme.palette.text.primary, 
+                      width: '100%',
+                      padding: '0.75rem'
+                    }}
+                  >
+                    Download PDF
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleBookTrip}
+                    disabled={isBooking}
+                    className="button-gradient"
+                    sx={{ 
+                      color: theme.palette.primary.contrastText,
+                      width: '100%',
+                      padding: '0.75rem',
+                      '&.Mui-disabled': {
+                        color: theme.palette.action.disabled
+                      }
+                    }}
+                  >
+                    {isBooking ? 'Processing...' : 'Book Your Trip'}
+                  </Button>
+                </div>
+              </motion.div>
+            </Grid>
+          </Grid>
+
           <AnimatePresence>
             {isBooking && (
               <motion.div
@@ -394,7 +453,7 @@ const ItineraryPage = () => {
               >
                 <div className="loading-content">
                   <div className="loading-spinner" />
-                  <p className="loading-text">
+                  <p className="loading-text" style={{ color: theme.palette.text.primary }}>
                     Processing booking {bookingProgress.current} of {bookingProgress.total}
                   </p>
                 </div>
@@ -402,7 +461,6 @@ const ItineraryPage = () => {
             )}
           </AnimatePresence>
 
-          {/* Error Toast */}
           <AnimatePresence>
             {bookingError && (
               <motion.div
@@ -412,10 +470,13 @@ const ItineraryPage = () => {
                 className="error-toast"
               >
                 <AlertTitle className="error-title">Booking Error</AlertTitle>
-                <p className="error-message">{bookingError}</p>
+                <p className="error-message" style={{ color: theme.palette.error.contrastText }}>
+                  {bookingError}
+                </p>
                 <button 
                   onClick={() => setBookingError(null)}
                   className="close-button"
+                  style={{ color: theme.palette.error.contrastText }}
                 >
                   ×
                 </button>

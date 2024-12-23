@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+import { Typography, useTheme } from '@mui/material';
 import { motion } from 'framer-motion';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,10 +7,10 @@ import { calculateItineraryTotal } from '../../utils/priceCalculations';
 import './PriceSummary.css';
 
 const PriceSummary = ({ itinerary }) => {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const { markups, tcsRates, lastUpdated } = useSelector(state => state.markup);
 
-  // Only fetch if we don't have markup data yet
   useEffect(() => {
     if (!lastUpdated) {
       dispatch(fetchMarkupSettings());
@@ -19,7 +19,6 @@ const PriceSummary = ({ itinerary }) => {
 
   const totals = calculateItineraryTotal(itinerary, markups, tcsRates);
 
-  // Animation variants for Framer Motion
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -48,12 +47,13 @@ const PriceSummary = ({ itinerary }) => {
       variants={containerVariants}
       className="price-summary-container"
     >
-      {/* Header Section */}
-      <Typography variant="h6" className="price-summary-title">
+      <Typography 
+        variant="h6" 
+        className="price-summary-title"
+      >
         Price Summary
       </Typography>
 
-      {/* Segment Totals */}
       <div className="segment-totals">
         {Object.entries(totals.segmentTotals).map(([segment, amount]) => (
           <motion.div
@@ -61,38 +61,58 @@ const PriceSummary = ({ itinerary }) => {
             variants={itemVariants}
             className="segment-item"
           >
-            <Typography className="segment-name">
+            <Typography 
+              className="segment-name"
+            >
               {segment.charAt(0).toUpperCase() + segment.slice(1)}
             </Typography>
-            <Typography className="segment-amount">
+            <Typography 
+              className="segment-amount"
+            >
               {formatAmount(amount)}
             </Typography>
           </motion.div>
         ))}
       </div>
 
-      {/* Subtotal Section */}
       <motion.div variants={itemVariants} className="summary-section">
         <div className="summary-row">
-          <Typography className="summary-label">Subtotal</Typography>
-          <Typography className="summary-amount">
+          <Typography 
+            className="summary-label"
+          >
+            Subtotal
+          </Typography>
+          <Typography 
+            className="summary-amount"
+          >
             {formatAmount(totals.subtotal)}
           </Typography>
         </div>
         <div className="summary-row">
-          <Typography className="summary-label">
+          <Typography 
+            className="summary-label"
+          >
             TCS ({totals.tcsRate}%)
           </Typography>
-          <Typography className="summary-amount">
+          <Typography 
+            className="summary-amount"
+          >
             {formatAmount(totals.tcsAmount)}
           </Typography>
         </div>
       </motion.div>
 
-      {/* Total Section */}
       <motion.div variants={itemVariants} className="total-section">
-        <Typography variant="h6" className="total-label">Total</Typography>
-        <Typography variant="h6" className="total-amount">
+        <Typography 
+          variant="h6" 
+          className="total-label"
+        >
+          Total
+        </Typography>
+        <Typography 
+          variant="h6" 
+          className="total-amount"
+        >
           {formatAmount(totals.grandTotal)}
         </Typography>
       </motion.div>

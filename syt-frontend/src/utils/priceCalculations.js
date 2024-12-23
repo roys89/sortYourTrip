@@ -12,8 +12,8 @@ export const calculateSegmentTotal = (items, markup) => {
       itemPrice = item.rate.price;
     } else if (item.flightData?.price) {
       itemPrice = item.flightData.price;
-    } else if (item.details?.selectedQuote?.fare) {
-      itemPrice = parseFloat(item.details.selectedQuote.fare);
+    } else if (item.details?.selectedQuote?.quote?.fare) {
+      itemPrice = parseFloat(item.details.selectedQuote.quote?.fare);
     }
 
     const markupAmount = (itemPrice * markup) / 100;

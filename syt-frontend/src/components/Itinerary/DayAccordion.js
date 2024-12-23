@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button, useTheme } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Plus } from 'lucide-react';
 import { DateTime } from 'luxon';
@@ -13,6 +13,7 @@ import TransferCard from '../Cards/TransferCard';
 import './DayAccordion.css';
 
 const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
+  const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -44,32 +45,23 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
     });
   };
 
-  // Animation variants
-  const contentVariants = {
-    hidden: { 
-      height: 0,
-      opacity: 0,
-      transition: { duration: 0.2 }
-    },
-    visible: { 
-      height: "auto",
-      opacity: 1,
-      transition: { duration: 0.3 }
-    }
-  };
-
   return (
     <div className="day-accordion">
       <button
         className="day-header"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="day-date">{formatDate(day.date)}</span>
+        <span className="day-date" style={{ color: theme.palette.text.primary }}>
+          {formatDate(day.date)}
+        </span>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown className="day-icon" />
+          <ChevronDown 
+            className="day-icon" 
+            style={{ color: theme.palette.text.secondary }}
+          />
         </motion.div>
       </button>
 
@@ -79,13 +71,19 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
             initial="hidden"
             animate="visible"
             exit="hidden"
-            variants={contentVariants}
+            variants={{
+              hidden: { height: 0, opacity: 0 },
+              visible: { height: "auto", opacity: 1 }
+            }}
+            transition={{ duration: 0.2 }}
             className="day-content"
           >
             {/* Flights Section */}
             {day.flights?.length > 0 && (
               <div className="section-container">
-                <h3 className="section-title">Flights</h3>
+                <h3 className="section-title" style={{ color: theme.palette.primary.main }}>
+                  Flights
+                </h3>
                 <div className="cards-container">
                   {day.flights.map((flight, index) => (
                     <FlightCard 
@@ -100,7 +98,9 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
             {/* Hotels Section */}
             {day.hotels?.length > 0 && (
               <div className="section-container">
-                <h3 className="section-title">Accommodations</h3>
+                <h3 className="section-title" style={{ color: theme.palette.primary.main }}>
+                  Accommodations
+                </h3>
                 <div className="cards-container">
                   {day.hotels.map((hotel, index) => (
                     <HotelCard 
@@ -121,7 +121,9 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
             {/* Transfers Section */}
             {day.transfers?.length > 0 && (
               <div className="section-container">
-                <h3 className="section-title">Transfers</h3>
+                <h3 className="section-title" style={{ color: theme.palette.primary.main }}>
+                  Transfers
+                </h3>
                 <div className="cards-container">
                   {day.transfers.map((transfer, index) => (
                     <TransferCard 
@@ -135,7 +137,9 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
 
             {/* Activities Section */}
             <div className="section-container">
-              <h3 className="section-title">Activities</h3>
+              <h3 className="section-title" style={{ color: theme.palette.primary.main }}>
+                Activities
+              </h3>
               <div className="cards-container">
                 {day.activities?.map((activity, index) => (
                   <ActivityCard 
@@ -158,9 +162,10 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
                 >
                   <Button
                     variant="outlined"
-                    startIcon={<Plus className="w-4 h-4" />}
+                    startIcon={<Plus className="w-4 h-4" style={{ color: theme.palette.text.primary }} />}
                     onClick={handleAddActivity}
                     className="add-activity-button"
+                    sx={{ color: theme.palette.text.primary }}
                   >
                     Add Activity ({3 - (day.activities?.length || 0)} remaining)
                   </Button>

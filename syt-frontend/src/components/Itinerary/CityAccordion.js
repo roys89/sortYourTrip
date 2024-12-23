@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material';
 import { motion } from 'framer-motion';
 import { MapPin } from 'lucide-react';
 import { DateTime } from 'luxon';
@@ -6,6 +7,8 @@ import './CityAccordion.css';
 import DayAccordion from './DayAccordion';
 
 const CityAccordion = ({ city, inquiryToken, travelersDetails }) => {
+  const theme = useTheme();
+
   const formatDate = (dateString) => {
     return DateTime.fromISO(dateString)
       .toLocal()
@@ -22,13 +25,17 @@ const CityAccordion = ({ city, inquiryToken, travelersDetails }) => {
       <div className="city-header">
         <div className="city-info">
           <div className="city-icon">
-            <MapPin size={24} className="text-blue-400" />
+            <MapPin 
+              size={24} 
+              className="text-blue-400" 
+              style={{ color: theme.palette.primary.main }}
+            />
           </div>
           <div className="city-details">
-            <h3 className="city-name">
+            <h3 className="city-name" style={{ color: theme.palette.text.primary }}>
               {city.city}, {city.country}
             </h3>
-            <p className="city-dates">
+            <p className="city-dates" style={{ color: theme.palette.text.secondary }}>
               {formatDate(city.startDate)} - {formatDate(city.endDate)}
             </p>
           </div>

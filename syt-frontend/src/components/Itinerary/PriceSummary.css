@@ -1,118 +1,146 @@
 .price-summary-container {
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(8px);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    color: white;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  color: inherit;
+}
+
+.price-summary-title {
+  font-size: 2.25rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 1.5rem !important;
+  background: linear-gradient(to right, #1b5e20, #4caf50);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+
+
+.segment-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.segment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  transition: background-color 0.2s ease;
+}
+
+.segment-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin: 0 -0.5rem;
+}
+
+.segment-name {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.segment-amount {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  color: inherit;
+  opacity: 0.9;
+}
+
+.summary-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-label {
+  color: inherit;
+  opacity: 0.7;
+}
+
+.summary-amount {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  color: inherit;
+  opacity: 0.9;
+}
+
+.total-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.total-label {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+.total-amount {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace !important;
+  color: inherit !important;
+  font-weight: 600 !important;
+  background: linear-gradient(to right, #2e7d32, #4caf50);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Ensure a darker text color in light mode */
+[data-theme='light'] .total-amount {
+  color: #1b5e20 !important; /* Darker green for light mode */
+}
+[data-theme='light'] .price-summary-title {
+  color: #1b5e20 !important; /* Darker green for light mode */
+}
+
+/* Maintain gradient in dark mode */
+[data-theme='dark'] .total-amount {
+  background: linear-gradient(to right, #4caf50, #81c784);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme='light'] .price-summary-title {
+  background: linear-gradient(to right, #4caf50, #81c784);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (max-width: 768px) {
+  .price-summary-container {
+    padding: 1rem;
   }
-  
+
   .price-summary-title {
-    font-size: 1.25rem !important;
-    font-weight: 600 !important;
-    margin-bottom: 1.5rem !important;
-    color: white;
-    background: linear-gradient(to right, #60A5FA, #A78BFA);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1.125rem !important;
   }
-  
-  .segment-totals {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
+}
+
+/* Animation classes */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
   }
-  
-  .segment-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
-    transition: background-color 0.2s ease;
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
-  
-  .segment-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 0.5rem;
-    padding: 0.5rem;
-    margin: 0 -0.5rem;
-  }
-  
-  .segment-name {
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .segment-amount {
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .summary-section {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 1rem;
-    margin-bottom: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .summary-label {
-    color: rgba(255, 255, 255, 0.7);
-  }
-  
-  .summary-amount {
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .total-section {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .total-label {
-    color: white !important;
-    font-weight: 600 !important;
-  }
-  
-  .total-amount {
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace !important;
-    color: white !important;
-    font-weight: 600 !important;
-    background: linear-gradient(to right, #60A5FA, #A78BFA);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  
-  @media (max-width: 768px) {
-    .price-summary-container {
-      padding: 1rem;
-    }
-  
-    .price-summary-title {
-      font-size: 1.125rem !important;
-    }
-  }
-  
-  /* Animation classes */
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
+}

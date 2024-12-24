@@ -48,7 +48,8 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
   const [signInOpen, setSignInOpen] = useState(false);
   const [signUpOpen, setSignUpOpen] = useState(false);
 
-  const handleMobileMenuOpen = (event) => setMobileMenuAnchor(event.currentTarget);
+  const handleMobileMenuOpen = (event) =>
+    setMobileMenuAnchor(event.currentTarget);
   const handleMobileMenuClose = () => setMobileMenuAnchor(null);
   const handleUserMenuOpen = (event) => setUserMenuAnchor(event.currentTarget);
   const handleUserMenuClose = () => setUserMenuAnchor(null);
@@ -56,23 +57,27 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
   // Modified auth handlers to support both modal and page navigation
   const handleSignInClick = () => {
     handleMobileMenuClose();
-    if (location.pathname.includes('/itinerary') || 
-        location.pathname.includes('/booking') ||
-        location.state?.showModal) {
+    if (
+      location.pathname.includes("/itinerary") ||
+      location.pathname.includes("/booking") ||
+      location.state?.showModal
+    ) {
       setSignInOpen(true);
     } else {
-      navigate('/auth/login');
+      navigate("/auth/login");
     }
   };
 
   const handleSignUpClick = () => {
     handleMobileMenuClose();
-    if (location.pathname.includes('/itinerary') || 
-        location.pathname.includes('/booking') ||
-        location.state?.showModal) {
+    if (
+      location.pathname.includes("/itinerary") ||
+      location.pathname.includes("/booking") ||
+      location.state?.showModal
+    ) {
       setSignUpOpen(true);
     } else {
-      navigate('/auth/register');
+      navigate("/auth/register");
     }
   };
 
@@ -95,7 +100,9 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
     { to: "/", label: "Home" },
     { to: "/about", label: "About Us" },
     { to: "/contact", label: "Contact" },
-    ...(user?.role === "admin" ? [{ to: "/markup-management", label: "Markup" }] : []),
+    ...(user?.role === "admin"
+      ? [{ to: "/markup-management", label: "Markup" }]
+      : []),
     ...(isAuthenticated
       ? [
           { to: "/profile", label: "Profile" },
@@ -258,15 +265,23 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
           </Box>
 
           {isMobile ? (
-            <IconButton
-              edge="start"
-              color="inherit"
-              aria-label="menu"
-              onClick={handleMobileMenuOpen}
-              sx={{ ml: "auto" }}
-            >
-              <MenuIcon />
-            </IconButton>
+            <Box sx={{ ml: "auto", display: "flex", alignItems: "center" }}>
+              <IconButton
+                onClick={handleThemeToggle}
+                color="inherit"
+                sx={{ mr: 1 }}
+              >
+                {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+              <IconButton
+                edge="start"
+                color="inherit"
+                aria-label="menu"
+                onClick={handleMobileMenuOpen}
+              >
+                <MenuIcon />
+              </IconButton>
+            </Box>
           ) : (
             renderDesktopNav()
           )}
@@ -343,9 +358,10 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
             width: "90%",
             maxWidth: "400px",
             position: "relative",
-            backgroundColor: theme.palette.mode === "dark"
-              ? "rgba(46, 46, 46)"
-              : "rgba(255, 239, 226)",
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? "rgba(46, 46, 46)"
+                : "rgba(255, 239, 226)",
             boxShadow: 24,
             borderRadius: "12px",
             p: 0,
@@ -361,34 +377,35 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
         aria-labelledby="sign-up-modal"
         aria-describedby="sign-up-form"
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: { xs: 1, sm: 2, md: 3 }
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: { xs: 1, sm: 2, md: 3 },
         }}
       >
         <Box
           sx={{
-            width: '95%',
-            maxWidth: '800px',
-            position: 'relative',
-            backgroundColor: theme.palette.mode === "dark"
-              ? "rgba(46, 46, 46)"
-              : "rgba(255, 239, 226)",
+            width: "95%",
+            maxWidth: "800px",
+            position: "relative",
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? "rgba(46, 46, 46)"
+                : "rgba(255, 239, 226)",
             boxShadow: 24,
-            borderRadius: '12px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            '&:focus': {
-              outline: 'none'
+            borderRadius: "12px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            "&:focus": {
+              outline: "none",
             },
-            '&::-webkit-scrollbar': {
-              width: '8px'
+            "&::-webkit-scrollbar": {
+              width: "8px",
             },
-            '&::-webkit-scrollbar-thumb': {
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              borderRadius: '4px'
-            }
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "rgba(0,0,0,0.2)",
+              borderRadius: "4px",
+            },
           }}
         >
           <SignUp handleClose={handleSignUpClose} />

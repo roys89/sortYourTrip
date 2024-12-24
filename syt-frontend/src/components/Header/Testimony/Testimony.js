@@ -1,3 +1,4 @@
+import { Box, Button, Typography, useTheme } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
@@ -71,6 +72,7 @@ const testimonials = [
 ];
 
 const Testimony = () => {
+  const theme = useTheme();
   const [activeIndex, setActiveIndex] = useState(2);
   const [direction, setDirection] = useState(0);
   const avatarSize = 100;
@@ -101,30 +103,87 @@ const Testimony = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-16">
-      <h2 className="text-center text-4xl font-bold text-teal-900 mb-2">
+    <Box 
+      sx={{ 
+        maxWidth: '1200px', 
+        mx: 'auto', 
+        py: 8,
+        px: { xs: 2, md: 4 }
+      }}
+    >
+      <Typography 
+        variant="h2" 
+        sx={{ 
+          textAlign: 'center',
+          fontWeight: 'bold',
+          color: theme.palette.text.primary,
+          mb: 1,
+          fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
+        }}
+      >
         Stories From Our Journey-Takers
-      </h2>
+      </Typography>
       
-      <p className="text-center text-teal-600 text-lg mb-12">
+      <Typography 
+        sx={{ 
+          textAlign: 'center',
+          color: theme.palette.text.secondary,
+          fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+          mb: 6
+        }}
+      >
         Real travelers, real stories. See what they have to say about their journeys!
-      </p>
+      </Typography>
 
       {/* Avatar Carousel */}
-      <div className="relative h-64 flex items-center justify-center mb-8">
-        <button
+      <Box sx={{ 
+        position: 'relative', 
+        height: '256px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        mb: 4
+      }}>
+        <Button
           onClick={() => moveSlider('prev')}
-          className="absolute left-0 md:left-32 p-2 bg-teal-900 text-white rounded-full hover:bg-teal-600 transition-colors z-10"
+          sx={{
+            position: 'absolute',
+            left: { xs: 0, md: '128px' },
+            minWidth: 'auto',
+            p: 1,
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.common.white,
+            borderRadius: '50%',
+            '&:hover': {
+              bgcolor: theme.palette.primary.dark,
+              background: theme.palette.button.hoverGradient,
+              animation: theme.palette.button.hoverAnimation
+            },
+            zIndex: 10
+          }}
         >
           <ChevronLeft size={24} />
-        </button>
+        </Button>
 
-        <div className="flex items-center justify-center relative h-full overflow-hidden"
-             style={{ width: 'calc(100% - 256px)' }}>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          height: '100%',
+          overflow: 'hidden',
+          width: 'calc(100% - 256px)'
+        }}>
           <AnimatePresence initial={false} custom={direction}>
             <motion.div 
               key={activeIndex}
-              className="flex items-center justify-center gap-16 absolute"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '64px',
+                position: 'absolute'
+              }}
               custom={direction}
               initial={{ x: direction > 0 ? 500 : -500 }}
               animate={{ x: 0 }}
@@ -147,28 +206,47 @@ const Testimony = () => {
                   }}
                   style={{
                     width: avatarSize,
-                    height: avatarSize
+                    height: avatarSize,
+                    flexShrink: 0
                   }}
-                  className="flex-shrink-0"
                 >
                   <img
                     src={data.avatar}
                     alt={data.name}
-                    className="w-full h-full object-cover rounded-full"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: '50%'
+                    }}
                   />
                 </motion.div>
               ))}
             </motion.div>
           </AnimatePresence>
-        </div>
+        </Box>
 
-        <button
+        <Button
           onClick={() => moveSlider('next')}
-          className="absolute right-0 md:right-32 p-2 bg-teal-900 text-white rounded-full hover:bg-teal-600 transition-colors z-10"
+          sx={{
+            position: 'absolute',
+            right: { xs: 0, md: '128px' },
+            minWidth: 'auto',
+            p: 1,
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.common.white,
+            borderRadius: '50%',
+            '&:hover': {
+              bgcolor: theme.palette.primary.dark,
+              background: theme.palette.button.hoverGradient,
+              animation: theme.palette.button.hoverAnimation
+            },
+            zIndex: 10
+          }}
         >
           <ChevronRight size={24} />
-        </button>
-      </div>
+        </Button>
+      </Box>
 
       {/* Testimonial Content */}
       <AnimatePresence mode="wait">
@@ -178,49 +256,105 @@ const Testimony = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-          className="space-y-8"
         >
-          <div className="text-center">
-            <div className="text-3xl text-teal-900 mb-2">
+          <Box sx={{ mb: 4, textAlign: 'center' }}>
+            <Typography 
+              sx={{ 
+                fontSize: '2rem',
+                color: theme.palette.primary.main,
+                mb: 1
+              }}
+            >
               {'★'.repeat(testimonials[activeIndex].rating)}
-            </div>
-            <h3 className="text-3xl font-bold text-teal-900">
+            </Typography>
+            <Typography 
+              variant="h3" 
+              sx={{ 
+                fontWeight: 'bold',
+                color: theme.palette.text.primary,
+                fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
+              }}
+            >
               {testimonials[activeIndex].name}
-            </h3>
-          </div>
+            </Typography>
+          </Box>
 
-          <div className="bg-orange-50 rounded-2xl p-8 shadow-lg">
-            <div className="grid grid-cols-2 gap-8">
+          <Box sx={{ 
+            bgcolor: theme.palette.background.paper,
+            borderRadius: '16px',
+            p: 4,
+            boxShadow: 3
+          }}>
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: 4
+            }}>
               {/* Left Side */}
-              <div className="flex flex-col items-center justify-center text-center">
-                <div className="w-40 h-40 rounded-full overflow-hidden mb-6">
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center'
+              }}>
+                <Box sx={{ 
+                  width: '160px',
+                  height: '160px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  mb: 3
+                }}>
                   <img
                     src={testimonials[activeIndex].avatar}
                     alt={testimonials[activeIndex].name}
-                    className="w-full h-full object-cover"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
                   />
-                </div>
-                <p className="text-teal-600 text-lg leading-relaxed max-w-md">
+                </Box>
+                <Typography sx={{ 
+                  color: theme.palette.text.secondary,
+                  fontSize: '1.125rem',
+                  lineHeight: 1.7,
+                  maxWidth: '32rem'
+                }}>
                   {testimonials[activeIndex].testimony}
-                </p>
-              </div>
+                </Typography>
+              </Box>
 
               {/* Right Side - Images */}
-              <div className="grid grid-cols-2 gap-4">
+              <Box sx={{ 
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 2
+              }}>
                 {testimonials[activeIndex].images.map((image, idx) => (
-                  <img
+                  <Box
                     key={idx}
+                    component="img"
                     src={image}
                     alt={`Travel moment ${idx + 1}`}
-                    className="w-full aspect-square object-cover rounded-lg transition-transform duration-300 hover:scale-105"
+                    sx={{
+                      width: '100%',
+                      aspectRatio: '1',
+                      objectFit: 'cover',
+                      borderRadius: 2,
+                      transition: 'transform 0.3s ease',
+                      '&:hover': {
+                        transform: 'scale(1.05)'
+                      }
+                    }}
                   />
                 ))}
-              </div>
-            </div>
-          </div>
+              </Box>
+            </Box>
+          </Box>
         </motion.div>
       </AnimatePresence>
-    </div>
+    </Box>
   );
 };
 

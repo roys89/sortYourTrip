@@ -1,8 +1,10 @@
-import { Box, Button, Grid, Typography } from '@mui/material';
+import { Box, Button, Grid, Typography, useTheme } from '@mui/material';
 import { motion } from 'framer-motion';
 import React from 'react';
 
 const JourneyStories = () => {
+  const theme = useTheme();
+  
   const destinations = [
     {
       image: "/assets/testimony/images/029.jpg",
@@ -40,7 +42,8 @@ const JourneyStories = () => {
       sx={{
         width: '100%',
         py: { xs: 6, md: 8 },
-        px: { xs: 2, md: 4, lg: 8 }
+        px: { xs: 2, md: 4, lg: 8 },
+        backgroundColor: theme.palette.background.default
       }}
     >
       <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
@@ -52,7 +55,7 @@ const JourneyStories = () => {
             mb: 2,
             fontWeight: 'bold',
             fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' },
-            color: '#004D40'
+            color: theme.palette.text.primary
           }}
         >
           Journey Stories Captured In Travel Diaries
@@ -64,7 +67,7 @@ const JourneyStories = () => {
             textAlign: 'center',
             mb: 6,
             fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
-            color: '#2A9D8F'
+            color: theme.palette.text.secondary
           }}
         >
           Experience the best with our customized tour packages for every need.
@@ -84,10 +87,12 @@ const JourneyStories = () => {
                     position: 'relative',
                     overflow: 'hidden',
                     borderRadius: 2,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    transition: 'transform 0.3s ease-in-out',
+                    bgcolor: theme.palette.background.paper,
+                    boxShadow: theme.shadows[1],
+                    transition: 'all 0.3s ease-in-out',
                     '&:hover': {
-                      transform: 'scale(1.03)'
+                      transform: 'scale(1.03)',
+                      boxShadow: theme.shadows[4]
                     }
                   }}
                 >
@@ -111,15 +116,18 @@ const JourneyStories = () => {
           <Button
             variant="contained"
             sx={{
-              bgcolor: '#004D40',
-              color: 'white',
+              backgroundColor: theme.palette.primary.main,
+              color: theme.palette.common.white,
               px: 4,
               py: 1.5,
               borderRadius: '50px',
               fontSize: '1rem',
               fontWeight: 600,
+              transition: 'all 0.3s ease',
               '&:hover': {
-                bgcolor: '#00695C'
+                background: theme.palette.button.hoverGradient,
+                animation: theme.palette.button.hoverAnimation,
+                backgroundSize: '200% 100%'
               }
             }}
           >

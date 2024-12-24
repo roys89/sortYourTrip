@@ -1,118 +1,253 @@
-import { Facebook as FacebookIcon, Instagram as InstagramIcon, LinkedIn as LinkedInIcon } from '@mui/icons-material';
-import { Box, Container, IconButton, Link, Typography, useTheme } from '@mui/material';
+// Footer.jsx
+import { Box, Container, Grid, TextField, Typography } from '@mui/material';
 import React from 'react';
 import './Footer.css';
 
 const Footer = () => {
-  const theme = useTheme();
-
   return (
     <Box
       sx={{
-        bgcolor: theme.palette.mode === 'light' ? '#f5f5f5' : '#333',
-        color: theme.palette.mode === 'light' ? '#333' : '#f5f5f5',
-        py: 4,
-        px: 2,
-        textAlign: { xs: 'center', sm: 'left' }, // Center text on small screens
+        bgcolor: '#004D30',
+        color: 'white',
+        pt: 8,
+        pb: 8,
       }}
     >
-      <Container maxWidth="lg">
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' }, // Stack on mobile, row on larger screens
-            justifyContent: 'space-between',
-            mb: 3,
-            alignItems: { xs: 'center', md: 'flex-start' }, // Center items on mobile
-          }}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'center', md: 'flex-start' } }}>
-            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2 }}>
-              SortYourTrip
-            </Typography>
-            <Box sx={{ display: 'flex', mb: 3 }}>
-              <IconButton color="inherit" component={Link} href="https://facebook.com/sortyourtrip?mibextid=LQQJ4d" aria-label="Facebook" target='_blank'>
-                <FacebookIcon />
-              </IconButton>
-              <IconButton color="inherit" component={Link} href="https://www.linkedin.com/company/sortyourtrip/" aria-label="Twitter" target='_blank'>
-                <LinkedInIcon />
-              </IconButton>
-              <IconButton color="inherit" component={Link} href="https://www.instagram.com/sortyourtrip/?igsh=dWxuYWkxc2dnOTUz" aria-label="Instagram" target='_blank'>
-                <InstagramIcon />
-              </IconButton>
-            </Box>
-            <Typography variant="body2" sx={{ mt: 2 }}>
-              Copyright © 2024 by SortYourTrip Group, Inc. All rights reserved.
-            </Typography>
-          </Box>
-
-          <Box
+      <Container maxWidth="xl" sx={{ px: { xs: 4, sm: 8, md: 12 } }}>
+        {/* Top Section */}
+        <Grid container spacing={4} sx={{ mb: 8 }}>
+          {/* Left Section */}
+          <Grid 
+            item 
+            xs={12} 
+            md={4.5}
             sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on mobile, horizontally on larger screens
-              justifyContent: 'space-between',
-              gap: { xs: 3, sm: 6 }, // Increase gap between sections on larger screens
-              alignItems: { xs: 'center', sm: 'flex-start' }, // Center sections on mobile, align left on larger screens
+              textAlign: { xs: 'center', md: 'left' },
+              mb: { xs: 6, md: 0 }
             }}
           >
-            <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, mx: { sm: 2 } }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Contact us
-              </Typography>
-              <Typography sx={{ mb: 0.5 }}>
-                A/202, Kalpatru Habitat, Dr S.S. Road, Parel, Mumbai 400012
-              </Typography>
-              <Typography sx={{ mb: 0.5 }}>Phone: +91 93720-69323</Typography>
-              <Link href="mailto:info@sortyourtrip.com" color="inherit" underline="none">
-                info@sortyourtrip.com
-              </Link>
+            <Typography 
+              variant="h1" 
+              sx={{ 
+                fontWeight: 400, 
+                mb: 6, 
+                color: 'white',
+                fontSize: '2.5rem',
+                fontFamily: "'Montserrat', sans-serif",
+                textAlign: { xs: 'center', md: 'left' }
+              }}
+            >
+              SortYourTrip
+            </Typography>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 400, 
+                mb: 3,
+                fontSize: '1.5rem'
+              }}
+            >
+              Contact Us
+            </Typography>
+            <Typography sx={{ 
+              mb: 4, 
+              fontSize: '1.125rem', 
+              lineHeight: 1.8,
+              opacity: 0.9
+            }}>
+              A/202, Kalpatru Habitat,<br />
+              Dr S.S. Road, Parel,<br />
+              Mumbai 400012
+            </Typography>
+            <Box 
+              component="a" 
+              href="tel:+919372069323" 
+              sx={{ 
+                display: 'block', 
+                mb: 2,
+                color: 'white',
+                textDecoration: 'underline',
+                fontSize: '1.125rem',
+                opacity: 0.9,
+                '&:hover': { opacity: 1 }
+              }}
+            >
+              +91 93720-69323
             </Box>
+            <Box 
+              component="a" 
+              href="mailto:info@sortyourtrip.com" 
+              sx={{ 
+                color: 'white',
+                textDecoration: 'underline',
+                fontSize: '1.125rem',
+                opacity: 0.9,
+                '&:hover': { opacity: 1 }
+              }}
+            >
+              info@sortyourtrip.com
+            </Box>
+          </Grid>
 
-            <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, mx: { sm: 2 } }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Account
-              </Typography>
-              <Link href="/create-account" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                Create account
-              </Link>
-              <Link href="/sign-in" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                Sign in
-              </Link>
+          {/* Middle Section - with horizontal lines in mobile */}
+          <Grid 
+            item 
+            xs={12} 
+            md={4.5} 
+            sx={{ 
+              borderLeft: { xs: 'none', md: '1px solid rgba(255, 255, 255, 0.1)' },
+              borderRight: { xs: 'none', md: '1px solid rgba(255, 255, 255, 0.1)' },
+              borderTop: { xs: '1px solid rgba(255, 255, 255, 0.1)', md: 'none' },
+              borderBottom: { xs: '1px solid rgba(255, 255, 255, 0.1)', md: 'none' },
+              px: { xs: 0, md: 8 },
+              py: { xs: 6, md: 0 },
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}
+          >
+            <Typography 
+              variant="h2" 
+              sx={{ 
+                fontWeight: 400, 
+                mb: 3,
+                fontSize: '2.25rem',
+                textAlign: 'center'
+              }}
+            >
+              Get Updates
+            </Typography>
+            <Typography sx={{ 
+              mb: 4, 
+              fontSize: '1.125rem',
+              opacity: 0.9,
+              lineHeight: 1.6,
+              textAlign: 'center'
+            }}>
+              Subscribe to our Newsletter for<br />
+              Daily Updates & Announcements
+            </Typography>
+            <Box sx={{ width: { xs: '100%', sm: '80%', md: '100%' } }}>
+              <TextField
+                fullWidth
+                placeholder="Email Address"
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  backgroundColor: 'transparent',
+                  input: { 
+                    color: 'white',
+                    py: 1.5,
+                    fontSize: '1.125rem'
+                  },
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                    '&.Mui-focused fieldset': { borderColor: 'white' },
+                  }
+                }}
+              />
+              <TextField
+                fullWidth
+                placeholder="First Name"
+                variant="outlined"
+                sx={{
+                  mb: 3,
+                  backgroundColor: 'transparent',
+                  input: { 
+                    color: 'white',
+                    py: 1.5,
+                    fontSize: '1.125rem'
+                  },
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                    '&.Mui-focused fieldset': { borderColor: 'white' },
+                  }
+                }}
+              />
             </Box>
+            <button className="subscribe-button">
+              Subscribe
+            </button>
+          </Grid>
 
-            <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, mx: { sm: 2 } }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Company
-              </Typography>
-              <Link href="/about" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                About SortYourTrip
-              </Link>
-              <Link href="/business" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                For Business
-              </Link>
-              <Link href="/partners" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                Travel Partners
-              </Link>
-              <Link href="/careers" color="inherit" underline="none" display="block">
-                Careers
-              </Link>
+          {/* Right Section */}
+          <Grid 
+            item 
+            xs={12} 
+            md={3} 
+            sx={{ 
+              pl: { xs: 0, md: 6 },
+              mt: { xs: 6, md: 0 }
+            }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: { xs: 'center', md: 'flex-end' },
+              flexDirection: 'column',
+              alignItems: { xs: 'center', md: 'flex-end' }
+            }}>
+              {[
+                'About Us',
+                'Destinations',
+                'Book Now',
+                'Blog',
+                'Contact Us',
+                ['Sent Us Text', '→']
+              ].map((text, index) => (
+                <Box
+                  key={typeof text === 'string' ? text : text[0]}
+                  component="a"
+                  href={`/${typeof text === 'string' ? text.toLowerCase().replace(/\s+/g, '-') : text[0].toLowerCase().replace(/\s+/g, '-')}`}
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: { xs: 'center', md: 'flex-end' },
+                    mb: index === 5 ? 0 : 3,
+                    color: 'white',
+                    textDecoration: 'none',
+                    opacity: 0.9,
+                    fontSize: '1.25rem',
+                    fontWeight: 400,
+                    '&:hover': { opacity: 1 }
+                  }}
+                >
+                  {typeof text === 'string' ? text : (
+                    <>
+                      {text[0]}
+                      <span style={{ marginLeft: '12px', fontSize: '1.5rem' }}>{text[1]}</span>
+                    </>
+                  )}
+                </Box>
+              ))}
             </Box>
+          </Grid>
+        </Grid>
 
-            <Box sx={{ textAlign: { xs: 'center', sm: 'left' }, mx: { sm: 2 } }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Resources
-              </Typography>
-              <Link href="/itinerary" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                Itinerary Directory
-              </Link>
-              <Link href="/help" color="inherit" underline="none" display="block" sx={{ mb: 0.5 }}>
-                Help Center
-              </Link>
-              <Link href="/privacy" color="inherit" underline="none" display="block">
-                Privacy & Terms
-              </Link>
-            </Box>
-          </Box>
+        {/* Bottom Section - Copyright */}
+        <Box sx={{ 
+          justifyContent: 'center',
+          display: 'flex',
+          pt: 4,
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <Typography sx={{ 
+            opacity: 0.9,
+            fontSize: { xs: '0.9rem', sm: '1.125rem' },
+            display: 'flex',
+            alignItems: 'center',
+            gap: { xs: 1, sm: 2 },
+            textAlign: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
+            <span>Copyright 2024</span>
+            <Box component="span" sx={{ mx: 1 }}>•</Box>
+            <span>SortYourTrip Group, Inc.</span>
+            <Box component="span" sx={{ mx: 1 }}>•</Box>
+            <span>All rights reserved</span>
+          </Typography>
         </Box>
       </Container>
     </Box>

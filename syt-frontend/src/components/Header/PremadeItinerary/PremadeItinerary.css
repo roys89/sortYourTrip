@@ -1,30 +1,32 @@
-
 .destination-card {
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.3s ease;
-  }
-  
-  .destination-card:hover {
-    transform: translateY(-10px);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.destination-card:hover {
+  transform: translateY(-10px);
+}
+
+.destination-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: background 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .destination-card {
+    margin: 0 0.5rem;
   }
   
   .destination-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.7));
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    color: white;
+    padding: 1.5rem;
   }
-  
-  @media (max-width: 768px) {
-    .destination-card {
-      margin: 0 0.5rem;
-    }
-  }
+}

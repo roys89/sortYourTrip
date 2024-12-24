@@ -4,17 +4,20 @@ const lightTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#2e7d32', // Green for primary input color like checkbox
+      main: '#004d30',
+      light: '#004D40',
+      dark: '#04d190'
     },
     secondary: {
-      main: '#dc004e',
+      main: '#078d5b',
     },
     background: {
       default: '#fdf2e9',
       paper: '#ffffff',
     },
     text: {
-      primary: '#000000',
+      primary: '#004a27',
+      secondary: '#2A9D8F'
     },
     footer: {
       light: '#ffffff',
@@ -28,9 +31,9 @@ const lightTheme = createTheme({
       main: '#fee1ca',
     },
     button: {
-      main: '#2e7d32',
+      main: '#2A9D8F',
       contrastText: '#ffffff',
-      hoverGradient: 'linear-gradient(270deg, #2e7d32, #90f998, #66bb6a)',
+      hoverGradient: 'linear-gradient(135deg, #2A9D8F 0%, #264653 100%)',
       hoverAnimation: `movingGradientLight 5s ease infinite`,
     },
   },
@@ -38,7 +41,7 @@ const lightTheme = createTheme({
     MuiCheckbox: {
       styleOverrides: {
         root: {
-          color: '#2e7d32', // Set the unchecked color to green
+          color: '#2A9D8F',
         },
       },
     },
@@ -58,17 +61,20 @@ const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#4caf50', // Green for primary input color in dark mode
+      main: '#2A9D8F',
+      light: '#4DB6A9',
+      dark: '#004D40'
     },
     secondary: {
-      main: '#f48fb1',
+      main: '#264653',
     },
     background: {
       default: '#303030',
       paper: '#424242',
     },
     text: {
-      primary: '#ffffff',
+      primary: '#4DB6A9',
+      secondary: '#2A9D8F'
     },
     footer: {
       light: '#333333',
@@ -82,9 +88,9 @@ const darkTheme = createTheme({
       main: '#484848',
     },
     button: {
-      main: '#4caf50',
-      contrastText: '#000000',
-      hoverGradient: 'linear-gradient(270deg, #4caf50, #b6ffbc, #a5d6a7)',
+      main: '#2A9D8F',
+      contrastText: '#ffffff',
+      hoverGradient: 'linear-gradient(135deg, #2A9D8F 0%, #264653 100%)',
       hoverAnimation: `movingGradientDark 5s ease infinite`,
     },
   },
@@ -92,7 +98,7 @@ const darkTheme = createTheme({
     MuiCheckbox: {
       styleOverrides: {
         root: {
-          color: '#4caf50', // Set the unchecked color to green in dark mode
+          color: '#2A9D8F',
         },
       },
     },

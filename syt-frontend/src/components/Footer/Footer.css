@@ -1,32 +1,32 @@
-.footer-link {
-  color: inherit;
-  text-decoration: none;
+.subscribe-button {
+  width: 200px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 16px 32px;
+  cursor: pointer;
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
+  border-radius: 50px;
+  margin: 0 auto;
   display: block;
-  margin: 5px 0;
 }
 
-.footer-link:hover {
-  text-decoration: underline;
+.subscribe-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
-a {
-  color: inherit;
+.MuiTextField-root input::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+  opacity: 1;
 }
 
-a:hover {
-  color: #008b2e !important; /* Change hover color */
-}
-
-footer {
-  padding: 2rem 1rem;
-}
-
-a {
-  color: inherit;
-  text-decoration: none; /* Removes the underline */
-}
-
-a:hover {
-  text-decoration: none; /* Ensure no underline on hover */
-  color: #0073e6; /* Optional: Change hover color */
+/* Remove autofill background color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #004D30 inset !important;
+  -webkit-text-fill-color: white !important;
 }

@@ -70,7 +70,7 @@ const Header = () => {
                 md: '3rem',
                 lg: '3.5rem',
               },
-              color: '#004D40'
+              color: theme.palette.primary.main
             }}
           >
             What Makes SortYourTrip Different?
@@ -85,11 +85,11 @@ const Header = () => {
                 sm: '1.1rem',
                 md: '1.2rem',
               },
-              color: '#2A9D8F'
+              color: theme.palette.primary.light
             }}
           >
-           Personalized and Customized Travel Experience - Your Travel Personal Assistant
-           </Typography>
+            Personalized and Customized Travel Experience - Your Travel Personal Assistant
+          </Typography>
 
           <Typography
             variant="h2"
@@ -103,10 +103,10 @@ const Header = () => {
                 md: '3rem',
                 lg: '3.5rem',
               },
-              color: '#004D40'
+              color: theme.palette.primary.main
             }}
           >
-            Vacation Planning Made Quick & Easy?
+            Vacation Planning Made Quick & Easy
           </Typography>
 
           <Typography
@@ -118,7 +118,7 @@ const Header = () => {
                 sm: '1.1rem',
                 md: '1.2rem',
               },
-              color: '#2A9D8F'
+              color: theme.palette.primary.light
             }}
           >
             Craft your personalized adventure, tailored just for you. Travel hassle-free with ease.
@@ -141,16 +141,28 @@ const Header = () => {
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
                 >
-                  <Box className="feature-item">
+                  <Box 
+                    className="feature-item"
+                    sx={{
+                      backgroundColor: theme.palette.background.paper,
+                      '&:hover::before': {
+                        background: theme.palette.button.hoverGradient,
+                        animation: theme.palette.button.hoverAnimation,
+                      }
+                    }}
+                  >
                     <div className="feature-icon">
-                      {React.cloneElement(feature.icon, { className: 'icon' })}
+                      {React.cloneElement(feature.icon, { 
+                        className: 'icon',
+                        style: { color: theme.palette.primary.main }
+                      })}
                     </div>
                     <Typography
                       variant="h6"
                       sx={{
                         fontWeight: 'bold',
                         mt: 2,
-                        color: '#004D40'
+                        color: theme.palette.text.primary
                       }}
                     >
                       {feature.title}
@@ -172,7 +184,6 @@ const Header = () => {
               textAlign: 'center',
             }}
           >
-            {/* Rest of your steps code remains the same */}
             {steps.map((step, index) => (
               <Grid item xs={12} sm={6} md={4} key={index}>
                 <motion.div
@@ -181,17 +192,38 @@ const Header = () => {
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: index * 0.2 }}
                 >
-                  <Box className="step-content">
+                  <Box 
+                    className="step-content"
+                    sx={{
+                      backgroundColor: theme.palette.background.paper,
+                      '.step-number': {
+                        background: theme.palette.button.hoverGradient,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        animation: theme.palette.button.hoverAnimation,
+                      }
+                    }}
+                  >
                     <Typography variant="h3" className="step-number">
                       {step.number}
                     </Typography>
                     <Typography
                       variant="h5"
-                      sx={{ fontWeight: 'bold', fontSize: '1.5rem' }}
+                      sx={{ 
+                        fontWeight: 'bold', 
+                        fontSize: '1.5rem',
+                        color: theme.palette.text.primary
+                      }}
                     >
                       {step.title}
                     </Typography>
-                    <Typography sx={{ fontSize: '1.2rem', mb: 2 }}>
+                    <Typography 
+                      sx={{ 
+                        fontSize: '1.2rem', 
+                        mb: 2,
+                        color: theme.palette.text.primary
+                      }}
+                    >
                       {step.description}
                     </Typography>
                     <img
@@ -208,7 +240,6 @@ const Header = () => {
         <Testimony />
         <JourneyStories />
         <SocialMediaSection />
-
       </Box>
     </>
   );

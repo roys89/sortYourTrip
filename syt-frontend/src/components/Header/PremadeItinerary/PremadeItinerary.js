@@ -1,4 +1,4 @@
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, IconButton, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
@@ -50,8 +50,10 @@ const destinations = [
 ];
 
 const PremadeItinerary = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [currentIndex, setCurrentIndex] = React.useState(0);
-  const cardsToShow = 4;
+  const cardsToShow = isMobile ? 1 : 4;
 
   const nextSlide = () => {
     setCurrentIndex((prev) => (prev + 1) % destinations.length);
@@ -91,7 +93,7 @@ const PremadeItinerary = () => {
           variant="h2"
           sx={{
             textAlign: 'center',
-            color: '#004D40',
+            color: theme.palette.text.primary,
             fontWeight: 'bold',
             fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
             mb: 2
@@ -103,7 +105,7 @@ const PremadeItinerary = () => {
         <Typography
           sx={{
             textAlign: 'center',
-            color: '#2A9D8F',
+            color: theme.palette.text.secondary,
             fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
             mb: 6
           }}
@@ -122,11 +124,11 @@ const PremadeItinerary = () => {
           <Box
             sx={{
               display: 'flex',
-              gap: 2,
+              gap: { xs: 0, sm: 2 },
               overflowX: 'hidden',
               scrollBehavior: 'smooth',
               position: 'relative',
-              padding: '1rem 2.5rem',
+              padding: { xs: '1rem 3rem', sm: '1rem 2.5rem' },
               width: '100%',
               maxWidth: '1200px',
               margin: '0 auto',
@@ -141,9 +143,10 @@ const PremadeItinerary = () => {
                 transition={{ delay: index * 0.1 }}
                 style={{
                   width: '100%',
-                  minWidth: '240px',
-                  maxWidth: '250px',
-                  flex: '1 1 0'
+                  minWidth: isMobile ? '260px' : '240px',
+                  maxWidth: isMobile ? '280px' : '250px',
+                  flex: '1 1 0',
+                  margin: isMobile ? '0 auto' : undefined
                 }}
               >
                 <Box
@@ -153,10 +156,12 @@ const PremadeItinerary = () => {
                     borderRadius: '16px',
                     overflow: 'hidden',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                    bgcolor: theme.palette.background.paper,
                     transition: 'transform 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-10px)'
-                    }
+                    },
+                    mx: { xs: 'auto', sm: 0 }
                   }}
                 >
                   <img
@@ -176,12 +181,12 @@ const PremadeItinerary = () => {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.7))',
+                      background: `linear-gradient(to bottom, rgba(0,0,0,0.2), ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.7)'})`,
                       padding: '1.5rem',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      color: 'white'
+                      color: theme.palette.common.white
                     }}
                   >
                     <Typography sx={{ fontSize: '1rem' }}>
@@ -209,12 +214,16 @@ const PremadeItinerary = () => {
             onClick={prevSlide}
             sx={{
               position: 'absolute',
-              left: { xs: '5px', md: '10px' },
+              left: { xs: '10px', md: '20px' },
               top: '50%',
               transform: 'translateY(-50%)',
-              bgcolor: '#004D40',
-              color: 'white',
-              '&:hover': { bgcolor: '#2A9D8F' },
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.common.white,
+              '&:hover': { 
+                bgcolor: theme.palette.primary.dark,
+                background: theme.palette.button.hoverGradient,
+                animation: theme.palette.button.hoverAnimation
+              },
               zIndex: 2
             }}
           >
@@ -225,12 +234,16 @@ const PremadeItinerary = () => {
             onClick={nextSlide}
             sx={{
               position: 'absolute',
-              right: { xs: '5px', md: '10px' },
+              right: { xs: '10px', md: '20px' },
               top: '50%',
               transform: 'translateY(-50%)',
-              bgcolor: '#004D40',
-              color: 'white',
-              '&:hover': { bgcolor: '#2A9D8F' },
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.common.white,
+              '&:hover': { 
+                bgcolor: theme.palette.primary.dark,
+                background: theme.palette.button.hoverGradient,
+                animation: theme.palette.button.hoverAnimation
+              },
               zIndex: 2
             }}
           >

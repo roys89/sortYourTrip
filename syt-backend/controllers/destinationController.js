@@ -16,6 +16,7 @@ exports.addDestination = async (req, res) => {
     destination_id,
     name,
     city,
+    iata,
     description,
     lat,
     long,
@@ -33,6 +34,7 @@ exports.addDestination = async (req, res) => {
       destination_id,
       name,
       city,
+      iata,
       description,
       lat,
       long,
@@ -180,7 +182,7 @@ exports.getCitiesByDestination = async (req, res) => {
     if (destinationType === 'continent') {
       // 1st Case: Fetch all cities from the specified continent
       cities = await Destination.find({ continent: destination }, {
-        destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1 
+        destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1, iata: 1 
       });
 
     } else if (destinationType === 'country') {
@@ -193,7 +195,7 @@ exports.getCitiesByDestination = async (req, res) => {
 
       // Fetch cities in the current country
       let allCities = await Destination.find({ country: destination }, {
-        destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1
+        destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1, iata:1
       });
 
       // Fetch cities from neighboring countries
@@ -201,7 +203,7 @@ exports.getCitiesByDestination = async (req, res) => {
       if (neighboringCountriesArray && neighboringCountriesArray.length > 0) {
         const neighboringCities = await Destination.find(
           { country: { $in: neighboringCountriesArray } },
-          { destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1 }
+          { destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1, iata: 1 }
         );
         allCities = allCities.concat(neighboringCities);
       }
@@ -232,14 +234,14 @@ exports.getCitiesByDestination = async (req, res) => {
       // Fetch cities in the current country
       let allCities = await Destination.find(
         { country: country },
-        { destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1 }
+        { destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1, iata: 1 }
       );
 
       // Fetch cities from neighboring countries
       if (neighboringCountriesArray.length > 0) {
         const neighboringCities = await Destination.find(
           { country: { $in: neighboringCountriesArray } },
-          { destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1 }
+          { destination_id: 1, name: 1, lat: 1, long: 1, country: 1, continent: 1, rating: 1, ranking: 1, imageUrl: 1, city: 1, iata: 1 }
         );
         allCities = allCities.concat(neighboringCities);
       }

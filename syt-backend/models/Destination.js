@@ -6,6 +6,7 @@ const destinationSchema = new mongoose.Schema({
   destination_id: { type: String, required: true },
   name: { type: String, required: true },
   city: { type: String, required: true },
+  iata: { type: String, required: true },
   description: { type: String, required: true },
   lat: { type: Number, required: true },
   long: { type: Number, required: true },

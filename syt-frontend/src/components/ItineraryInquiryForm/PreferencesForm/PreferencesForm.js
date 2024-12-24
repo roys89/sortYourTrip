@@ -26,7 +26,7 @@ const interestOptions = [
   "Festival"
 ];
 
-const budgetOptions = ["Pocket Friendly", "Somewhere in Between", "Luxury"];
+const budgetOptions = ["Pocket Friendly", "Somewhere In-Between", "Luxury"];
 
 const PreferencesForm = ({ selectedInterests, setSelectedInterests, budget, setBudget }) => {
   const theme = useTheme();

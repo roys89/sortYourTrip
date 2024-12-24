@@ -6,6 +6,7 @@ const itineraryInquirySchema = new mongoose.Schema({
   selectedCities: [{
     destination_id: String,
     city: String,
+    iata: String,
     country: String,
     name: String,
     continent: String,
@@ -17,8 +18,11 @@ const itineraryInquirySchema = new mongoose.Schema({
     code: String,
     city: String,
     country: String,
+    iata: String,
     name: String,
     destination_id: Number,
+    latitude: Number,
+    longitude: Number,
   },
   departureDates: {
     startDate: { type: Date, required: true },

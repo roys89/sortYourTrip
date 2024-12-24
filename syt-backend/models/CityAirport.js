@@ -5,7 +5,9 @@ const CityAirportSchema = new mongoose.Schema({
   name: { type: String, required: true },  // Airport name
   iata: { type: String, required: true },  // IATA code
   country: { type: String, required: true },
-  destination_id: {type: Number, required: true}
+  destination_id: { type: Number, required: true },
+  latitude: { type: Number, required: true },
+  longitude: { type: Number, required: true }
 });
 
 const CityAirport = mongoose.model('CityAirport', CityAirportSchema);

@@ -75,6 +75,7 @@ const SelectCityForm = ({ destinationType, destination, saveSelectedCities }) =>
           destination_id: city.destination_id,
           name: city.name,
           city: city.city,
+          iata: city.iata || '',
           country: city.country || '',
           continent: city.continent || '',
           ranking: city.ranking || '',

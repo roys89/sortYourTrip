@@ -72,13 +72,14 @@ class FlightCreateItineraryService {
           details: error.response?.data || {}
         }
       };
-
+    
       apiLogger.logApiData(errorLogData);
+    
 
       return {
         success: false,
         error: error.message,
-        details: error.response?.data?.details || {}  // This contains the error object with errorCode: 50
+        details: error.response?.data || {},  // Pass the entire response data
       };
     }
   }

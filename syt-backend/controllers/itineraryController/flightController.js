@@ -1,4 +1,4 @@
-// controllers/flightController.js
+// controllers/itineraryController/flightController.js
 
 const FlightAuthService = require("../../services/flightServices/flightAuthService");
 const FlightSearchService = require("../../services/flightServices/flightSearchService");
@@ -50,10 +50,13 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
     });
 
     if (!itineraryResponse.success) {
-      const errorCode = itineraryResponse.details?.error?.errorCode;
-      const errorMessage = itineraryResponse.details?.error?.errorMessage;
+      // Check both possible error structures
+      const errorCode = itineraryResponse.details?.error?.errorCode || 
+                       itineraryResponse.details?.details?.error?.errorCode;
+      const errorMessage = itineraryResponse.details?.error?.errorMessage || 
+                          itineraryResponse.details?.details?.error?.errorMessage;
       
-      if (errorCode === "1000" || errorCode === 50) {
+      if (errorCode === "1000" || errorCode === "50") {
         console.log(`Flight ${currentIndex + 1} not available (Error ${errorCode}): ${errorMessage}, trying next flight...`);
         return tryFlightBooking(flights, searchResponse, params, currentIndex + 1);
       }
@@ -61,7 +64,7 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
       return {
         success: false,
         error: `Failed to create itinerary: ${errorMessage || 'Unknown error'}`,
-        errorDetails: itineraryResponse.error,
+        errorDetails: itineraryResponse.details,
         retryNeeded: false
       };
     }
@@ -75,7 +78,9 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
 
   } catch (error) {
     if (error.response?.data?.error?.errorCode === "1000" || 
-        error.response?.data?.error?.errorCode === 50) {
+        error.response?.data?.error?.errorCode === 50 ||
+        error.response?.data?.details?.error?.errorCode === "1000" || 
+        error.response?.data?.details?.error?.errorCode === "50") {
       console.log(`Flight ${currentIndex + 1} not available, trying next flight...`);
       return tryFlightBooking(flights, searchResponse, params, currentIndex + 1);
     }

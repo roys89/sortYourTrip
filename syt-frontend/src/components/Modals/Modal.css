@@ -1,0 +1,288 @@
+/* Modal.css - Generic reusable styles for modals */
+
+/* Base modal overlay styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: start;
+  justify-content: center;
+  padding-top: 5rem;
+  padding-bottom: 1rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+/* Base modal container styles */
+.modal-container {
+  position: relative;
+  width: 100%;
+  max-width: 64rem;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-paper);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  transition: all 0.3s ease;
+}
+
+/* Close button styles */
+.modal-close-btn {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  z-index: 50;
+  padding: 0.5rem;
+  color: var(--button-contrastText);
+  border-radius: 9999px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  transform: scale(1.05);
+  background: var(--button-hoverGradient);
+  animation: var(--button-hoverAnimation);
+}
+
+/* Modal banner styles */
+.modal-banner {
+  position: relative;
+  height: 18rem;
+  width: 100%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary-main) 0%, var(--secondary-main) 100%);
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  overflow: hidden;
+}
+
+/* Content container styles */
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background-color: var(--background-paper);
+  color: var(--text-primary);
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background-color: var(--primary-main);
+  opacity: 0.5;
+  border-radius: 3px;
+}
+
+/* Section styles */
+.modal-section {
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--primary-light);
+}
+
+.modal-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* Section title styles */
+.modal-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Card styles within modal */
+.modal-card {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  background: rgba(var(--primary-main-rgb), 0.05);
+  border: 1px solid rgba(var(--primary-main-rgb), 0.1);
+  backdrop-filter: blur(4px);
+}
+
+/* Text styles */
+.modal-text-base {
+  color: var(--text-primary);
+}
+
+.modal-text-secondary {
+  color: var(--text-secondary);
+}
+
+.modal-text-strong {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Status indicators */
+.modal-status-success {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  background-color: rgba(var(--primary-main-rgb), 0.1);
+  color: var(--primary-main);
+  border: 1px solid rgba(var(--primary-main-rgb), 0.2);
+}
+
+.modal-status-error {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Info box styles */
+.modal-info-box {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background-color: rgba(var(--primary-main-rgb), 0.1);
+  border: 1px solid rgba(var(--primary-main-rgb), 0.2);
+  color: var(--text-primary);
+}
+
+/* Price styles */
+.modal-price {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--primary-main);
+}
+
+/* Grid layouts */
+.modal-grid-2 {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .modal-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.modal-grid-3 {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .modal-grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Icon styles */
+.modal-icon {
+  flex-shrink: 0;
+  color: var(--primary-main);
+}
+
+/* Newsletter style - if needed */
+.modal-newsletter {
+  background-color: var(--newsletterCard-main);
+}
+
+/* Navigation style - if needed */
+.modal-nav {
+  background-color: var(--navbar-light);
+}
+
+[data-theme='dark'] .modal-nav {
+  background-color: var(--navbar-dark);
+}
+
+/* Animation classes */
+@keyframes modalFadeIn {
+  from {
+      opacity: 0;
+      transform: scale(0.95);
+  }
+  to {
+      opacity: 1;
+      transform: scale(1);
+  }
+}
+
+@keyframes modalFadeOut {
+  from {
+      opacity: 1;
+      transform: scale(1);
+  }
+  to {
+      opacity: 0;
+      transform: scale(0.95);
+  }
+}
+
+.modal-enter {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal-exit {
+  animation: modalFadeOut 0.2s ease-in;
+}
+
+/* CSS Variables - to be injected by theme.js */
+:root {
+  --primary-main: #004d30;
+  --primary-light: #004D40;
+  --primary-dark: #04d190;
+  --secondary-main: #078d5b;
+  --background-default: #fdf2e9;
+  --background-paper: #ffffff;
+  --text-primary: #000000;
+  --text-secondary: #2A9D8F;
+  --footer-light: #ffffff;
+  --navbar-light: #fee1ca;
+  --navbar-dark: #333333;
+  --newsletterCard-main: #fee1ca;
+  --button-main: #2A9D8F;
+  --button-contrastText: #ffffff;
+  --button-hoverGradient: linear-gradient(135deg, #2A9D8F 0%, #264653 100%);
+  --button-hoverAnimation: movingGradientLight 5s ease infinite;
+}
+
+[data-theme='dark'] {
+  --primary-main: #2A9D8F;
+  --primary-light: #4DB6A9;
+  --primary-dark: #004D40;
+  --secondary-main: #264653;
+  --background-default: #303030;
+  --background-paper: #424242;
+  --text-primary: #ffffff;
+  --text-secondary: #2A9D8F;
+  --footer-light: #333333;
+  --footer-dark: #ffffff;
+  --navbar-light: #333333;
+  --navbar-dark: #ffffff;
+  --newsletterCard-main: #484848;
+  --button-main: #2A9D8F;
+  --button-contrastText: #ffffff;
+  --button-hoverGradient: linear-gradient(135deg, #2A9D8F 0%, #264653 100%);
+  --button-hoverAnimation: movingGradientDark 5s ease infinite;
+}

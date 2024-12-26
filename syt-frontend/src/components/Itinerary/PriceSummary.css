@@ -102,15 +102,15 @@
 
 /* Ensure a darker text color in light mode */
 [data-theme='light'] .total-amount {
-  color: #1b5e20 !important; /* Darker green for light mode */
+  color: #ffffff !important; /* Darker green for light mode */
 }
 [data-theme='light'] .price-summary-title {
-  color: #1b5e20 !important; /* Darker green for light mode */
+  color: #000000 !important; /* Darker green for light mode */
 }
 
 /* Maintain gradient in dark mode */
 [data-theme='dark'] .total-amount {
-  background: linear-gradient(to right, #4caf50, #81c784);
+  background: linear-gradient(to right, #cfffd0, #81c784);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;

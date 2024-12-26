@@ -16,8 +16,9 @@ const lightTheme = createTheme({
       paper: '#ffffff',
     },
     text: {
-      primary: '#004a27',
-      secondary: '#2A9D8F'
+      primary: '#000000',
+      secondary: '#016b36',
+      special: '#025033',
     },
     footer: {
       light: '#ffffff',
@@ -73,8 +74,9 @@ const darkTheme = createTheme({
       paper: '#424242',
     },
     text: {
-      primary: '#4DB6A9',
-      secondary: '#2A9D8F'
+      primary: '#bcfff6',
+      secondary: '#ffffff',
+      special: '#3cd0be',
     },
     footer: {
       light: '#333333',

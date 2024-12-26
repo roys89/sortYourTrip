@@ -1,171 +1,238 @@
-import { Briefcase, Calendar, Clock, MapPin, Plane, Users, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Clock,
+  Info,
+  MapPin, Plane, X
+} from 'lucide-react';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { closeModal } from '../../redux/slices/flightSlice';
+import './Modal.css';
 
 const FlightModal = () => {
   const dispatch = useDispatch();
-  const { selectedFlight, isModalOpen } = useSelector(state => state.flights);
+  const { selectedFlight, isModalOpen } = useSelector((state) => state.flights);
+  const flightData = selectedFlight?.flightData;
 
-  if (!isModalOpen || !selectedFlight) return null;
+  if (!isModalOpen || !flightData) return null;
 
-  const { flightData } = selectedFlight;
-
-  const renderAirportDetails = (airport, type) => {
-    if (!airport) return null;
-    return (
-      <div className="bg-gray-50 p-3 rounded-lg">
-        <p className="text-sm font-medium text-gray-700 mb-2">{type}:</p>
-        <div className="space-y-1">
-          <p className="text-sm text-gray-600">{airport.name}</p>
-          <div className="flex gap-2 text-sm text-gray-600">
-            <span className="font-medium">Code:</span>
-            <span>{airport.code}</span>
-          </div>
-          <div className="flex gap-2 text-sm text-gray-600">
-            <span>{airport.city},</span>
-            <span>{airport.country}</span>
-          </div>
-        </div>
-      </div>
-    );
+  const formatTime = (date, time) => {
+    return time || 'Not available';
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-20 pb-4">
-      <div className="relative w-full max-w-4xl h-[85vh] bg-white rounded-xl shadow-xl flex flex-col">
+    <div className="modal-overlay">
+      <div className="modal-container">
         {/* Close Button */}
         <button 
           onClick={() => dispatch(closeModal())}
-          className="absolute right-4 top-4 z-50 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+          className="modal-close-btn"
         >
-          <X size={24} className="text-gray-500 hover:text-gray-700" />
+          <X size={24} className="modal-text-base" />
         </button>
 
         {/* Flight Banner */}
-        <div className="flex-shrink-0">
-          <div className="relative h-72 w-full rounded-t-xl overflow-hidden bg-gradient-to-r from-blue-500 to-blue-600">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Plane size={120} className="text-white/20 transform rotate-45" />
+        <div className="modal-banner">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Plane size={120} className="text-white/20 rotate-45" />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-between px-12">
+            <div className="text-white text-center">
+              <p className="text-3xl font-bold">{flightData.originAirport?.code}</p>
+              <p className="text-sm mt-2">{flightData.departureTime}</p>
             </div>
-            <div className="absolute inset-0 flex items-center justify-between px-12">
-              <div className="text-white text-center">
-                <p className="text-3xl font-bold">{flightData.originAirport?.code}</p>
-                <p className="text-sm mt-2">{flightData.departureTime}</p>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-full h-px bg-white/20 relative">
+                <Plane size={24} className="text-white absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 rotate-45" />
               </div>
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-full h-0.5 bg-white/20 relative">
-                  <Plane size={24} className="text-white absolute top-1/2 left-1/2 transform -translate-y-1/2 -translate-x-1/2 rotate-45" />
-                </div>
-              </div>
-              <div className="text-white text-center">
-                <p className="text-3xl font-bold">{flightData.arrivalAirport?.code}</p>
-                <p className="text-sm mt-2">{flightData.arrivalTime}</p>
-              </div>
+            </div>
+            <div className="text-white text-center">
+              <p className="text-3xl font-bold">{flightData.arrivalAirport?.code}</p>
+              <p className="text-sm mt-2">{flightData.arrivalTime}</p>
             </div>
           </div>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-4">
+        <div className="modal-content">
+          <div className="p-6 space-y-6">
             {/* Header */}
-            <div className="border-b pb-4">
-              <h2 className="text-xl font-bold mb-4">Flight Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-600">
+            <div className="modal-section">
+              <h2 className="text-xl font-bold mb-4 modal-text-strong">Flight Details</h2>
+              <div className="modal-grid-3">
                 <div className="flex items-center gap-2">
-                  <Plane size={18} className="text-blue-500" />
-                  <span>{flightData.airline} - {flightData.flightCode}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock size={18} className="text-blue-500" />
-                  <span>{flightData.flightDuration}</span>
+                  <Plane size={18} className="modal-icon" />
+                  <span className="modal-text-base">{flightData.airline} - {flightData.flightCode}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-blue-600">${flightData.price}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Schedule */}
-            <div className="border-b pb-4">
-              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-                <Calendar size={18} className="text-blue-500" />
-                Schedule
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Departure</p>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <p>Date: {flightData.departureDate}</p>
-                    <p>Time: {flightData.departureTime}</p>
-                  </div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Arrival</p>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <p>Time: {flightData.arrivalTime}</p>
-                    {flightData.landingTime && (
-                      <p>Landing: {new Date(flightData.landingTime).toLocaleString()}</p>
-                    )}
-                  </div>
+                  <Clock size={18} className="modal-icon" />
+                  <span className="modal-text-base">{flightData.flightDuration}</span>
                 </div>
               </div>
             </div>
 
             {/* Airports */}
-            <div className="border-b pb-4">
-              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-                <MapPin size={18} className="text-blue-500" />
+            <div className="modal-section">
+              <h3 className="modal-section-title">
+                <MapPin size={18} className="modal-icon" />
                 Airport Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderAirportDetails(flightData.originAirport, 'Departure Airport')}
-                {renderAirportDetails(flightData.arrivalAirport, 'Arrival Airport')}
+              <div className="modal-grid-2">
+                {/* Departure Airport */}
+                <div className="modal-card">
+                  <h4 className="modal-text-strong mb-2">Departure Airport</h4>
+                  <div className="space-y-1">
+                    <p className="modal-text-base">{flightData.originAirport?.name}</p>
+                    <p className="modal-text-base">
+                      <span className="modal-text-strong">Code: </span>
+                      {flightData.originAirport?.code}
+                    </p>
+                    <p className="modal-text-base">
+                      {flightData.originAirport?.city}, {flightData.originAirport?.country}
+                    </p>
+                  </div>
+                </div>
+                {/* Arrival Airport */}
+                <div className="modal-card">
+                  <h4 className="modal-text-strong mb-2">Arrival Airport</h4>
+                  <div className="space-y-1">
+                    <p className="modal-text-base">{flightData.arrivalAirport?.name}</p>
+                    <p className="modal-text-base">
+                      <span className="modal-text-strong">Code: </span>
+                      {flightData.arrivalAirport?.code}
+                    </p>
+                    <p className="modal-text-base">
+                      {flightData.arrivalAirport?.city}, {flightData.arrivalAirport?.country}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Transport Details */}
-            {flightData.transportDetails && (
-              <div className="border-b pb-4">
-                <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-                  <Briefcase size={18} className="text-blue-500" />
-                  Transport Details
-                </h3>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-2">Comfort Level: {flightData.transportDetails.comfort}</p>
-                  {flightData.transportDetails.amenities && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Amenities:</p>
-                      <ul className="grid grid-cols-2 gap-2">
-                        {flightData.transportDetails.amenities.map((amenity, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
-                            <span className="text-blue-500 mt-1">•</span>
-                            <span>{amenity}</span>
-                          </li>
-                        ))}
-                      </ul>
+            {/* Flight Segments */}
+            <div className="modal-section">
+              <h3 className="modal-section-title">
+                <Plane size={18} className="modal-icon" />
+                Flight Segments
+              </h3>
+              <div className="space-y-4">
+                {flightData.segments.map((segment, index) => (
+                  <div key={segment.flightNumber} className="modal-card">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="modal-text-strong">
+                          {segment.origin} → {segment.destination}
+                        </h4>
+                        <p className="modal-text-base text-sm">
+                          Flight {segment.flightNumber}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="modal-text-base text-sm">
+                          Duration: {Math.floor(segment.duration / 60)}h {segment.duration % 60}m
+                        </p>
+                        {segment.groundTime > 0 && (
+                          <p className="text-sm text-blue-500">
+                            Layover: {Math.floor(segment.groundTime / 60)}h {segment.groundTime % 60}m
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
+                    
+                    <div className="mt-4 modal-grid-2">
+                      <div>
+                        <p className="text-sm modal-text-strong">Departure</p>
+                        <p className="text-sm modal-text-base">
+                          {formatTime(segment.departureTime, new Date(segment.departureTime).toLocaleTimeString())}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm modal-text-strong">Arrival</p>
+                        <p className="text-sm modal-text-base">
+                          {formatTime(segment.arrivalTime, new Date(segment.arrivalTime).toLocaleTimeString())}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 modal-grid-2">
+                      <div>
+                        <p className="text-sm modal-text-base">
+                          <span className="modal-text-strong">Baggage:</span> {segment.baggage}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm modal-text-base">
+                          <span className="modal-text-strong">Cabin:</span> {segment.cabinBaggage}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Fare Details */}
+            {/* <div className="modal-section">
+              <h3 className="modal-section-title">
+                <CreditCard size={18} className="modal-icon" />
+                Fare Details
+              </h3>
+              <div className="modal-card">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="modal-text-base">Base Fare:</span>
+                    <span className="modal-text-strong">₹{flightData.fareDetails.baseFare.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="modal-text-base">Tax & Surcharges:</span>
+                    <span className="modal-text-strong">₹{flightData.fareDetails.taxAndSurcharge.toLocaleString()}</span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-600 flex justify-between font-semibold">
+                    <span className="modal-text-strong">Total Fare:</span>
+                    <span className="modal-price">₹{flightData.fareDetails.finalFare.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
-            )}
+            </div> */}
 
-            {/* Travelers */}
-            {flightData.travelers && flightData.travelers.length > 0 && (
-              <div>
-                <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-                  <Users size={18} className="text-blue-500" />
-                  Travelers
+            {/* Refund Status */}
+            <div className="modal-section">
+              <h3 className="modal-section-title">
+                <AlertTriangle size={18} className="modal-icon" />
+                Refund Status
+              </h3>
+              <div className={flightData.isRefundable ? 'modal-status-success' : 'modal-status-error'}>
+                {flightData.isRefundable ? 'Refundable' : 'Non-Refundable'}
+              </div>
+            </div>
+
+            {/* Important Information */}
+            <div className="modal-section">
+              <h3 className="modal-section-title">
+                <Info size={18} className="modal-icon" />
+                Important Information
+              </h3>
+              <div className="modal-info-box">
+                <ul className="space-y-2">
+                  <li>• Check-in at least 2 hours before departure for domestic flights</li>
+                  <li>• Valid photo ID required for security verification</li>
+                  <li>• Baggage allowance may vary by segment</li>
+                  <li>• Fare rules and cancellation policies apply</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Fare Rules */}
+            {flightData.fareRules && (
+              <div className="modal-section">
+                <h3 className="modal-section-title">
+                  <Info size={18} className="modal-icon" />
+                  Fare Rules
                 </h3>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  {flightData.travelers.map((traveler, index) => (
-                    <div key={index} className="space-y-1 text-sm text-gray-600">
-                      <p>Adults: {traveler.adults}</p>
-                      {traveler.children > 0 && <p>Children: {traveler.children}</p>}
-                    </div>
-                  ))}
-                </div>
+                <div 
+                  className="modal-info-box"
+                  dangerouslySetInnerHTML={{ __html: flightData.fareRules }}
+                />
               </div>
             )}
           </div>

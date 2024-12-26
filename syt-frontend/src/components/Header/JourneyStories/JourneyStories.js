@@ -55,7 +55,7 @@ const JourneyStories = () => {
             mb: 2,
             fontWeight: 'bold',
             fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' },
-            color: theme.palette.text.primary
+            color: theme.palette.text.special
           }}
         >
           Journey Stories Captured In Travel Diaries
@@ -67,7 +67,7 @@ const JourneyStories = () => {
             textAlign: 'center',
             mb: 6,
             fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
-            color: theme.palette.text.secondary
+            color: theme.palette.text.special
           }}
         >
           Experience the best with our customized tour packages for every need.

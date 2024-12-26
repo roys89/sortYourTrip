@@ -93,7 +93,7 @@ const PremadeItinerary = () => {
           variant="h2"
           sx={{
             textAlign: 'center',
-            color: theme.palette.text.primary,
+            color: theme.palette.text.special,
             fontWeight: 'bold',
             fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
             mb: 2
@@ -105,7 +105,7 @@ const PremadeItinerary = () => {
         <Typography
           sx={{
             textAlign: 'center',
-            color: theme.palette.text.secondary,
+            color: theme.palette.text.special,
             fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
             mb: 6
           }}

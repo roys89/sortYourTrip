@@ -277,7 +277,7 @@ const ItineraryPage = () => {
           message={checkingExisting 
             ? "Checking your existing itinerary..." 
             : "Crafting your perfect journey..."}
-          sx={{ color: theme.palette.text.primary }}
+          sx={{ color: theme.palette.text.base }}
         />
       </div>
     );
@@ -309,7 +309,7 @@ const ItineraryPage = () => {
               variant="contained" 
               onClick={() => navigate('/')}
               className="button-outline mt-4"
-              sx={{ color: theme.palette.text.primary }}
+              sx={{ color: theme.palette.text.base }}
             >
               Return Home
             </Button>
@@ -324,7 +324,7 @@ const ItineraryPage = () => {
       <div className="loading-container flex-center">
         <LoadingSpinner 
           message="Preparing your itinerary details..." 
-          sx={{ color: theme.palette.text.primary }}
+          sx={{ color: theme.palette.text.base }}
         />
       </div>
     );
@@ -347,7 +347,7 @@ const ItineraryPage = () => {
                 <Typography 
                   variant="h3" 
                   className="itinerary-title"
-                  sx={{ color: theme.palette.text.primary }}
+                  sx={{ color: theme.palette.text.base }}
                 >
                   Your Itinerary
                 </Typography>
@@ -415,7 +415,7 @@ const ItineraryPage = () => {
                     disabled={isBooking}
                     className="button-outline"
                     sx={{ 
-                      color: theme.palette.text.primary, 
+                      color: theme.palette.text.base, 
                       width: '100%',
                       padding: '0.75rem'
                     }}
@@ -453,7 +453,7 @@ const ItineraryPage = () => {
               >
                 <div className="loading-content">
                   <div className="loading-spinner" />
-                  <p className="loading-text" style={{ color: theme.palette.text.primary }}>
+                  <p className="loading-text" style={{ color: theme.palette.text.base }}>
                     Processing booking {bookingProgress.current} of {bookingProgress.total}
                   </p>
                 </div>

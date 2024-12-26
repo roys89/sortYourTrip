@@ -193,26 +193,21 @@ exports.createItinerary = async (req, res) => {
     // Step 1: Get initial flight
     console.log("Getting departure flight...");
 
-    console.log(
-      "Departure Flight Request Data:",
-      JSON.stringify(
-        {
-          departureCity: inquiry.departureCity,
-          cities: [inquiry.selectedCities[0]],
-          travelers: inquiry.travelersDetails,
-          departureDates: {
-            startDate: inquiry.departureDates.startDate,
-            endDate: inquiry.departureDates.startDate,
-          },
-          includeDetailedLandingInfo: true,
-          type: "departure_flight",
-        },
-        null,
-        2
-      )
-    );
+    // console.log("Departure Flight Request Data:", JSON.stringify({
+    //   inquiryToken: inquiry.itineraryInquiryToken,
+    //   departureCity: inquiry.departureCity,
+    //   cities: [inquiry.selectedCities[0]],
+    //   travelers: inquiry.travelersDetails,
+    //   departureDates: {
+    //     startDate: inquiry.departureDates.startDate,
+    //     endDate: inquiry.departureDates.startDate
+    //   },
+    //   includeDetailedLandingInfo: true,
+    //   type: "departure_flight"
+    // }, null, 2));
 
     const departureFlights = await getFlights({
+      inquiryToken: inquiry.itineraryInquiryToken,
       departureCity: inquiry.departureCity,
       cities: [inquiry.selectedCities[0]],
       travelers: inquiry.travelersDetails,
@@ -224,30 +219,33 @@ exports.createItinerary = async (req, res) => {
       type: "departure_flight",
     });
 
+
     // Step 2: Get return flight scheduled for the last day
     console.log("Getting return flight...");
 
-    console.log(
-      "Return Flight Request Data:",
-      JSON.stringify(
-        {
-          departureCity:
-            inquiry.selectedCities[inquiry.selectedCities.length - 1],
-          cities: [inquiry.departureCity],
-          travelers: inquiry.travelersDetails,
-          departureDates: {
-            startDate: inquiry.departureDates.endDate,
-            endDate: inquiry.departureDates.endDate,
-          },
-          includeDetailedLandingInfo: true,
-          type: "return_flight",
-        },
-        null,
-        2
-      )
-    );
+    // console.log(
+    //   "Return Flight Request Data:",
+    //   JSON.stringify(
+    //     {
+    //       inquiryToken: inquiry.itineraryInquiryToken,
+    //       departureCity:
+    //         inquiry.selectedCities[inquiry.selectedCities.length - 1],
+    //       cities: [inquiry.departureCity],
+    //       travelers: inquiry.travelersDetails,
+    //       departureDates: {
+    //         startDate: inquiry.departureDates.endDate,
+    //         endDate: inquiry.departureDates.endDate,
+    //       },
+    //       includeDetailedLandingInfo: true,
+    //       type: "return_flight",
+    //     },
+    //     null,
+    //     2
+    //   )
+    // );
 
     const returnFlights = await getFlights({
+      inquiryToken: inquiry.itineraryInquiryToken,
       departureCity: inquiry.selectedCities[inquiry.selectedCities.length - 1],
       cities: [inquiry.departureCity],
       travelers: inquiry.travelersDetails,
@@ -258,6 +256,7 @@ exports.createItinerary = async (req, res) => {
       includeDetailedLandingInfo: true,
       type: "return_flight",
     });
+
 
     // Step 3: Distribute days across cities
     const cityDayDistribution = distributeDaysAcrossCities(

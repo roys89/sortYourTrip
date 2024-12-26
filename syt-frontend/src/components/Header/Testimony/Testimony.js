@@ -116,7 +116,7 @@ const Testimony = () => {
         sx={{ 
           textAlign: 'center',
           fontWeight: 'bold',
-          color: theme.palette.text.primary,
+          color: theme.palette.text.special,
           mb: 1,
           fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
         }}

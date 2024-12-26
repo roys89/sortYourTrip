@@ -43,7 +43,7 @@ const SocialMediaSection = () => {
           fontWeight: 'bold',
           mb: 4,
           fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' },
-          color: theme.palette.text.primary
+          color: theme.palette.text.special
         }}
       >
         Follow Us On Social Media For More!

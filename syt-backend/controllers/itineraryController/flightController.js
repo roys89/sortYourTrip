@@ -10,19 +10,24 @@ const FlightCreateItineraryService = require("../../services/flightServices/flig
  */
 function calculateTotalDuration(flight) {
   return flight.sg.reduce((total, segment) => {
-    return total + (segment.aD || 0) + (segment.gT || 0);  // Include both air duration and ground time
+    return total + (segment.aD || 0) + (segment.gT || 0); // Include both air duration and ground time
   }, 0);
 }
 
 /**
  * Helper function to attempt booking a specific flight with retries
  */
-async function tryFlightBooking(flights, searchResponse, params, currentIndex = 0) {
+async function tryFlightBooking(
+  flights,
+  searchResponse,
+  params,
+  currentIndex = 0
+) {
   if (currentIndex >= flights.length) {
     return {
       success: false,
       error: "All flights attempted - none available",
-      retryNeeded: false
+      retryNeeded: false,
     };
   }
 
@@ -40,32 +45,44 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
     });
 
     // Create itinerary
-    const itineraryResponse = await FlightCreateItineraryService.createItinerary({
-      traceId: searchResponse.data.traceId,
-      resultIndex: selectedFlight.rI,
-      inquiryToken: params.inquiryToken,
-      cityName: params.cityName,
-      date: params.date,
-      token: params.token,
-    });
+    const itineraryResponse =
+      await FlightCreateItineraryService.createItinerary({
+        traceId: searchResponse.data.traceId,
+        resultIndex: selectedFlight.rI,
+        inquiryToken: params.inquiryToken,
+        cityName: params.cityName,
+        date: params.date,
+        token: params.token,
+      });
 
     if (!itineraryResponse.success) {
       // Check both possible error structures
-      const errorCode = itineraryResponse.details?.error?.errorCode || 
-                       itineraryResponse.details?.details?.error?.errorCode;
-      const errorMessage = itineraryResponse.details?.error?.errorMessage || 
-                          itineraryResponse.details?.details?.error?.errorMessage;
-      
-      if (errorCode === "1000" || errorCode === "50") {
-        console.log(`Flight ${currentIndex + 1} not available (Error ${errorCode}): ${errorMessage}, trying next flight...`);
-        return tryFlightBooking(flights, searchResponse, params, currentIndex + 1);
+      const errorCode =
+        itineraryResponse.details?.error?.errorCode ||
+        itineraryResponse.details?.details?.error?.errorCode;
+      const errorMessage =
+        itineraryResponse.details?.error?.errorMessage ||
+        itineraryResponse.details?.details?.error?.errorMessage;
+
+      if (errorCode == 1000 || errorCode == 50) {
+        console.log(
+          `Flight ${
+            currentIndex + 1
+          } not available (Error ${errorCode}): ${errorMessage}, trying next flight...`
+        );
+        return tryFlightBooking(
+          flights,
+          searchResponse,
+          params,
+          currentIndex + 1
+        );
       }
-    
+
       return {
         success: false,
-        error: `Failed to create itinerary: ${errorMessage || 'Unknown error'}`,
+        error: `Failed to create itinerary: ${errorMessage || "Unknown error"}`,
         errorDetails: itineraryResponse.details,
-        retryNeeded: false
+        retryNeeded: false,
       };
     }
 
@@ -73,18 +90,26 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
       success: true,
       fareRules: fareRulesResponse.data,
       itinerary: itineraryResponse.data,
-      selectedFlight
+      selectedFlight,
     };
-
   } catch (error) {
-    if (error.response?.data?.error?.errorCode === "1000" || 
-        error.response?.data?.error?.errorCode === 50 ||
-        error.response?.data?.details?.error?.errorCode === "1000" || 
-        error.response?.data?.details?.error?.errorCode === "50") {
-      console.log(`Flight ${currentIndex + 1} not available, trying next flight...`);
-      return tryFlightBooking(flights, searchResponse, params, currentIndex + 1);
+    if (
+      error.response?.data?.error?.errorCode === "1000" ||
+      error.response?.data?.error?.errorCode === 50 ||
+      error.response?.data?.details?.error?.errorCode === "1000" ||
+      error.response?.data?.details?.error?.errorCode === "50"
+    ) {
+      console.log(
+        `Flight ${currentIndex + 1} not available, trying next flight...`
+      );
+      return tryFlightBooking(
+        flights,
+        searchResponse,
+        params,
+        currentIndex + 1
+      );
     }
-  
+
     throw error;
   }
 }
@@ -291,7 +316,7 @@ module.exports = {
       }
 
       // Filter out flights that exceed 24 hours
-      const validDurationFlights = flights.filter(flight => {
+      const validDurationFlights = flights.filter((flight) => {
         const totalDuration = calculateTotalDuration(flight);
         return totalDuration <= 24 * 60; // 24 hours in minutes
       });
@@ -301,7 +326,9 @@ module.exports = {
       }
 
       // Sort remaining flights by price and remove outliers
-      const sortedFlights = [...validDurationFlights].sort((a, b) => a.pF - b.pF);
+      const sortedFlights = [...validDurationFlights].sort(
+        (a, b) => a.pF - b.pF
+      );
       const totalFlights = sortedFlights.length;
       const startIndex = Math.floor(totalFlights * 0.1);
       const endIndex = Math.floor(totalFlights * 0.9);
@@ -346,33 +373,32 @@ module.exports = {
           destination_location: {
             latitude: cities[0].latitude || cities[0].lat,
             longitude: cities[0].longitude || cities[0].long,
-          }
+          },
         },
         bookingResult.itinerary,
         bookingResult.fareRules
       );
 
       return [formattedFlight];
-
     } catch (error) {
       console.error("Error in getFlights:", {
         message: error.message,
         details: error.errorDetails || error.response?.data || {},
-        stack: error.stack
+        stack: error.stack,
       });
-      
+
       if (error.errorDetails) {
         return {
           success: false,
           error: error.message,
-          details: error.errorDetails
+          details: error.errorDetails,
         };
       }
-      
+
       return {
         success: false,
         error: "Flight booking failed",
-        details: error.message
+        details: error.message,
       };
     }
   },

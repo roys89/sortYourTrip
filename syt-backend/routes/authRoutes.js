@@ -17,4 +17,6 @@ router.put('/profile', authMiddleware, UserController.updateUserProfile);
 router.post('/password-reset', UserController.passwordResetRequest);
 router.put('/password-reset/:token', UserController.resetPassword);
 
+router.get('/itineraries', authMiddleware, UserController.getUserItineraries);
+
 module.exports = router;

@@ -237,7 +237,7 @@ const TravelersDetailsSchema = new Schema({
   coupleAdult2Age: String
 }, { _id: false });
 
-// Price Schema (unchanged)
+// Price Schema
 const PriceTotalsSchema = new Schema({
   activities: Number,
   hotels: Number,
@@ -247,6 +247,15 @@ const PriceTotalsSchema = new Schema({
   tcsAmount: Number,
   tcsRate: Number,
   grandTotal: Number
+}, { _id: false });
+
+// User Schema
+const UserInfoSchema = new Schema({
+  userId: String,
+  firstName: String,
+  lastName: String,
+  email: String,
+  phoneNumber: String
 }, { _id: false });
 
 // Main Itinerary Schema (unchanged)
@@ -261,6 +270,7 @@ const ItinerarySchema = new Schema(
       type: String,
       required: true
     },
+    userInfo: UserInfoSchema,  // Add this field
     travelersDetails: TravelersDetailsSchema,
     cities: [CitySchema],
     priceTotals: {
@@ -272,7 +282,7 @@ const ItinerarySchema = new Schema(
     timestamps: true,
     toJSON: {
       transform: function(doc, ret) {
-        // Remove empty arrays to prevent _id generation
+        // Keep existing array cleanup logic
         for (const city of ret.cities || []) {
           for (const day of city.days || []) {
             if (Array.isArray(day.transfers) && day.transfers.length === 0) {

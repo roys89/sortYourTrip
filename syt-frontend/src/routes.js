@@ -40,6 +40,7 @@ const AppRoutes = () => {
         <Route path="/booking-form" element={<ProtectedRoute><BookingForm /></ProtectedRoute>} />
         <Route path="/markup-management" element={<ProtectedRoute><MarkupManagement /></ProtectedRoute>} />
         <Route path="/booking-confirmation" element={<ProtectedRoute><BookingConfirmation /></ProtectedRoute>} />
+
       </Routes>
     </Suspense>
   );

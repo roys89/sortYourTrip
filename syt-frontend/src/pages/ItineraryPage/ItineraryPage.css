@@ -4,6 +4,8 @@
   position: relative;
   overflow-x: hidden;
   padding-top: 80px; /* Add top padding for navbar */
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 .background-blur {
   position: fixed;
@@ -81,29 +83,28 @@
   position: relative;
   z-index: 10;
   margin: 0 auto;
+  
 }
 
 .itinerary-title {
   font-size: 3rem;
   font-weight: bold;
-  background: linear-gradient(to right, #60A5FA, #A78BFA);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 2rem;
+  text-align: center;
+  width: 100%;
+  position: relative;
+  z-index: 10;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.15); /* Increased from 0.1 to 0.15 */
-  backdrop-filter: blur(12px); /* Increased blur for better contrast */
-  border-radius: 1rem;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Added subtle border */
+.glass-card { 
+  padding-left: 1.5rem; 
 }
 
-.summary-card {
-  margin-top: 5.5rem; /* Increased gap between city accordion and price summary */
+
+.map-card {
+  padding-left: 1.5rem; 
+  padding-bottom: 1.5rem;
 }
+
 
 
 .booking-section {
@@ -121,6 +122,8 @@
 }
 
 .button-group {
+  padding-left: 1.5rem;
+  padding-bottom: 1.5rem;
   display: flex;
   flex-direction: row; /* Ensure buttons are in the same row */
   width: 100%;
@@ -141,7 +144,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
+
 }
 
 .error-container {
@@ -255,6 +258,16 @@
 
 
  .button-group {
+  padding: 0 0 1.5rem ;
     flex-direction: row;
   }
+
+  .glass-card { 
+    padding: 0 0 1.5rem 0; 
+  }
+
+  .map-card {
+    padding: 0 0 1.5rem 0; 
+  }
+  
 }

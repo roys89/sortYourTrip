@@ -1,4 +1,4 @@
-import { PictureAsPdf } from '@mui/icons-material';
+import { PictureAsPdf } from "@mui/icons-material";
 import {
   Alert,
   AlertTitle,
@@ -6,49 +6,52 @@ import {
   Container,
   Grid,
   Typography,
-  useTheme
-} from '@mui/material';
-import axios from 'axios';
-import { AnimatePresence, motion } from 'framer-motion';
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ErrorBoundary from '../../components/ErrorBoundary';
-import CityAccordion from '../../components/Itinerary/CityAccordion';
-import PriceSummary from '../../components/Itinerary/PriceSummary';
-import ModalManager from '../../components/ModalManager';
-import { useAuth } from '../../context/AuthContext';
-import { clearAllActivityStates } from '../../redux/slices/activitySlice';
-import { createItinerary } from '../../redux/slices/itinerarySlice';
-import { generateItineraryPDF } from '../../utils/pdfGenerator';
-import { calculateItineraryTotal } from '../../utils/priceCalculations';
-import './ItineraryPage.css';
-import backgroundImageLight from './w2.jpg';
-import backgroundImageDark from './w3.jpg';
+  useTheme,
+} from "@mui/material";
+import axios from "axios";
+import { AnimatePresence, motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ErrorBoundary from "../../components/ErrorBoundary";
+import CityAccordion from "../../components/Itinerary/CityAccordion";
+import PriceSummary from "../../components/Itinerary/PriceSummary";
+import ItineraryMap from "../../components/Map/ItineraryMap";
+import ModalManager from "../../components/ModalManager";
+import { useAuth } from "../../context/AuthContext";
+import { clearAllActivityStates } from "../../redux/slices/activitySlice";
+import { createItinerary } from "../../redux/slices/itinerarySlice";
+import { generateItineraryPDF } from "../../utils/pdfGenerator";
+import { calculateItineraryTotal } from "../../utils/priceCalculations";
+import "./ItineraryPage.css";
+import backgroundImageLight from "./w2.jpg";
+import backgroundImageDark from "./w3.jpg";
 
 const ItineraryPage = () => {
   const theme = useTheme();
-  
+
   // States
   const [isBooking, setIsBooking] = useState(false);
   const [bookingError, setBookingError] = useState(null);
-  const [bookingProgress, setBookingProgress] = useState({ current: 0, total: 0 });
+  const [bookingProgress, setBookingProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   // Select background image based on theme mode
-  const backgroundImage = theme.palette.mode === 'dark' 
-    ? backgroundImageDark 
-    : backgroundImageLight;
+  const backgroundImage =
+    theme.palette.mode === "dark" ? backgroundImageDark : backgroundImageLight;
 
   // Set the background image as a CSS variable
   useEffect(() => {
     // Add data attribute for theme
-    document.documentElement.setAttribute('data-theme', theme.palette.mode);
+    document.documentElement.setAttribute("data-theme", theme.palette.mode);
 
     // Add a small delay to create a more natural transition
     const timer = setTimeout(() => {
       document.documentElement.style.setProperty(
-        '--background-image',
+        "--background-image",
         `url(${backgroundImage})`
       );
     }, 50);
@@ -64,18 +67,19 @@ const ItineraryPage = () => {
   const { state } = location;
   const { isAuthenticated } = useAuth();
 
-  const itineraryInquiryToken = state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
+  const itineraryInquiryToken =
+    state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
 
   // Redux selectors
-  const { 
-    data: itinerary, 
-    loading, 
-    error, 
+  const {
+    data: itinerary,
+    loading,
+    error,
     checkingExisting,
-    itineraryToken
+    itineraryToken,
   } = useSelector((state) => state.itinerary);
 
-  const { markups, tcsRates } = useSelector(state => state.markup);
+  const { markups, tcsRates } = useSelector((state) => state.markup);
 
   // Handlers
   const handleDownloadPDF = () => {
@@ -85,52 +89,54 @@ const ItineraryPage = () => {
   };
 
   const handleBookingError = (error) => {
-    setBookingError(error.message || 'Error processing booking');
+    setBookingError(error.message || "Error processing booking");
     setIsBooking(false);
   };
 
   const processActivity = async (activity, cityName, date) => {
     if (activity.bookingReference && activity.bookingReference._id) {
-      console.log(`Booking reference already exists for activity ${activity.activityName}`);
+      console.log(
+        `Booking reference already exists for activity ${activity.activityName}`
+      );
       return true;
     }
-  
+
     try {
       const referenceResponse = await axios.post(
-        'http://localhost:5000/api/itinerary/activity/reference',
+        "http://localhost:5000/api/itinerary/activity/reference",
         {
           activityCode: activity.activityCode,
           searchId: activity.searchId,
           startTime: activity.packageDetails?.departureTime,
-          gradeCode: activity.tourGrade?.gradeCode
+          gradeCode: activity.tourGrade?.gradeCode,
         },
         {
-          headers: { 
-            'X-Inquiry-Token': itineraryInquiryToken,
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          headers: {
+            "X-Inquiry-Token": itineraryInquiryToken,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
-  
+
       await axios.put(
         `http://localhost:5000/api/itinerary/${itineraryToken}/activity/booking-ref`,
         {
           cityName,
           date,
           activityCode: activity.activityCode,
-          bookingReference: referenceResponse.data
+          bookingReference: referenceResponse.data,
         },
         {
-          headers: { 
-            'X-Inquiry-Token': itineraryInquiryToken,
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          headers: {
+            "X-Inquiry-Token": itineraryInquiryToken,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
-  
+
       return true;
     } catch (error) {
-      console.error('Error processing activity:', error);
+      console.error("Error processing activity:", error);
       return false;
     }
   };
@@ -139,100 +145,110 @@ const ItineraryPage = () => {
     try {
       const totals = calculateItineraryTotal(itinerary, markups, tcsRates);
       await axios.put(
-        `http://localhost:5000/api/itinerary/${itineraryToken}/prices`, 
+        `http://localhost:5000/api/itinerary/${itineraryToken}/prices`,
         {
           priceTotals: {
             ...totals.segmentTotals,
             subtotal: totals.subtotal,
             tcsAmount: totals.tcsAmount,
             tcsRate: totals.tcsRate,
-            grandTotal: totals.grandTotal
-          }
+            grandTotal: totals.grandTotal,
+          },
         },
         {
-          headers: { 
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
     } catch (error) {
-      console.error('Error updating prices:', error);
+      console.error("Error updating prices:", error);
       throw error;
     }
   };
 
   const handleBookTrip = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        navigate('/auth/login', { 
+        navigate("/auth/login", {
           state: { from: location.pathname },
-          replace: true 
+          replace: true,
         });
         return;
       }
 
       if (!itinerary || !markups || !tcsRates) {
-        console.error('Missing required data for booking:', {
+        console.error("Missing required data for booking:", {
           hasItinerary: !!itinerary,
           hasMarkups: !!markups,
-          hasTcsRates: !!tcsRates
+          hasTcsRates: !!tcsRates,
         });
         return;
       }
-  
+
       setIsBooking(true);
       setBookingError(null);
-  
-      const onlineActivities = itinerary.cities.flatMap(city => 
-        city.days.flatMap(day => 
-          day.activities?.filter(activity => activity.activityType === 'online') || []
+
+      const onlineActivities = itinerary.cities.flatMap((city) =>
+        city.days.flatMap(
+          (day) =>
+            day.activities?.filter(
+              (activity) => activity.activityType === "online"
+            ) || []
         )
       );
-  
+
       const totalItems = onlineActivities.length;
       setBookingProgress({ current: 0, total: totalItems });
-  
+
       for (const activity of onlineActivities) {
         const cityDay = itinerary.cities
-          .flatMap(city => 
-            city.days.map(day => ({ 
-              cityName: city.city, 
-              date: day.date, 
-              activities: day.activities 
+          .flatMap((city) =>
+            city.days.map((day) => ({
+              cityName: city.city,
+              date: day.date,
+              activities: day.activities,
             }))
           )
-          .find(item => 
-            item.activities?.some(a => a.activityCode === activity.activityCode)
+          .find((item) =>
+            item.activities?.some(
+              (a) => a.activityCode === activity.activityCode
+            )
           );
-  
+
         if (cityDay) {
-          const success = await processActivity(activity, cityDay.cityName, cityDay.date);
+          const success = await processActivity(
+            activity,
+            cityDay.cityName,
+            cityDay.date
+          );
           if (!success) {
-            throw new Error(`Failed to process activity ${activity.activityName}`);
+            throw new Error(
+              `Failed to process activity ${activity.activityName}`
+            );
           }
-  
-          setBookingProgress(prev => ({ 
-            ...prev, 
-            current: prev.current + 1 
+
+          setBookingProgress((prev) => ({
+            ...prev,
+            current: prev.current + 1,
           }));
         }
       }
-  
+
       await handlePriceUpdate();
-      navigate('/booking-form', { 
-        state: { 
+      navigate("/booking-form", {
+        state: {
           itinerary,
           itineraryToken,
-          inquiryToken: itineraryInquiryToken
-        }
+          inquiryToken: itineraryInquiryToken,
+        },
       });
-  
     } catch (error) {
       if (error.response?.status === 401) {
-        navigate('/auth/login', { 
+        navigate("/auth/login", {
           state: { from: location.pathname },
-          replace: true 
+          replace: true,
         });
       } else {
         handleBookingError(error);
@@ -244,39 +260,47 @@ const ItineraryPage = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/auth/login', { 
+      navigate("/auth/login", {
         state: { from: location.pathname },
-        replace: true 
+        replace: true,
       });
       return;
     }
-  
+
     if (!itineraryInquiryToken) {
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
       return;
     }
-  
+
     dispatch(clearAllActivityStates());
-  
+
     const handleItinerary = async () => {
       try {
         await dispatch(createItinerary(itineraryInquiryToken)).unwrap();
       } catch (err) {
-        console.error('Error handling itinerary:', err);
-        navigate('/', { replace: true });
+        console.error("Error handling itinerary:", err);
+        navigate("/", { replace: true });
       }
     };
-  
+
     handleItinerary();
-  }, [dispatch, itineraryInquiryToken, navigate, isAuthenticated, location.pathname]);
+  }, [
+    dispatch,
+    itineraryInquiryToken,
+    navigate,
+    isAuthenticated,
+    location.pathname,
+  ]);
 
   if (loading || checkingExisting) {
     return (
       <div className="loading-container flex-center">
-        <LoadingSpinner 
-          message={checkingExisting 
-            ? "Checking your existing itinerary..." 
-            : "Crafting your perfect journey..."}
+        <LoadingSpinner
+          message={
+            checkingExisting
+              ? "Checking your existing itinerary..."
+              : "Crafting your perfect journey..."
+          }
           sx={{ color: theme.palette.text.base }}
         />
       </div>
@@ -287,27 +311,27 @@ const ItineraryPage = () => {
     return (
       <div className="error-container flex-center">
         <Container maxWidth="sm">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
           >
-            <Alert 
-              severity="error" 
+            <Alert
+              severity="error"
               variant="filled"
               className="error-alert"
-              sx={{ 
-                '& .MuiAlert-message': {
-                  color: theme.palette.error.contrastText
-                }
+              sx={{
+                "& .MuiAlert-message": {
+                  color: theme.palette.error.contrastText,
+                },
               }}
             >
               <AlertTitle>Unable to Load Itinerary</AlertTitle>
               {error}
             </Alert>
-            <Button 
-              variant="contained" 
-              onClick={() => navigate('/')}
+            <Button
+              variant="contained"
+              onClick={() => navigate("/")}
               className="button-outline mt-4"
               sx={{ color: theme.palette.text.base }}
             >
@@ -322,8 +346,8 @@ const ItineraryPage = () => {
   if (!itinerary) {
     return (
       <div className="loading-container flex-center">
-        <LoadingSpinner 
-          message="Preparing your itinerary details..." 
+        <LoadingSpinner
+          message="Preparing your itinerary details..."
           sx={{ color: theme.palette.text.base }}
         />
       </div>
@@ -335,26 +359,39 @@ const ItineraryPage = () => {
       <div className="itinerary-page">
         <div className="background-blur" />
 
-        <Container maxWidth="xl" className="container" sx={{ px: { xs: 0.5, sm: 1, md: 2 } }}>
-          <Grid container spacing={2}>
-            {/* Left Column - City Accordions */}
-            <Grid item xs={12} md={8} sx={{ pr: { md: 1 } }}>
+        <Container
+          maxWidth="xl"
+          className="container"
+          sx={{ px: { xs: 0.5, sm: 1, md: 2 } }}
+        >
+          {/* Title Grid container */}
+          <Grid container justifyContent="center" sx={{ mb: 4 }}>
+            <Grid item xs={12}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <Typography 
-                  variant="h3" 
+                <Typography
+                  variant="h3"
                   className="itinerary-title"
-                  sx={{ color: theme.palette.text.base }}
+                  sx={{
+                    color: theme.palette.text.special,
+                    textAlign: "center",
+                    width: "100%",
+                  }}
                 >
                   Your Itinerary
                 </Typography>
               </motion.div>
-              
+            </Grid>
+          </Grid>
+
+          {/* Main content Grid container */}
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={8} sx={{ pr: { md: 1 } }}>
               <AnimatePresence mode="wait">
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
@@ -367,7 +404,7 @@ const ItineraryPage = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <CityAccordion 
+                      <CityAccordion
                         city={city}
                         inquiryToken={itineraryInquiryToken}
                         travelersDetails={itinerary.travelersDetails}
@@ -380,32 +417,43 @@ const ItineraryPage = () => {
 
             {/* Right Column - Price Summary and Actions */}
             <Grid item xs={12} md={4} sx={{ pl: { md: 1 } }}>
+
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="map-card"
+              >
+                {itinerary && <ItineraryMap itineraryData={itinerary} />}
+              </motion.div>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="summary-card glass-card"
+                className="glass-card"
               >
                 {itinerary && <PriceSummary itinerary={itinerary} />}
               </motion.div>
+
+              
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
                 className="booking-section"
-                style={{ 
-                  width: '100%', 
-                  marginTop: '1rem' 
+                style={{
+                  width: "100%",
+                  marginTop: "1rem",
                 }}
               >
-                <div 
-                  className="button-group" 
-                  style={{ 
-                    width: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '0.75rem' 
+                <div
+                  className="button-group"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem",
                   }}
                 >
                   <Button
@@ -414,10 +462,10 @@ const ItineraryPage = () => {
                     onClick={handleDownloadPDF}
                     disabled={isBooking}
                     className="button-outline"
-                    sx={{ 
-                      color: theme.palette.text.base, 
-                      width: '100%',
-                      padding: '0.75rem'
+                    sx={{
+                      color: theme.palette.text.base,
+                      width: "100%",
+                      padding: "0.75rem",
                     }}
                   >
                     Download PDF
@@ -427,16 +475,16 @@ const ItineraryPage = () => {
                     onClick={handleBookTrip}
                     disabled={isBooking}
                     className="button-gradient"
-                    sx={{ 
+                    sx={{
                       color: theme.palette.primary.contrastText,
-                      width: '100%',
-                      padding: '0.75rem',
-                      '&.Mui-disabled': {
-                        color: theme.palette.action.disabled
-                      }
+                      width: "100%",
+                      padding: "0.75rem",
+                      "&.Mui-disabled": {
+                        color: theme.palette.action.disabled,
+                      },
                     }}
                   >
-                    {isBooking ? 'Processing...' : 'Book Your Trip'}
+                    {isBooking ? "Processing..." : "Book Your Trip"}
                   </Button>
                 </div>
               </motion.div>
@@ -453,8 +501,12 @@ const ItineraryPage = () => {
               >
                 <div className="loading-content">
                   <div className="loading-spinner" />
-                  <p className="loading-text" style={{ color: theme.palette.text.base }}>
-                    Processing booking {bookingProgress.current} of {bookingProgress.total}
+                  <p
+                    className="loading-text"
+                    style={{ color: theme.palette.text.base }}
+                  >
+                    Processing booking {bookingProgress.current} of{" "}
+                    {bookingProgress.total}
                   </p>
                 </div>
               </motion.div>
@@ -470,10 +522,13 @@ const ItineraryPage = () => {
                 className="error-toast"
               >
                 <AlertTitle className="error-title">Booking Error</AlertTitle>
-                <p className="error-message" style={{ color: theme.palette.error.contrastText }}>
+                <p
+                  className="error-message"
+                  style={{ color: theme.palette.error.contrastText }}
+                >
                   {bookingError}
                 </p>
-                <button 
+                <button
                   onClick={() => setBookingError(null)}
                   className="close-button"
                   style={{ color: theme.palette.error.contrastText }}

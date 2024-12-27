@@ -39,7 +39,8 @@ class FlightAuthService {
           },
           body: {
             merchant_id: requestBody.merchant_id,
-            user_id: requestBody.user_id
+            user_id: requestBody.user_id,
+            api_key: requestBody.api_key
           }
         },
         responseData: response.data

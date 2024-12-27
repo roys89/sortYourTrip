@@ -14,6 +14,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-align: center;
 }
 
 
@@ -94,7 +95,7 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace !important;
   color: inherit !important;
   font-weight: 600 !important;
-  background: linear-gradient(to right, #2e7d32, #4caf50);
+  background: linear-gradient(to right, #2e7d32, #082609);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -110,14 +111,14 @@
 
 /* Maintain gradient in dark mode */
 [data-theme='dark'] .total-amount {
-  background: linear-gradient(to right, #cfffd0, #81c784);
+  background: linear-gradient(to right, #4caf50, #81c784);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 [data-theme='light'] .price-summary-title {
-  background: linear-gradient(to right, #4caf50, #81c784);
+  background: linear-gradient(to right, #4caf50, #274028);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -129,6 +130,7 @@
   }
 
   .price-summary-title {
+    text-align: center;
     font-size: 1.125rem !important;
   }
 }

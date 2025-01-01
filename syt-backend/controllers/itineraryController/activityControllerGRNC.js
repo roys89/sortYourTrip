@@ -618,7 +618,6 @@ const getFilteredActivities = async (city, userPreferences, excludedActivityCode
 // Main function to get city activities
 const getCityActivities = async (req) => {
   console.log(`Processing activities for city: ${req.body.city.name}`);
-  console.log('User preferences:', req.body.userPreferences);
   const { 
     city, 
     userPreferences, 

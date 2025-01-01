@@ -3,8 +3,8 @@ const path = require('path');
 const HotelCountry = require('../../models/itineraryModel/HotelCountry');
 const HotelCity = require('../../models/itineraryModel/HotelCity');
 const Hotel = require('../../models/itineraryModel/Hotel');
-const hotelAvailabilityService = require('../../services/hotelServices/hotelAvailabilityService');
-const hotelRecheckService = require('../../services/hotelServices/hotelRecheckService');
+const hotelAvailabilityService = require('../../services/hotelServicesGRNC/hotelAvailabilityService');
+const hotelRecheckService = require('../../services/hotelServicesGRNC/hotelRecheckService');
 
 const BATCH_SIZE = 100; // Maximum hotel codes per API call
 

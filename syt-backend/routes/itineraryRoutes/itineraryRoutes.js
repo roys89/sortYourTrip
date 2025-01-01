@@ -10,12 +10,12 @@ const {
   getActivityDetails,
   getAvailableActivities,
   createActivityBookingReference
-} = require('../../controllers/itineraryController/activityController');
+} = require('../../controllers/itineraryController/activityControllerGRNC');
 
 const {
   getAvailableHotels,
   recheckHotelRate
-} = require('../../controllers/itineraryController/hotelController');
+} = require('../../controllers/itineraryController/hotelControllerGRNC');
 
 const {
   replaceHotel,

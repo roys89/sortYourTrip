@@ -57,9 +57,11 @@ const ItineraryMap = ({ itineraryData }) => {
           // If there's a hotel on arrival day, add route from airport to hotel
           if (day.hotels?.length > 0) {
             const firstHotel = day.hotels[0];
+            const hotelGeo = firstHotel.data?.staticContent?.[0].geoCode;
+            
             routeSegments.push({
               from: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-              to: [firstHotel.hotel_details.geolocation.longitude, firstHotel.hotel_details.geolocation.latitude],
+              to: [parseFloat(hotelGeo.long), parseFloat(hotelGeo.lat)],
               type: 'ground'
             });
           }
@@ -68,13 +70,23 @@ const ItineraryMap = ({ itineraryData }) => {
         // Hotels
         if (day.hotels?.length > 0) {
           const hotel = day.hotels[0];
+          const hotelDetails = hotel.data?.staticContent?.[0];
+          
           locations.push({
-            coordinates: [hotel.hotel_details.geolocation.longitude, hotel.hotel_details.geolocation.latitude],
-            name: hotel.name,
+            coordinates: [
+              parseFloat(hotelDetails.geoCode.long), 
+              parseFloat(hotelDetails.geoCode.lat)
+            ],
+            name: hotelDetails.name,
             description: city.city,
             type: 'hotel'
           });
-          lastCityHotel = hotel;
+          lastCityHotel = {
+            location: [
+              parseFloat(hotelDetails.geoCode.long), 
+              parseFloat(hotelDetails.geoCode.lat)
+            ]
+          };
         }
         
         // City transitions
@@ -84,9 +96,14 @@ const ItineraryMap = ({ itineraryData }) => {
           const nextCityFirstHotel = nextCityFirstDay.hotels?.[0];
           
           if (lastCityHotel && nextCityFirstHotel) {
+            const nextHotelGeo = nextCityFirstHotel.data?.staticContent?.[0].geoCode;
+            
             routeSegments.push({
-              from: [lastCityHotel.hotel_details.geolocation.longitude, lastCityHotel.hotel_details.geolocation.latitude],
-              to: [nextCityFirstHotel.hotel_details.geolocation.longitude, nextCityFirstHotel.hotel_details.geolocation.latitude],
+              from: lastCityHotel.location,
+              to: [
+                parseFloat(nextHotelGeo.long), 
+                parseFloat(nextHotelGeo.lat)
+              ],
               type: 'ground'
             });
           }
@@ -100,7 +117,7 @@ const ItineraryMap = ({ itineraryData }) => {
           // Route from last hotel to departure airport
           if (lastCityHotel) {
             routeSegments.push({
-              from: [lastCityHotel.hotel_details.geolocation.longitude, lastCityHotel.hotel_details.geolocation.latitude],
+              from: lastCityHotel.location,
               to: [originAirport.location.longitude, originAirport.location.latitude],
               type: 'ground'
             });

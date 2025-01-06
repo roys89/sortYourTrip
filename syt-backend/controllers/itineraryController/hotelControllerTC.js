@@ -1,13 +1,12 @@
-const HotelAuthService = require("../../services/hotelServices/hotelAuthService");
-const HotelLocationService = require("../../services/hotelServices/hotelLocationService");
-const HotelSearchService = require("../../services/hotelServices/hotelSearchService");
-const HotelItineraryService = require("../../services/hotelServices/hotelItineraryService");
-const HotelRoomRatesService = require("../../services/hotelServices/hotelRoomRatesService");
+const Itinerary = require('../../models/Itinerary');
+const HotelLocationService = require('../../services/hotelServices/hotelLocationService');
+const HotelSearchService = require('../../services/hotelServices/hotelSearchService');
+const HotelItineraryService = require('../../services/hotelServices/hotelItineraryService');
+const HotelRoomRatesService = require('../../services/hotelServices/hotelRoomRatesService');
 
 /**
  * Helper function to select appropriate room rates from itinerary response
  */
-
 function selectRoomRates(itineraryResponse, travelersDetails) {
   if (!itineraryResponse?.results?.[0]) {
     throw new Error("Invalid itinerary response structure");
@@ -22,52 +21,50 @@ function selectRoomRates(itineraryResponse, travelersDetails) {
     throw new Error("No room rates available");
   }
 
-  // Process each recommendation and calculate totals
-  const recommendationTotals = Object.entries(recommendations).map(([recKey, recommendation]) => {
-    let totalRate = 0;
-    let isValidCombination = true;
-    const rateDetails = [];
+  // Process recommendations and calculate totals
+  const recommendationTotals = Object.entries(recommendations)
+    .map(([recKey, recommendation]) => {
+      let totalRate = 0;
+      let isValidCombination = true;
+      const rateDetails = [];
 
-    // Calculate total rate for this recommendation
-    for (const rateId of recommendation.rates) {
-      const rate = rates[rateId];
-      if (!rate) {
-        isValidCombination = false;
-        break;
+      for (const rateId of recommendation.rates) {
+        const rate = rates[rateId];
+        if (!rate) {
+          isValidCombination = false;
+          break;
+        }
+        totalRate += rate.finalRate;
+        rateDetails.push(rate);
       }
-      totalRate += rate.finalRate;
-      rateDetails.push(rate);
-    }
 
-    if (!isValidCombination) return null;
+      if (!isValidCombination) return null;
 
-    return {
-      recommendationId: recommendation.id,
-      rates: rateDetails,
-      totalRate: totalRate
-    };
-  }).filter(rec => rec !== null);
+      return {
+        recommendationId: recommendation.id,
+        rates: rateDetails,
+        totalRate: totalRate
+      };
+    })
+    .filter(rec => rec !== null);
 
-  // Sort recommendations by total rate
+  // Sort by total rate
   recommendationTotals.sort((a, b) => a.totalRate - b.totalRate);
 
   let selectedRecommendation;
 
-  // Select recommendation based on hotel star rating and category
+  // Select recommendation based on hotel category
   if (hotelDetails.starRating === "5" && hotelDetails.category === "Hotel") {
-    // For 5-star hotels: Find almost lowest (not extreme low)
     const avgRate = recommendationTotals.reduce((sum, rec) => sum + rec.totalRate, 0) / recommendationTotals.length;
     selectedRecommendation = recommendationTotals.find(rec => rec.totalRate >= avgRate * 0.8);
   } 
   else if (hotelDetails.starRating === "4" && hotelDetails.category === "Hotel") {
-    // For 4-star hotels: Find average
     const avgRate = recommendationTotals.reduce((sum, rec) => sum + rec.totalRate, 0) / recommendationTotals.length;
     selectedRecommendation = recommendationTotals.find(rec => 
       Math.abs(rec.totalRate - avgRate) === Math.min(...recommendationTotals.map(r => Math.abs(r.totalRate - avgRate)))
     );
   } 
   else if (hotelDetails.starRating === "3" && hotelDetails.category === "Hotel") {
-    // For 3-star hotels: Find highest (not extreme)
     const avgRate = recommendationTotals.reduce((sum, rec) => sum + rec.totalRate, 0) / recommendationTotals.length;
     const maxRate = Math.max(...recommendationTotals.map(r => r.totalRate));
     selectedRecommendation = recommendationTotals.find(rec => 
@@ -75,7 +72,6 @@ function selectRoomRates(itineraryResponse, travelersDetails) {
     );
   } 
   else {
-    // Default: Select middle option
     selectedRecommendation = recommendationTotals[Math.floor(recommendationTotals.length / 2)];
   }
 
@@ -83,14 +79,16 @@ function selectRoomRates(itineraryResponse, travelersDetails) {
     throw new Error("No suitable rate combination found");
   }
 
-  // Format room allocations for the selected recommendation
+  // Format room allocations
   const roomAllocations = selectedRecommendation.rates.map((rate, index) => ({
     rateId: rate.id,
     roomId: rate.occupancies[0].roomId,
     occupancy: {
       adults: travelersDetails.rooms[index].adults.length,
       ...(travelersDetails.rooms[index].children.length > 0 && {
-        childAges: travelersDetails.rooms[index].children.map(child => parseInt(child.age))
+        childAges: travelersDetails.rooms[index].children
+          .map(age => parseInt(age))
+          .filter(age => !isNaN(age))
       })
     }
   }));
@@ -106,39 +104,16 @@ function selectRoomRates(itineraryResponse, travelersDetails) {
 
 /**
  * Helper function to format room occupancy for API request
- * Handles multiple rooms with their respective adults and children
- */
-/**
- * Helper function to format room occupancy for API request
- * Handles multiple rooms with their respective adults and children
  */
 function formatRoomOccupancy(rooms) {
-  console.log('Input rooms data:', JSON.stringify(rooms, null, 2));
-  
-  return rooms.map(room => {
-    // Basic room object with number of adults
-    const roomObj = {
-      numOfAdults: room.adults.length
-    };
-
-    // Only add childAges if there are children
-    if (room.children && room.children.length > 0) {
-      // Handle children ages directly since they're already strings/numbers
-      const validAges = room.children
-        .map(age => {
-          const parsedAge = parseInt(age);
-          return !isNaN(parsedAge) ? parsedAge : null;
-        })
-        .filter(age => age !== null);
-
-      if (validAges.length > 0) {
-        roomObj.childAges = validAges;
-      }
-    }
-
-    console.log('Processed room:', JSON.stringify(roomObj, null, 2));
-    return roomObj;
-  });
+  return rooms.map(room => ({
+    numOfAdults: room.adults.length,
+    ...(room.children?.length > 0 && {
+      childAges: room.children
+        .map(age => parseInt(age))
+        .filter(age => !isNaN(age))
+    })
+  }));
 }
 /**
  * Helper function to select the best hotel based on budget and criteria
@@ -240,15 +215,13 @@ module.exports = {
         travelersDetails,
         preferences,
         inquiryToken,
+        authToken // Now accepting authToken instead of generating it
       } = requestData;
-
-      // Get auth token
-      const authToken = await HotelAuthService.getAuthToken(inquiryToken);
 
       // Search for location
       const locationResponse = await HotelLocationService.searchLocation(
         city,
-        authToken,
+        authToken, // Use provided token
         inquiryToken,
         startDate
       );
@@ -283,17 +256,10 @@ module.exports = {
         ratings: getHotelRatings(preferences?.budget),
       };
 
-      // Log search parameters before making the request
-      console.log('Hotel Search Parameters:', JSON.stringify({
-        ...searchParams,
-        authToken: authToken ? '***' : null,
-        inquiryToken
-      }, null, 2));
-
       // Search for hotels
       const searchResponse = await HotelSearchService.searchHotels(
         searchParams,
-        authToken,
+        authToken, // Use provided token
         inquiryToken
       );
 
@@ -323,7 +289,7 @@ module.exports = {
 
       const itineraryResponse = await HotelItineraryService.createItinerarySequential(
         itineraryParams,
-        authToken,
+        authToken, // Use provided token
         inquiryToken
       );
 
@@ -338,20 +304,20 @@ module.exports = {
           cityName: city,
           date: startDate,
         },
-        authToken
+        authToken // Use provided token
       );
 
       // Get final itinerary details
       const itineraryDetails = await HotelItineraryService.getItineraryDetails(
         rateSelection.itineraryCode,
         rateSelection.traceId,
-        authToken,
+        authToken, // Use provided token
         inquiryToken,
         city,
         startDate
       );
 
-      // Extract necessary details and simplify response
+      // Format and return response
       const result = itineraryDetails?.results?.[0];
       const staticContent = result?.staticContent?.[0];
 
@@ -361,20 +327,14 @@ module.exports = {
           ...result,
           staticContent: [{
             id: staticContent?.id,
-            name: staticContent?.name,
-            starRating: staticContent?.starRating,
             contact: staticContent?.contact,
-            geoCode: staticContent?.geoCode,
             descriptions: staticContent?.descriptions,
-            facilities: staticContent?.facilities,
             images: staticContent?.images,
-            nearByAttractions: staticContent?.nearByAttractions,
-            reviews: staticContent?.reviews
+            nearByAttractions: staticContent?.nearByAttractions
           }],
           hotelDetails: {
             name: staticContent?.name,
             starRating: staticContent?.starRating,
-            location: staticContent?.contact?.address,
             reviews: staticContent?.reviews,
             geolocation: staticContent?.geoCode,
             address: staticContent?.contact?.address,

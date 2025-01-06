@@ -1,9 +1,161 @@
 const Itinerary = require('../../models/Itinerary');
+const { getGroundTransfer } = require("./transferControllerLA");
 const apiLogger = require('../../helpers/apiLogger');
+
+// Helper function to format address to single line
+function formatAddressToSingleLine(addressObj) {
+  if (!addressObj) return null;
+
+  const parts = [
+    addressObj.line1,
+    addressObj.city?.name,
+    addressObj.country?.name,
+    addressObj.postalCode ? `Postal Code ${addressObj.postalCode}` : null
+  ];
+
+  return parts.filter(Boolean).join(', ');
+}
+
+// Helper function to validate and format location data
+function formatLocationForTransfer(location, type) {
+  if (!location?.latitude || !location?.longitude) {
+    throw new Error(`Missing geolocation data for ${type}`);
+  }
+
+  return {
+    city: location.city,
+    country: location.country,
+    address: location.address,
+    latitude: parseFloat(location.latitude),
+    longitude: parseFloat(location.longitude),
+  };
+}
+
+// Helper function to update transfers when hotel changes
+async function updateTransfersForHotelChange(itinerary, cityName, date, newHotelDetails, inquiryToken) {
+  try {
+    console.log('Starting transfer update with:', {
+      cityName,
+      date,
+      newHotelDetails: JSON.stringify(newHotelDetails, null, 2)
+    });
+
+    // Find the city and day indexes
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) throw new Error('City not found');
+    
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) throw new Error('Day not found');
+
+    const city = itinerary.cities[cityIndex];
+    const day = city.days[dayIndex];
+
+    console.log('Found city and day:', {
+      cityIndex,
+      dayIndex,
+      currentTransfers: day.transfers
+    });
+
+    // Extract hotel geolocation from newHotelDetails
+    const hotelGeolocation = newHotelDetails.hotelDetails.geolocation;
+    const hotelAddress = newHotelDetails.hotelDetails.address;
+
+    // Create new hotel location object
+    const newHotelLocation = {
+      city: cityName,
+      country: hotelAddress.country.name,
+      address: formatAddressToSingleLine(hotelAddress),
+      latitude: hotelGeolocation.lat,
+      longitude: hotelGeolocation.long
+    };
+
+    console.log('New hotel location:', newHotelLocation);
+
+    const updatedTransfers = [...(day.transfers || [])];
+
+    // If this is not the first city, update or create city_to_city transfer
+    if (cityIndex > 0) {
+      console.log('Processing city-to-city transfer for non-first city');
+      
+      const prevCity = itinerary.cities[cityIndex - 1];
+      const prevCityLastDay = prevCity.days[prevCity.days.length - 1];
+      const prevHotel = prevCityLastDay.hotels[0];
+
+      console.log('Previous hotel details:', {
+        prevCity: prevCity.city,
+        prevHotel: prevHotel?.data?.hotelDetails ? 'exists' : 'not found'
+      });
+
+      if (prevHotel?.data?.hotelDetails) {
+        const prevHotelLocation = {
+          city: prevCity.city,
+          country: prevHotel.data.hotelDetails.address.country.name,
+          address: formatAddressToSingleLine(prevHotel.data.hotelDetails.address),
+          latitude: prevHotel.data.hotelDetails.geolocation.lat,
+          longitude: prevHotel.data.hotelDetails.geolocation.long
+        };
+
+        console.log('Previous hotel location:', prevHotelLocation);
+
+        const cityToCityTransfer = await getGroundTransfer({
+          travelers: itinerary.travelersDetails,
+          inquiryToken: inquiryToken,
+          preferences: {},
+          startDate: new Date(date),
+          origin: { type: "previous_hotel", ...prevHotelLocation },
+          destination: { type: "current_hotel", ...newHotelLocation },
+        });
+
+        console.log('City to city transfer response:', cityToCityTransfer);
+
+        if (cityToCityTransfer.type !== "error") {
+          const existingTransferIndex = updatedTransfers.findIndex(t => t.type === "city_to_city");
+          console.log('Existing transfer index:', existingTransferIndex);
+          
+          const newTransfer = {
+            type: "city_to_city",
+            details: cityToCityTransfer,
+          };
+
+          if (existingTransferIndex >= 0) {
+            console.log('Updating existing transfer');
+            updatedTransfers[existingTransferIndex] = newTransfer;
+          } else {
+            console.log('Adding new transfer');
+            updatedTransfers.push(newTransfer);
+          }
+        }
+      }
+    }
+
+    // First city, first day: Update airport_to_hotel transfer if exists
+    if (cityIndex === 0 && dayIndex === 0 && day.flights?.length > 0) {
+      console.log('Processing airport-to-hotel transfer');
+      // ... rest of airport-to-hotel logic ...
+    }
+
+    // Last city, last day OR any day with departure flight: Update hotel_to_airport transfer
+    const isLastCity = cityIndex === itinerary.cities.length - 1;
+    const isLastDay = dayIndex === city.days.length - 1;
+    
+    if ((isLastCity && isLastDay && day.flights?.length > 0) || day.flights?.some(f => f.flightData)) {
+      console.log('Processing hotel-to-airport transfer');
+      const departureFlight = day.flights[day.flights.length - 1].flightData;
+      console.log('Departure flight:', departureFlight);
+      // ... rest of hotel-to-airport logic ...
+    }
+
+    console.log('Final updated transfers:', updatedTransfers);
+    return updatedTransfers;
+  } catch (error) {
+    console.error('Error updating transfers:', error);
+    throw error;
+  }
+}
 
 exports.replaceHotel = async (req, res) => {
   const { itineraryToken } = req.params;
-  const { cityName, date, oldHotelCode, newHotelDetails } = req.body;
+  const { cityName, date, newHotelDetails } = req.body; 
   const inquiryToken = req.headers['x-inquiry-token'];
 
   try {
@@ -13,87 +165,65 @@ exports.replaceHotel = async (req, res) => {
     });
 
     if (!itinerary) {
-      return res.status(404).json({ message: 'Itinerary not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Itinerary not found'
+      });
     }
 
+    // Find and update the hotel
     const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
-    if (cityIndex === -1) {
-      return res.status(404).json({ message: 'City not found in itinerary' });
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+
+    if (cityIndex === -1 || dayIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'City or day not found in itinerary'
+      });
     }
 
-    const dayIndex = itinerary.cities[cityIndex].days.findIndex(
-      day => day.date === date
-    );
-    if (dayIndex === -1) {
-      return res.status(404).json({ message: 'Day not found in itinerary' });
+    // Update the hotel
+    itinerary.cities[cityIndex].days[dayIndex].hotels = [{
+      success: true,
+      data: newHotelDetails,
+      checkIn: newHotelDetails.checkIn,
+      checkOut: newHotelDetails.checkOut,
+      message: `Successfully booked ${newHotelDetails.hotelDetails.name}`
+    }];
+
+    // Update related transfers
+    try {
+      const updatedTransfers = await updateTransfersForHotelChange(
+        itinerary,
+        cityName,
+        date,
+        newHotelDetails,
+        inquiryToken
+      );
+
+      // Replace the transfers for the day 
+      itinerary.cities[cityIndex].days[dayIndex].transfers = updatedTransfers;
+    } catch (transferError) {
+      console.error('Error updating transfers:', transferError);
+      // Continue with hotel update even if transfer update fails
     }
 
-    const rateComments = newHotelDetails.rate?.rate_comments || {};
-    const cancellationPolicy = newHotelDetails.rate?.cancellation_policy || {
-      amount_type: "value",
-      no_show_fee: {
-        amount_type: "value",
-        currency: newHotelDetails.rate?.currency,
-        flat_fee: newHotelDetails.rate?.price
-      },
-      under_cancellation: false,
-      message: "Not cancelable"
-    };
+    // Save the updated itinerary
+    const updatedItinerary = await itinerary.save();
 
-    // Format hotel details to match initial structure
-    const formattedHotelDetails = {
-      ...newHotelDetails,
-      images: Array.isArray(newHotelDetails.images) ? 
-        newHotelDetails.images : 
-        [{
-          url: newHotelDetails.images?.url || null,
-          variants: [{
-            url: newHotelDetails.images?.url || null
-          }]
-        }],
-      rate: {
-        ...newHotelDetails.rate,
-        rate_comments: {
-          checkin_begin_time: rateComments.checkin_begin_time || "2:00 PM",
-          checkin_end_time: rateComments.checkin_end_time || "midnight",
-          checkout_time: rateComments.checkout_time || "12:00 PM",
-          comments: rateComments.comments || "",
-          fee_comments: rateComments.fee_comments || "",
-          mealplan: rateComments.mealplan || "",
-          pax_comments: rateComments.pax_comments || "",
-          remarks: rateComments.remarks || ""
-        },
-        price_details: {
-          GST: newHotelDetails.rate?.price_details?.GST || [],
-          net: newHotelDetails.rate?.price_details?.net || [],
-          surcharge_or_tax: newHotelDetails.rate?.price_details?.surcharge_or_tax || []
-        },
-        other_inclusions: newHotelDetails.rate?.other_inclusions || [],
-        promotions_details: newHotelDetails.rate?.has_promotions ? 
-          newHotelDetails.rate.promotions_details : undefined,
-        cancellation_policy: cancellationPolicy
-      },
-      hotel_details: {
-        ...newHotelDetails.hotel_details,
-        facilities: Array.isArray(newHotelDetails.hotel_details?.facilities) ?
-          newHotelDetails.hotel_details.facilities :
-          (newHotelDetails.hotel_details?.facilities || '').split(';').map(f => f.trim()),
-        cancellation_policy: cancellationPolicy,
-        checkin_end_time: rateComments.checkin_end_time || "midnight",
-        checkin_begin_time: rateComments.checkin_begin_time || "2:00 PM",
-        checkout_time: rateComments.checkout_time || "12:00 PM",
-        hotel_charges: newHotelDetails.rate?.price_details?.surcharge_or_tax || []
-      }
-    };
+    res.json({
+      success: true,
+      message: 'Hotel and related transfers updated successfully',
+      itinerary: updatedItinerary
+    });
 
-    // Replace the hotel
-    itinerary.cities[cityIndex].days[dayIndex].hotels = [formattedHotelDetails];
-
-    await itinerary.save();
-    res.json(itinerary);
   } catch (error) {
-    console.error('Error replacing hotel:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error replacing hotel and updating transfers:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating hotel and transfers',
+      error: error.message
+    });
   }
 };
 

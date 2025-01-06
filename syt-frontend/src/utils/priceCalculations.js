@@ -8,8 +8,8 @@ export const calculateSegmentTotal = (items, markup) => {
       itemPrice = item.price;
     } else if (item.packageDetails?.amount) {
       itemPrice = item.packageDetails.amount;
-    } else if (item.rate?.price) {
-      itemPrice = item.rate.price;
+    } else if (item.data?.totalAmount) {
+      itemPrice = item.data.totalAmount;
     } else if (item.flightData?.price) {
       itemPrice = item.flightData.price;
     } else if (item.details?.selectedQuote?.quote?.fare) {

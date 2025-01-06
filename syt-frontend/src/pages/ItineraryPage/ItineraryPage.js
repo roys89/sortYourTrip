@@ -17,7 +17,6 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import CityAccordion from "../../components/Itinerary/CityAccordion";
 import PriceSummary from "../../components/Itinerary/PriceSummary";
-import ItineraryMap from "../../components/Map/ItineraryMap";
 import ModalManager from "../../components/ModalManager";
 import { useAuth } from "../../context/AuthContext";
 import { clearAllActivityStates } from "../../redux/slices/activitySlice";
@@ -418,14 +417,14 @@ const ItineraryPage = () => {
             {/* Right Column - Price Summary and Actions */}
             <Grid item xs={12} md={4} sx={{ pl: { md: 1 } }}>
 
-            <motion.div
+            {/* <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="map-card"
               >
                 {itinerary && <ItineraryMap itineraryData={itinerary} />}
-              </motion.div>
+              </motion.div> */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

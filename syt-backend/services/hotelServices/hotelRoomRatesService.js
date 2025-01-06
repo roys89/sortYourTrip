@@ -3,27 +3,27 @@ const apiLogger = require('../../helpers/apiLogger');
 
 class HotelRoomRatesService {
   static async selectRoomRates(requestBody, accessToken) {
+    // Extract necessary details from request body
+    const {
+      itineraryCode, 
+      cityName, 
+      inquiryToken,
+      traceId,
+      recommendationId,
+      items,
+      roomsAndRateAllocations,
+      date
+    } = requestBody;
+
+    // Prepare request payload - moved outside try block so it's available in catch
+    const requestPayload = {
+      roomsAndRateAllocations,
+      traceId,
+      recommendationId,
+      items
+    };
+
     try {
-      // Extract necessary details from request body
-      const {
-        itineraryCode, 
-        cityName, 
-        inquiryToken,
-        traceId,
-        recommendationId,
-        items,
-        roomsAndRateAllocations,
-        date
-      } = requestBody;
-
-      // Prepare request payload
-      const requestPayload = {
-        roomsAndRateAllocations,
-        traceId,
-        recommendationId,
-        items
-      };
-
       const config = {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -66,22 +66,21 @@ class HotelRoomRatesService {
       };
 
     } catch (error) {
-      // Log error
+      // Log error with properly scoped requestPayload
       const errorLogData = {
-        inquiryToken: requestBody.inquiryToken || 'unknown',
-        cityName: requestBody.cityName || 'unknown', 
-        date: requestBody.date || 'unknown',
+        inquiryToken: inquiryToken || 'unknown',
+        cityName: cityName || 'unknown', 
+        date: date || 'unknown',
         apiType: 'hotel_room_rates_error',
-        itineraryCode: requestBody.itineraryCode,
+        itineraryCode,
         requestData: {
-          // Match success case by including all request data
           ...requestPayload,
           headers: {
             'Authorization': 'Bearer [REDACTED]',
             'Authorization-Type': 'external-service', 
             'source': 'website'
           },
-          url: `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/${requestBody.itineraryCode}/select-roomrates`
+          url: `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/${itineraryCode}/select-roomrates`
         },
         responseData: {
           error: error.message,

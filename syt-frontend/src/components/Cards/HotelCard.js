@@ -53,26 +53,38 @@ const HotelCard = ({
   };
 
   const handleChangeHotel = () => {
+    const hotelDetails = hotel?.data?.items?.[0];
+    const roomAndRate = hotelDetails?.selectedRoomsAndRates?.[0] || {};
+  
+    const navigationState = {
+      city,
+      date,
+      inquiryToken,
+      travelersDetails,
+      returnTo: '/itinerary',
+      oldHotelCode: hotelDetails?.code,
+      existingHotelPrice: roomAndRate.rate?.finalRate,
+      checkIn: hotel.checkIn,
+      checkOut: hotel.checkOut
+    };
+  
+    console.log('=== HOTEL CHANGE NAVIGATION DATA ===');
+    console.log('Original hotel:', hotel);
+    console.log('Navigation state:', navigationState);
+    console.log('Hotel details:', hotelDetails);
+    console.log('Room and rate:', roomAndRate);
+    console.log('====================================');
+  
     dispatch(setChangeHotel({
       ...hotel,
       city,
       date,
       inquiryToken,
       travelersDetails,
-      oldHotelCode: hotelDetails.code
+      oldHotelCode: hotelDetails?.code
     }));
-
-    navigate('/hotels', {
-      state: {
-        city,
-        date,
-        inquiryToken,
-        travelersDetails,
-        returnTo: '/itinerary',
-        oldHotelCode: hotelDetails.code,
-        existingHotelPrice: roomAndRate.rate?.finalRate
-      }
-    });
+  
+    navigate('/hotels', { state: navigationState });
   };
 
   if (!hotelDetails || !hotelStatic) {

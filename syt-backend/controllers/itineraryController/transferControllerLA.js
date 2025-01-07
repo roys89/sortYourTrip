@@ -2,6 +2,22 @@
 const TransferGetQuotesService = require('../../services/transferServices/transferGetQuoteSservice');
 const TransferQuoteDetailsService = require('../../services/transferServices/transferQuoteDetailsService');
 
+// Helper function to format date
+const formatTransferDate = (dateStr) => {
+  if (!dateStr) return null;
+  // If it's already ISO string, return as is
+  if (dateStr.includes('T')) return dateStr;
+  
+  // If it's just a date string, append time
+  if (dateStr.includes('-')) {
+    return `${dateStr}T00:00:00.000Z`;
+  }
+  
+  // Handle other formats
+  const date = new Date(dateStr);
+  return date.toISOString();
+};
+
 exports.getGroundTransfer = async (transferData) => {
   try {
     // Calculate total number of travelers
@@ -10,6 +26,14 @@ exports.getGroundTransfer = async (transferData) => {
       const childCount = room.children.length;
       return sum + adultCount + childCount;
     }, 0);
+
+    // Format dates properly
+    const pickupDate = formatTransferDate(transferData.startDate);
+    const returnDate = new Date(new Date(pickupDate).getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    if (!pickupDate) {
+      throw new Error('Invalid pickup date format');
+    }
 
     const quoteParams = {
       origin: {
@@ -24,12 +48,12 @@ exports.getGroundTransfer = async (transferData) => {
         lat: transferData.destination.latitude.toString(),
         long: transferData.destination.longitude.toString(),
       },
-      pickupDate: transferData.startDate,
-      returnDate: new Date(
-        new Date(transferData.startDate).getTime() + 24 * 60 * 60 * 1000
-      ).toISOString(),
+      pickupDate,
+      returnDate,
       inquiryToken: transferData.inquiryToken,
       travelers: transferData.travelers || { rooms: [{ adults: [1], children: [] }] },
+      // Add flight number if available
+      flightNumber: transferData.flightNumber
     };
 
     const quoteResponse = await TransferGetQuotesService.getTransferQuotes(quoteParams);
@@ -44,22 +68,21 @@ exports.getGroundTransfer = async (transferData) => {
       );
 
       if (suitableQuote) {
-        // Create the city name string in the same format as getTransferQuotes
         const cityName = `${quoteParams.origin.city} to ${quoteParams.destination.city}`;
         
-        // Pass inquiryToken and cityName to getQuoteDetails
         const detailedQuoteResponse = await TransferQuoteDetailsService.getQuoteDetails(
           quoteData.quotation_id, 
           suitableQuote.quote_id,
-          transferData.inquiryToken,  // Pass the inquiryToken
-          cityName,                   // Pass the cityName
-          transferData.startDate      // Pass the date
+          transferData.inquiryToken,
+          cityName,
+          transferData.startDate
         );
 
         if (detailedQuoteResponse.success) {
           return {
             type: "ground",
-            TransferProvider: 'LeAmigo',
+            transportationType: "transfer",
+            transferProvider: 'LeAmigo',
             selectedQuote: detailedQuoteResponse.data,
             totalTravelers,
             origin: quoteParams.origin,
@@ -67,27 +90,16 @@ exports.getGroundTransfer = async (transferData) => {
             quotation_id: quoteData.quotation_id,
             distance: quoteData.distance,
             duration: quoteData.duration,
-          };
-        } else {
-          return {
-            type: "error",
-            message: "Unable to fetch detailed quote information",
-            error: detailedQuoteResponse.error,
+            flightNumber: transferData.flightNumber // Include flight number in response
           };
         }
-      } else {
-        return {
-          type: "error",
-          message: "No vehicle found with sufficient capacity for the travelers",
-        };
       }
-    } else {
-      return {
-        type: "error",
-        message: "Unable to fetch ground transfer quotes",
-        error: quoteResponse.error,
-      };
     }
+
+    return {
+      type: "error",
+      message: "No suitable transfer found",
+    };
   } catch (error) {
     console.error("Error in ground transfer processing:", error);
     return {

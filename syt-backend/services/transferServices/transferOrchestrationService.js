@@ -129,56 +129,133 @@ class TransferOrchestrationService {
       travelersDetails,
       inquiryToken,
       preferences,
-      date
+      date,
+      selectedCities,
+      originCity,
+      destinationCity
     } = params;
-
+  
     try {
-      const originLocation = this.formatLocationForTransfer({
-        city: originHotel.data.hotelDetails.address.city.name,
-        country: originHotel.data.hotelDetails.address.country.name,
-        address: this.formatAddressToSingleLine(originHotel.data.hotelDetails.address),
-        latitude: originHotel.data.hotelDetails.geolocation.lat,
-        longitude: originHotel.data.hotelDetails.geolocation.long
-      }, 'origin hotel');
-
-      const destinationLocation = this.formatLocationForTransfer({
-        city: destinationHotel.data.hotelDetails.address.city.name,
-        country: destinationHotel.data.hotelDetails.address.country.name,
-        address: this.formatAddressToSingleLine(destinationHotel.data.hotelDetails.address),
-        latitude: destinationHotel.data.hotelDetails.geolocation.lat,
-        longitude: destinationHotel.data.hotelDetails.geolocation.long
-      }, 'destination hotel');
-
+      // Check if hotel objects have the required structure
+      if (!originHotel?.data?.hotelDetails) {
+        console.error('Origin hotel missing required data structure:', 
+          JSON.stringify({
+            hasHotel: !!originHotel,
+            hasData: !!originHotel?.data,
+            hasDetails: !!originHotel?.data?.hotelDetails
+          })
+        );
+        return null;
+      }
+  
+      if (!destinationHotel?.data?.hotelDetails) {
+        console.error('Destination hotel missing required data structure:', 
+          JSON.stringify({
+            hasHotel: !!destinationHotel,
+            hasData: !!destinationHotel?.data,
+            hasDetails: !!destinationHotel?.data?.hotelDetails
+          })
+        );
+        return null;
+      }
+  
+      // First try ground transfer
       const transferResult = await getGroundTransfer({
         travelers: travelersDetails,
         inquiryToken: inquiryToken,
         preferences: preferences,
         startDate: date,
-        origin: { type: "hotel", ...originLocation },
-        destination: { type: "hotel", ...destinationLocation },
+        origin: {
+          type: "hotel",
+          city: originHotel.data.hotelDetails.address.city.name,
+          country: originHotel.data.hotelDetails.address.country.name,
+          address: this.formatAddressToSingleLine(originHotel.data.hotelDetails.address),
+          latitude: originHotel.data.hotelDetails.geolocation.lat,
+          longitude: originHotel.data.hotelDetails.geolocation.long
+        },
+        destination: {
+          type: "hotel",
+          city: destinationHotel.data.hotelDetails.address.city.name,
+          country: destinationHotel.data.hotelDetails.address.country.name,
+          address: this.formatAddressToSingleLine(destinationHotel.data.hotelDetails.address),
+          latitude: destinationHotel.data.hotelDetails.geolocation.lat,
+          longitude: destinationHotel.data.hotelDetails.geolocation.long
+        }
       });
-
-      // If transfer duration > 8 hours, switch to flight
-      if (transferResult.type !== "error" && transferResult.duration > 480) {
-        return await this.processInterCityFlight({
-          originCity: originLocation,
-          destinationCity: destinationLocation,
-          travelersDetails,
+  
+      // If transfer duration > 300 minutes, switch to flight
+      if (transferResult.type !== "error" && transferResult.duration > 300) {
+        console.log('Ground transfer duration > 300 minutes, switching to flight');
+  
+        // Get the correct city objects with IATA codes from selectedCities
+        const departureCity = selectedCities.find(city => city.city === originCity.city);
+        const arrivalCity = selectedCities.find(city => city.city === destinationCity.city);
+  
+        if (!departureCity || !arrivalCity) {
+          console.error('Could not find matching cities with IATA codes');
+          // Fall back to ground transfer
+          return {
+            type: "city_to_city",
+            details: transferResult
+          };
+        }
+  
+        // Try to get a flight with proper city structure
+        const flight = await getFlights({
           inquiryToken,
-          preferences,
-          date
+          departureCity,    // This now has the correct structure with IATA code
+          cities: [arrivalCity],  // This now has the correct structure with IATA code
+          travelers: travelersDetails,
+          departureDates: {
+            startDate: date,
+            endDate: date
+          },
+          type: "inter_city_flight"
         });
+  
+        if (flight && flight[0]) {
+          // If flight is found, we need hotel to airport and airport to hotel transfers
+          const [hotelToAirport, airportToHotel] = await Promise.all([
+            this.processHotelToAirportTransfer({
+              flight: flight[0],
+              hotel: originHotel,
+              travelersDetails,
+              inquiryToken,
+              preferences,
+              date
+            }),
+            this.processAirportToHotelTransfer({
+              flight: flight[0],
+              hotel: destinationHotel,
+              travelersDetails,
+              inquiryToken,
+              preferences
+            })
+          ]);
+  
+          return {
+            type: "inter_city_flight",
+            details: flight[0],
+            transfers: {
+              hotelToAirport,
+              airportToHotel
+            }
+          };
+        }
       }
-
-      return transferResult.type !== "error" ? {
+  
+      // Either duration is acceptable or no flight found, use ground transfer
+      return {
         type: "city_to_city",
         details: transferResult
-      } : null;
+      };
+  
     } catch (error) {
       console.error('Error in processCityToCityTransfer:', error);
       return null;
     }
   }
+
 
   async processInterCityFlight(params) {
     const {

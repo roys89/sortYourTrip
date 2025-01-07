@@ -276,7 +276,15 @@ const ItinerarySchema = new Schema(
     priceTotals: {
       type: PriceTotalsSchema,
       default: null
-    }
+    },
+    changeHistory: [{
+      type: {
+        type: String,
+        enum: ['HOTEL_CHANGE', 'FLIGHT_CHANGE', 'ACTIVITY_CHANGE'],
+      },
+      details: Schema.Types.Mixed,
+      changedAt: { type: Date, default: Date.now }
+    }]
   },
   {
     timestamps: true,

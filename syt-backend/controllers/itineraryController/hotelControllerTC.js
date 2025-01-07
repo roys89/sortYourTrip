@@ -1,106 +1,7 @@
-const Itinerary = require('../../models/Itinerary');
 const HotelLocationService = require('../../services/hotelServices/hotelLocationService');
 const HotelSearchService = require('../../services/hotelServices/hotelSearchService');
 const HotelItineraryService = require('../../services/hotelServices/hotelItineraryService');
 const HotelRoomRatesService = require('../../services/hotelServices/hotelRoomRatesService');
-
-/**
- * Helper function to select appropriate room rates from itinerary response
- */
-function selectRoomRates(itineraryResponse, travelersDetails) {
-  if (!itineraryResponse?.results?.[0]) {
-    throw new Error("Invalid itinerary response structure");
-  }
-
-  const result = itineraryResponse.results[0];
-  const roomRate = result.data[0].roomRate[0];
-  const { rates, recommendations } = roomRate;
-  const hotelDetails = result.data[0];
-
-  if (!recommendations || !rates) {
-    throw new Error("No room rates available");
-  }
-
-  // Process recommendations and calculate totals
-  const recommendationTotals = Object.entries(recommendations)
-    .map(([recKey, recommendation]) => {
-      let totalRate = 0;
-      let isValidCombination = true;
-      const rateDetails = [];
-
-      for (const rateId of recommendation.rates) {
-        const rate = rates[rateId];
-        if (!rate) {
-          isValidCombination = false;
-          break;
-        }
-        totalRate += rate.finalRate;
-        rateDetails.push(rate);
-      }
-
-      if (!isValidCombination) return null;
-
-      return {
-        recommendationId: recommendation.id,
-        rates: rateDetails,
-        totalRate: totalRate
-      };
-    })
-    .filter(rec => rec !== null);
-
-  // Sort by total rate
-  recommendationTotals.sort((a, b) => a.totalRate - b.totalRate);
-
-  let selectedRecommendation;
-
-  // Select recommendation based on hotel category
-  if (hotelDetails.starRating === "5" && hotelDetails.category === "Hotel") {
-    const avgRate = recommendationTotals.reduce((sum, rec) => sum + rec.totalRate, 0) / recommendationTotals.length;
-    selectedRecommendation = recommendationTotals.find(rec => rec.totalRate >= avgRate * 0.8);
-  } 
-  else if (hotelDetails.starRating === "4" && hotelDetails.category === "Hotel") {
-    const avgRate = recommendationTotals.reduce((sum, rec) => sum + rec.totalRate, 0) / recommendationTotals.length;
-    selectedRecommendation = recommendationTotals.find(rec => 
-      Math.abs(rec.totalRate - avgRate) === Math.min(...recommendationTotals.map(r => Math.abs(r.totalRate - avgRate)))
-    );
-  } 
-  else if (hotelDetails.starRating === "3" && hotelDetails.category === "Hotel") {
-    const avgRate = recommendationTotals.reduce((sum, rec) => sum + rec.totalRate, 0) / recommendationTotals.length;
-    const maxRate = Math.max(...recommendationTotals.map(r => r.totalRate));
-    selectedRecommendation = recommendationTotals.find(rec => 
-      rec.totalRate >= avgRate && rec.totalRate <= maxRate * 0.9
-    );
-  } 
-  else {
-    selectedRecommendation = recommendationTotals[Math.floor(recommendationTotals.length / 2)];
-  }
-
-  if (!selectedRecommendation) {
-    throw new Error("No suitable rate combination found");
-  }
-
-  // Format room allocations
-  const roomAllocations = selectedRecommendation.rates.map((rate, index) => ({
-    rateId: rate.id,
-    roomId: rate.occupancies[0].roomId,
-    occupancy: {
-      adults: travelersDetails.rooms[index].adults.length,
-      ...(travelersDetails.rooms[index].children.length > 0 && {
-        childAges: travelersDetails.rooms[index].children
-          .map(age => parseInt(age))
-          .filter(age => !isNaN(age))
-      })
-    }
-  }));
-
-  return {
-    roomsAndRateAllocations: roomAllocations,
-    traceId: result.traceIdDetails?.id,
-    items: result.items,
-    itineraryCode: result.itinerary?.code,
-    recommendationId: selectedRecommendation.recommendationId
-  };
-}
 
 /**
  * Helper function to format room occupancy for API request
@@ -115,6 +16,23 @@ function formatRoomOccupancy(rooms) {
     })
   }));
 }
+
+/**
+ * Helper function to get hotel ratings based on budget preference
+ */
+function getHotelRatings(budget) {
+  switch (budget) {
+    case "Luxury":
+      return [4, 5];
+    case "Somewhere In-between":
+      return [3, 4];
+    case "Pocket Friendly":
+      return [3];
+    default:
+      return [3, 4, 5];
+  }
+}
+
 /**
  * Helper function to select the best hotel based on budget and criteria
  */
@@ -186,19 +104,135 @@ function selectBestHotel(hotels, budget) {
 }
 
 /**
- * Helper function to get hotel ratings based on budget preference
+ * Helper function to process recommendations and calculate totals
  */
-function getHotelRatings(budget) {
-  switch (budget) {
-    case "Luxury":
-      return [4, 5];
-    case "Somewhere In-between":
-      return [3, 4];
-    case "Pocket Friendly":
-      return [3];
-    default:
-      return [3, 4, 5];
+function processRecommendations(itineraryResponse) {
+  if (!itineraryResponse?.results?.[0]) {
+    throw new Error("Invalid itinerary response structure");
   }
+
+  const result = itineraryResponse.results[0];
+  const roomRate = result.data[0].roomRate[0];
+  const { rates, recommendations } = roomRate;
+
+  if (!recommendations || !rates) {
+    throw new Error("No room rates available");
+  }
+
+  // Process recommendations and calculate totals
+  return Object.entries(recommendations)
+    .map(([recKey, recommendation]) => {
+      let totalRate = 0;
+      let isValidCombination = true;
+      const rateDetails = [];
+
+      for (const rateId of recommendation.rates) {
+        const rate = rates[rateId];
+        if (!rate) {
+          isValidCombination = false;
+          break;
+        }
+        totalRate += rate.finalRate;
+        rateDetails.push(rate);
+      }
+
+      if (!isValidCombination) return null;
+
+      return {
+        recommendationId: recommendation.id,
+        rates: rateDetails,
+        totalRate: totalRate
+      };
+    })
+    .filter(rec => rec !== null)
+    .sort((a, b) => a.totalRate - b.totalRate);
+}
+
+/**
+ * Helper function to select room rates with retry logic
+ */
+async function selectRoomRatesWithRetry(itineraryResponse, travelersDetails, params) {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 1000; // 1 second
+  const MAX_DURATION = 30000; // 30 seconds
+  const startTime = Date.now();
+
+  const recommendationTotals = processRecommendations(itineraryResponse);
+  let attempts = 0;
+  let lastError = null;
+
+  for (const recommendation of recommendationTotals) {
+    if (attempts >= MAX_RETRIES || Date.now() - startTime >= MAX_DURATION) {
+      break;
+    }
+
+    try {
+      attempts++;
+      
+      // Format room allocations
+      const roomAllocations = recommendation.rates.map((rate, index) => ({
+        rateId: rate.id,
+        roomId: rate.occupancies[0].roomId,
+        occupancy: {
+          adults: travelersDetails.rooms[index].adults.length,
+          ...(travelersDetails.rooms[index].children?.length > 0 && {
+            childAges: travelersDetails.rooms[index].children
+              .map(age => parseInt(age))
+              .filter(age => !isNaN(age))
+          })
+        }
+      }));
+
+      const rateSelection = {
+        roomsAndRateAllocations: roomAllocations,
+        traceId: itineraryResponse.results[0].traceIdDetails?.id,
+        items: itineraryResponse.results[0].items,
+        itineraryCode: itineraryResponse.results[0].itinerary?.code,
+        recommendationId: recommendation.recommendationId,
+        inquiryToken: params.inquiryToken,
+        cityName: params.cityName,
+        date: params.startDate
+      };
+
+      const response = await HotelRoomRatesService.selectRoomRates(
+        rateSelection,
+        params.authToken
+      );
+
+      if (response.success) {
+        return { 
+          success: true,
+          rateSelection,
+          roomRatesResponse: response 
+        };
+      }
+
+    } catch (error) {
+      lastError = error;
+      console.log(`Attempt ${attempts} failed for recommendation ${recommendation.recommendationId}:`, error.message);
+
+      // If error isn't related to availability, break immediately
+      if (!error.details?.error?.errors?.some(e => 
+        e.includes("Not Available") || 
+        e.includes("Price Changed") || 
+        e.includes("Sold out"))) {
+        break;
+      }
+
+      // Add delay between retries
+      if (attempts < MAX_RETRIES && Date.now() - startTime < MAX_DURATION) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      }
+    }
+  }
+
+  // If we get here, all attempts failed
+  throw {
+    message: "All room rate selection attempts failed",
+    attempts,
+    duration: Date.now() - startTime,
+    lastError
+  };
 }
 
 /**
@@ -215,13 +249,13 @@ module.exports = {
         travelersDetails,
         preferences,
         inquiryToken,
-        authToken // Now accepting authToken instead of generating it
+        authToken
       } = requestData;
 
       // Search for location
       const locationResponse = await HotelLocationService.searchLocation(
         city,
-        authToken, // Use provided token
+        authToken,
         inquiryToken,
         startDate
       );
@@ -259,7 +293,7 @@ module.exports = {
       // Search for hotels
       const searchResponse = await HotelSearchService.searchHotels(
         searchParams,
-        authToken, // Use provided token
+        authToken,
         inquiryToken
       );
 
@@ -289,29 +323,27 @@ module.exports = {
 
       const itineraryResponse = await HotelItineraryService.createItinerarySequential(
         itineraryParams,
-        authToken, // Use provided token
+        authToken,
         inquiryToken
       );
 
-      // Select and format room rates
-      const rateSelection = selectRoomRates(itineraryResponse, travelersDetails);
-
-      // Get room rates
-      const roomRatesResponse = await HotelRoomRatesService.selectRoomRates(
+      // Try to select room rates with retry logic
+      const { rateSelection, roomRatesResponse } = await selectRoomRatesWithRetry(
+        itineraryResponse, 
+        travelersDetails,
         {
-          ...rateSelection,
+          authToken,
           inquiryToken,
           cityName: city,
-          date: startDate,
-        },
-        authToken // Use provided token
+          startDate
+        }
       );
 
       // Get final itinerary details
       const itineraryDetails = await HotelItineraryService.getItineraryDetails(
         rateSelection.itineraryCode,
         rateSelection.traceId,
-        authToken, // Use provided token
+        authToken,
         inquiryToken,
         city,
         startDate
@@ -329,13 +361,10 @@ module.exports = {
             id: staticContent?.id,
             contact: staticContent?.contact,
             descriptions: staticContent?.descriptions,
-            // images: staticContent?.images,
-            // nearByAttractions: staticContent?.nearByAttractions
           }],
           hotelDetails: {
             name: staticContent?.name,
             starRating: staticContent?.starRating,
-            // reviews: staticContent?.reviews,
             geolocation: staticContent?.geoCode,
             address: staticContent?.contact?.address,
           },

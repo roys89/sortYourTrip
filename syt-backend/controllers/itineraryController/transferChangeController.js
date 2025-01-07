@@ -1,4 +1,3 @@
-// controllers/itineraryController/transferChangeController.js
 const Itinerary = require('../../models/Itinerary');
 const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
 const apiLogger = require('../../helpers/apiLogger');
@@ -65,6 +64,12 @@ exports.updateTransfersForChange = async (req, res) => {
 
     // Update transfers for the specific day
     itinerary.cities[cityIndex].days[dayIndex].transfers = updatedTransfers;
+
+    // Add change to history
+    itinerary.changeHistory.push({
+      type: changeType,
+      details: changeDetails
+    });
 
     // Save the updated itinerary
     await itinerary.save();

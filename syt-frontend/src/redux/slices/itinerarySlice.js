@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Constants
 const BASE_URL = 'http://localhost:5000/api';
 
 // Async Thunks
@@ -24,29 +23,47 @@ export const createItinerary = createAsyncThunk(
   'itinerary/createItinerary',
   async (inquiryToken, { rejectWithValue, dispatch }) => {
     try {
-      // First check for existing itinerary
       const existingItinerary = await dispatch(checkExistingItinerary(inquiryToken)).unwrap();
       
       if (existingItinerary) {
         return existingItinerary;
       }
       
-      // If no existing itinerary, create new one
       const response = await axios.post(`${BASE_URL}/itinerary/${inquiryToken}`);
       
-      // Validate response
       if (!response.data || typeof response.data === 'string') {
         throw new Error('Invalid response format from server');
       }
       
       return response.data;
     } catch (error) {
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      } else if (error.message) {
-        return rejectWithValue(error.message);
-      }
-      return rejectWithValue('Failed to create itinerary');
+      return rejectWithValue(error.response?.data?.message || 'Failed to create itinerary');
+    }
+  }
+);
+
+// New Thunk for Transfer Updates
+export const updateTransfersForChange = createAsyncThunk(
+  'itinerary/updateTransfers',
+  async ({ 
+    itineraryToken, 
+    changeType, 
+    changeDetails,
+    inquiryToken 
+  }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(
+        `${BASE_URL}/itinerary/${itineraryToken}/transfers/update`,
+        { changeType, changeDetails },
+        {
+          headers: { 
+            'X-Inquiry-Token': inquiryToken,
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Transfer update failed');
     }
   }
 );
@@ -162,10 +179,8 @@ const initialState = {
   error: null,
   itineraryToken: null,
   checkingExisting: false,
-  activityUpdating: false,
-  activityError: null,
-  priceUpdating: false,
-  priceError: null
+  transferUpdating: false, // New state for transfer updates
+  transferUpdateError: null // New error state for transfer updates
 };
 
 const itinerarySlice = createSlice({
@@ -174,8 +189,7 @@ const itinerarySlice = createSlice({
   reducers: {
     clearItineraryError: (state) => {
       state.error = null;
-      state.activityError = null;
-      state.priceError = null;
+      state.transferUpdateError = null;
     },
     resetItineraryState: () => initialState,
     setItineraryToken: (state, action) => {
@@ -285,10 +299,29 @@ const itinerarySlice = createSlice({
       .addCase(updateActivityInItinerary.rejected, (state, action) => {
         state.activityUpdating = false;
         state.activityError = action.payload;
+      })
+      
+     // New reducers for transfer updates
+      .addCase(updateTransfersForChange.pending, (state) => {
+        state.transferUpdating = true;
+        state.transferUpdateError = null;
+      })
+      .addCase(updateTransfersForChange.fulfilled, (state, action) => {
+        state.transferUpdating = false;
+        state.data = action.payload; // Update entire itinerary with new transfers
+        state.transferUpdateError = null;
+      })
+      .addCase(updateTransfersForChange.rejected, (state, action) => {
+        state.transferUpdating = false;
+        state.transferUpdateError = action.payload;
       });
   },
 });
 
-export const { clearItineraryError, resetItineraryState, setItineraryToken } = itinerarySlice.actions;
+export const { 
+  clearItineraryError, 
+  resetItineraryState, 
+  setItineraryToken 
+} = itinerarySlice.actions;
 
 export default itinerarySlice.reducer;

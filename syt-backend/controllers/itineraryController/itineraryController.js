@@ -11,6 +11,7 @@ const { getGroundTransfer } = require("./transferControllerLA");
 const { getFlights } = require("./flightControllerTC");
 const HotelTokenManager = require('../../services/tokenManagers/hotelTokenManager');
 const HotelAuthService = require('../../services/hotelServices/hotelAuthService');
+const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
 
 // Helper function to calculate days between dates
 const getDifferenceInDays = (startDate, endDate) => {
@@ -289,7 +290,6 @@ exports.createItinerary = async (req, res) => {
 
     // Step 2: Get flights and hotels concurrently using same token
     console.log("Getting flights and hotels concurrently...");
-    console.log('Starting concurrent processing of flights and hotels...');
     const { departureFlights, returnFlights, hotelResponses } = 
       await processFlightsAndHotels(inquiry, cityDayDistribution, authToken);
 
@@ -297,230 +297,84 @@ exports.createItinerary = async (req, res) => {
     const itineraryDaysByCity = [];
     const cityActivitiesTracker = {};
 
-// Process activities for all cities
-const processedCities = await Promise.all(cityDayDistribution.map(async (cityData, index) => {
-  const { city, startDate, endDate } = cityData;
-  const hotelResponse = hotelResponses[index];
+    // Process activities for all cities
+    const processedCities = await Promise.all(cityDayDistribution.map(async (cityData, index) => {
+      const { city, startDate, endDate } = cityData;
+      const hotelResponse = hotelResponses[index];
 
-  console.log(`Processing city ${index + 1}/${cityDayDistribution.length}: ${city.city}`);
+      const cityDetails = {
+        city: city.city,
+        cityCode: city.code,
+        country: city.country,
+        startDate,
+        endDate,
+        days: [],
+      };
 
-  const cityDetails = {
-    city: city.city,
-    cityCode: city.code,
-    country: city.country,
-    startDate,
-    endDate,
-    days: [],
-  };
+      const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
 
-  const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
+      // Process all days for current city concurrently
+      const processedDays = await Promise.all(Array.from({ length: daysForThisCity }, async (_, dayOffset) => {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(currentDate.getDate() + dayOffset);
+        const formattedDate = currentDate.toISOString().split("T")[0];
 
-  // Process all days for current city concurrently
-  const processedDays = await Promise.all(Array.from({ length: daysForThisCity }, async (_, dayOffset) => {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + dayOffset);
-    const formattedDate = currentDate.toISOString().split("T")[0];
+        const isFirstDay = dayOffset === 0;
+        const isLastDay = dayOffset === daysForThisCity - 1;
 
-    const isFirstDay = dayOffset === 0;
-    const isLastDay = dayOffset === daysForThisCity - 1;
+        // Get activities for the day
+        const dayActivities = await processActivitiesForDay(
+          city,
+          inquiry,
+          formattedDate,
+          {
+            adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
+            childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat(),
+          },
+          inquiryToken,
+          cityActivitiesTracker
+        );
 
-    // Get activities for the day
-    const dayActivities = await processActivitiesForDay(
-      city,
-      inquiry,
-      formattedDate,
-      {
-        adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
-        childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat(),
-      },
-      inquiryToken,
-      cityActivitiesTracker
-    );
+        const dayObject = {
+          date: formattedDate,
+          flights: [],
+          hotels: isFirstDay ? [{
+            ...hotelResponse,
+            checkIn: startDate.toISOString().split("T")[0],
+            checkOut: new Date(endDate.getTime() + 24*60*60*1000).toISOString().split("T")[0],
+          }] : [],
+          activities: dayActivities.activities || [],
+          transfers: [],
+        };
 
-    const dayObject = {
-      date: formattedDate,
-      flights: [],
-      hotels: isFirstDay ? [{
-        ...hotelResponse,
-        checkIn: startDate.toISOString().split("T")[0],
-        checkOut: new Date(endDate.getTime() + 24*60*60*1000).toISOString().split("T")[0],
-      }] : [],
-      activities: dayActivities.activities || [],
-      transfers: [],
-    };
-
-    // Add departure flight and transfer for first city's first day
-    if (index === 0 && isFirstDay) {
-      dayObject.flights.push({ flightData: departureFlights[0] });
-
-      // Process airport-to-hotel transfer
-      try {
-        const arrivalLocation = formatLocationForTransfer({
-          city: city.city,
-          country: city.country,
-          address: departureFlights[0].arrivalAirport?.name || null,
-          latitude: departureFlights[0].arrivalAirport?.location?.latitude || departureFlights[0].destination_location?.latitude,
-          longitude: departureFlights[0].arrivalAirport?.location?.longitude || departureFlights[0].destination_location?.longitude,
-        }, "airport");
-
-        const hotelLocation = formatLocationForTransfer({
-          city: city.city,
-          country: city.country,
-          address: formatAddressToSingleLine(hotelResponse.data.hotelDetails.address),
-          latitude: hotelResponse.data.hotelDetails.geolocation?.lat,
-          longitude: hotelResponse.data.hotelDetails.geolocation?.long,
-        }, "hotel");
-
-        const transferResult = await getGroundTransfer({
-          travelers: inquiry.travelersDetails,
-          inquiryToken: inquiry.itineraryInquiryToken,
-          preferences: inquiry.preferences,
-          startDate: departureFlights[0].landingTime || startDate,
-          origin: { type: "airport", ...arrivalLocation },
-          destination: { type: "hotel", ...hotelLocation },
-        });
-
-        if (transferResult.type !== "error") {
-          dayObject.transfers.push({
-            type: "airport_to_hotel",
-            details: transferResult,
-          });
+        // Add departure flight and transfer for first city's first day
+        if (index === 0 && isFirstDay && departureFlights[0]) {
+          dayObject.flights.push({ flightData: departureFlights[0] });
         }
-      } catch (error) {
-        console.error(`Error processing airport-to-hotel transfer: ${error.message}`);
-      }
-    }
 
-    // Add return flight and transfer for last city's last day
-    if (index === cityDayDistribution.length - 1 && isLastDay) {
-      dayObject.flights.push({ flightData: returnFlights[0] });
-
-      // Process hotel-to-airport transfer
-      try {
-        const hotelLocation = formatLocationForTransfer({
-          city: city.city,
-          country: city.country,
-          address: formatAddressToSingleLine(hotelResponse.data.hotelDetails.address),
-          latitude: hotelResponse.data.hotelDetails.geolocation?.lat,
-          longitude: hotelResponse.data.hotelDetails.geolocation?.long,
-        }, "hotel");
-
-        const departureLocation = formatLocationForTransfer({
-          city: city.city,
-          country: city.country,
-          address: returnFlights[0].originAirport?.name,
-          latitude: returnFlights[0].originAirport?.location?.latitude || returnFlights[0].origin_location?.latitude,
-          longitude: returnFlights[0].originAirport?.location?.longitude || returnFlights[0].origin_location?.longitude,
-        }, "airport");
-
-        const transferResult = await getGroundTransfer({
-          travelers: inquiry.travelersDetails,
-          inquiryToken: inquiry.itineraryInquiryToken,
-          preferences: inquiry.preferences,
-          startDate: new Date(formattedDate),
-          origin: { type: "hotel", ...hotelLocation },
-          destination: { type: "airport", ...departureLocation },
-        });
-
-        if (transferResult.type !== "error") {
-          dayObject.transfers.push({
-            type: "hotel_to_airport",
-            details: transferResult,
-          });
+        // Add return flight for last city's last day
+        if (index === cityDayDistribution.length - 1 && isLastDay && returnFlights[0]) {
+          dayObject.flights.push({ flightData: returnFlights[0] });
         }
-      } catch (error) {
-        console.error(`Error processing hotel-to-airport transfer: ${error.message}`);
-      }
-    }
 
-    return dayObject;
-  }));
+        return dayObject;
+      }));
 
-  cityDetails.days = processedDays;
-  return cityDetails;
-}));
+      cityDetails.days = processedDays;
+      return cityDetails;
+    }));
 
     itineraryDaysByCity.push(...processedCities);
 
-    // Step 4: Process city-to-city transfers
-    console.log("Processing city-to-city transfers");
-    await Promise.all(Array.from({ length: itineraryDaysByCity.length - 1 }, async (_, i) => {
-      const previousCity = itineraryDaysByCity[i];
-      const currentCity = itineraryDaysByCity[i + 1];
-      const previousHotel = previousCity.days[0].hotels[0];
-      const currentHotel = currentCity.days[0].hotels[0];
-
-      try {
-        console.log(`Processing transfer from ${previousCity.city} to ${currentCity.city}`);
-        const originLocation = formatLocationForTransfer({
-          city: previousCity.city,
-          country: previousCity.country,
-          address: formatAddressToSingleLine(previousHotel.data.hotelDetails.address),
-          latitude: previousHotel.data.hotelDetails.geolocation?.lat,
-          longitude: previousHotel.data.hotelDetails.geolocation?.long,
-        }, "previous hotel");
-        
-        const destinationLocation = formatLocationForTransfer({
-          city: currentCity.city,
-          country: currentCity.country,
-          address: formatAddressToSingleLine(currentHotel.data.hotelDetails.address),
-          latitude: currentHotel.data.hotelDetails.geolocation?.lat,
-          longitude: currentHotel.data.hotelDetails.geolocation?.long,
-        }, "current hotel");
-
-        const transferRequestData = {
-          travelers: inquiry.travelersDetails,
-          inquiryToken: inquiry.itineraryInquiryToken,
-          preferences: inquiry.preferences,
-          startDate: (() => {
-            const date = new Date(currentCity.days[0].date);
-            date.setHours(12, 0, 0, 0);
-            return date;
-          })(),
-          origin: {
-            type: "previous_hotel",
-            ...originLocation,
-          },
-          destination: {
-            type: "current_hotel",
-            ...destinationLocation,
-          },
-        };
-
-        const cityToCityTransfer = await getGroundTransfer(transferRequestData);
-
-        if (cityToCityTransfer.type !== "error") {
-          const transferDuration = cityToCityTransfer?.quotes?.[0]?.duration || 0;
-
-          if (transferDuration > 480) {
-            console.log("Ground transfer duration > 8 hours, switching to flight");
-            const alternativeFlights = await getFlights({
-              inquiryToken: inquiry.itineraryInquiryToken,
-              departureCity: previousCity.city,
-              cities: [currentCity.city],
-              travelers: inquiry.travelersDetails,
-              departureDates: {
-                startDate: currentCity.days[0].date,
-                endDate: currentCity.days[0].date,
-              },
-              includeDetailedLandingInfo: true,
-              type: "inter_city_flight",
-            });
-
-            if (alternativeFlights?.[0]) {
-              currentCity.days[0].transfers.push(alternativeFlights[0]);
-            }
-          } else {
-            currentCity.days[0].transfers.push({
-              type: "city_to_city",
-              details: cityToCityTransfer,
-            });
-          }
-        }
-      } catch (error) {
-        console.error(`Error processing city-to-city transfer: ${error.message}`);
-      }
-    }));
+    // Step 4: Orchestrate Transfers for Entire Itinerary
+    const itineraryWithTransfers = await orchestrateTransfersForItinerary({
+      itineraryDaysByCity,
+      inquiry,
+      departureFlights,
+      returnFlights,
+      hotelResponses,
+      inquiryToken
+    });
 
     // Step 5: Create and save the itinerary
     const itinerary = new Itinerary({
@@ -528,7 +382,7 @@ const processedCities = await Promise.all(cityDayDistribution.map(async (cityDat
       inquiryToken: inquiry.itineraryInquiryToken,
       userInfo: inquiry.userInfo,
       travelersDetails: inquiry.travelersDetails,
-      cities: itineraryDaysByCity,
+      cities: itineraryWithTransfers,
     });
 
     console.log("Saving itinerary...");
@@ -550,10 +404,6 @@ const processedCities = await Promise.all(cityDayDistribution.map(async (cityDat
     );
     ensureDirectoryExistsAndSave(debugFilePath, formattedResponse);
 
-    // Clean up token if not needed anymore
-    // Uncomment if you want to clear token after itinerary creation
-    // HotelTokenManager.removeToken(inquiryToken);
-
     res.status(201).json(formattedResponse);
   } catch (error) {
     console.error("Detailed error creating finalized itinerary:", error);
@@ -564,6 +414,230 @@ const processedCities = await Promise.all(cityDayDistribution.map(async (cityDat
     });
   }
 };
+
+// New function to orchestrate transfers
+async function orchestrateTransfersForItinerary(params) {
+  const {
+    itineraryDaysByCity,
+    inquiry,
+    departureFlights,
+    returnFlights,
+    hotelResponses,
+    inquiryToken
+  } = params;
+
+  console.log('Orchestrating Transfers');
+  console.log('Number of Cities:', itineraryDaysByCity.length);
+  console.log('Departure Flights:', (departureFlights, null, 2));
+  console.log('Return Flights:', (returnFlights, null, 2));
+  console.log('Hotel Responses:', (hotelResponses, null, 2));
+
+  // Process city-to-city transfers
+  await Promise.all(Array.from({ length: itineraryDaysByCity.length - 1 }, async (_, i) => {
+    const previousCity = itineraryDaysByCity[i];
+    const currentCity = itineraryDaysByCity[i + 1];
+    
+    console.log('Processing City-to-City Transfer');
+    console.log('Previous City:', previousCity.city);
+    console.log('Current City:', currentCity.city);
+  
+    const previousHotel = previousCity.days[previousCity.days.length - 1].hotels[0];
+    const currentHotel = currentCity.days[0].hotels[0];
+  
+    console.log('Previous Hotel Data:', (previousHotel, null, 2));
+    console.log('Current Hotel Data:', (currentHotel, null, 2));
+  
+    try {
+      const transferParams = {
+        origin: {
+          type: "hotel",
+          city: previousHotel.data.hotelDetails.address.city.name,
+          country: previousHotel.data.hotelDetails.address.country.name,
+          address: formatAddressToSingleLine(previousHotel.data.hotelDetails.address),
+          latitude: parseFloat(previousHotel.data.hotelDetails.geolocation.lat),
+          longitude: parseFloat(previousHotel.data.hotelDetails.geolocation.long)
+        },
+        destination: {
+          type: "hotel",
+          city: currentHotel.data.hotelDetails.address.city.name,
+          country: currentHotel.data.hotelDetails.address.country.name,
+          address: formatAddressToSingleLine(currentHotel.data.hotelDetails.address),
+          latitude: parseFloat(currentHotel.data.hotelDetails.geolocation.lat),
+          longitude: parseFloat(currentHotel.data.hotelDetails.geolocation.long)
+        },
+        startDate: currentCity.days[0].date,
+        travelers: inquiry.travelersDetails,
+        inquiryToken: inquiryToken
+      };
+  
+      console.log('City-to-City Transfer Params:', JSON.stringify(transferParams, null, 2));
+  
+      const cityToCityTransfer = await getGroundTransfer(transferParams);
+  
+      console.log('City-to-City Transfer Result:', JSON.stringify(cityToCityTransfer, null, 2));
+  
+      if (cityToCityTransfer.type !== "error") {
+        currentCity.days[0].transfers.push({
+          type: "city_to_city",
+          details: cityToCityTransfer,
+        });
+      }
+    } catch (error) {
+      console.error(`Error processing city-to-city transfer: ${error.message}`);
+    }
+  }));
+
+  // Add airport to hotel and hotel to airport transfers
+  const firstCity = itineraryDaysByCity[0];
+  const lastCity = itineraryDaysByCity[itineraryDaysByCity.length - 1];
+
+  if (departureFlights[0] && firstCity) {
+    const firstDayFirstCity = firstCity.days[0];
+    const airportToHotelTransfer = await createAirportToHotelTransfer(
+      departureFlights[0], 
+      firstDayFirstCity.hotels[0], 
+      inquiry, 
+      inquiryToken
+    );
+    
+    if (airportToHotelTransfer) {
+      firstDayFirstCity.transfers.push(airportToHotelTransfer);
+    }
+  }
+
+  if (returnFlights[0] && lastCity) {
+    const lastDayLastCity = lastCity.days[lastCity.days.length - 1];
+    
+    console.log('Last City Last Day:', JSON.stringify(lastDayLastCity, null, 2));
+    console.log('Return Flight:', (returnFlights[0], null, 2));
+  
+    const hotelToAirportTransfer = await createHotelToAirportTransfer(
+      returnFlights[0], 
+      lastDayLastCity.hotels[0], 
+      inquiry, 
+      inquiryToken
+    );
+    
+    console.log('Hotel to Airport Transfer:', JSON.stringify(hotelToAirportTransfer, null, 2));
+    
+    if (hotelToAirportTransfer) {
+      lastDayLastCity.transfers.push(hotelToAirportTransfer);
+    }
+  }
+
+  return itineraryDaysByCity;
+}
+
+// Helper function to create airport to hotel transfer
+async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken) {
+  try {
+    console.log('Airport to Hotel Transfer - Debug');
+    console.log('Flight Data:', (flight, null, 2));
+
+    // Add extensive null checks
+    if (!flight || !hotel) {
+      console.error('Missing flight or hotel data');
+      return null;
+    }
+
+    // Safely access nested hotel data
+    const hotelDetails = hotel.data?.hotelDetails || 
+                         hotel.hotelDetails || 
+                         hotel.staticContent?.[0];
+
+    if (!hotelDetails) {
+      console.error('Could not find hotel details');
+      return null;
+    }
+
+    const transferParams = {
+      origin: {
+        type: "airport",
+        city: flight.destination,
+        country: flight.arrivalAirport?.country,
+        address: flight.arrivalAirport?.name,
+        latitude: flight.arrivalAirport?.location?.latitude || 
+                  flight.destination_location?.latitude,
+        longitude: flight.arrivalAirport?.location?.longitude || 
+                   flight.destination_location?.longitude,
+      },
+      destination: {
+        type: "hotel",
+        city: hotelDetails.address?.city?.name || hotelDetails.address?.city,
+        country: hotelDetails.address?.country?.name || hotelDetails.address?.country,
+        address: formatAddressToSingleLine(hotelDetails.address),
+        latitude: hotelDetails.geolocation?.lat || 
+                  hotelDetails.geoCode?.lat || 
+                  hotelDetails.geolocation?.latitude,
+        longitude: hotelDetails.geolocation?.long || 
+                   hotelDetails.geoCode?.long || 
+                   hotelDetails.geolocation?.longitude,
+      },
+      startDate: flight.landingTime,
+      travelers: inquiry.travelersDetails,
+      inquiryToken: inquiryToken
+    };
+
+    console.log('Transfer Params:', JSON.stringify(transferParams, null, 2));
+
+    const transfer = await getGroundTransfer(transferParams);
+    
+    return transfer.type !== "error" 
+      ? { type: "airport_to_hotel", details: transfer } 
+      : null;
+  } catch (error) {
+    console.error('Airport to hotel transfer error:', error);
+    console.error('Error Details:', {
+      flightData: flight,
+      hotelData: hotel
+    });
+    return null;
+  }
+}
+
+// Helper function to create hotel to airport transfer
+async function createHotelToAirportTransfer(flight, hotel, inquiry, inquiryToken) {
+  try {
+    console.log('Hotel to Airport Transfer');
+    console.log('Flight:', (flight, null, 2));
+
+    const transferParams = {
+      origin: {
+        type: "hotel",
+        city: hotel.data.hotelDetails.address.city.name,
+        country: hotel.data.hotelDetails.address.country.name,
+        address: formatAddressToSingleLine(hotel.data.hotelDetails.address),
+        latitude: parseFloat(hotel.data.hotelDetails.geolocation.lat),
+        longitude: parseFloat(hotel.data.hotelDetails.geolocation.long)
+      },
+      destination: {
+        type: "airport",
+        city: flight.origin,
+        country: flight.originAirport.country,
+        address: flight.originAirport.name,
+        latitude: flight.originAirport.location.latitude,
+        longitude: flight.originAirport.location.longitude
+      },
+      startDate: flight.departureTime,
+      travelers: inquiry.travelersDetails,
+      inquiryToken: inquiryToken
+    };
+
+    console.log('Hotel to Airport Transfer Params:', JSON.stringify(transferParams, null, 2));
+
+    const transfer = await getGroundTransfer(transferParams);
+    
+    console.log('Hotel to Airport Transfer Result:', JSON.stringify(transfer, null, 2));
+
+    return transfer.type !== "error" 
+      ? { type: "hotel_to_airport", details: transfer } 
+      : null;
+  } catch (error) {
+    console.error('Hotel to airport transfer error:', error);
+    return null;
+  }
+}
+
 
 // Get itinerary endpoint
 exports.getItinerary = async (req, res) => {

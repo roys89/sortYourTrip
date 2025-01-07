@@ -2,7 +2,12 @@
 const express = require('express');
 const router = express.Router();
 
+
 // Import controllers 
+
+const {getTransferOptions, updateTransfersForChange} = require('../../controllers/itineraryController/transferChangeController');
+
+
 const { 
   createItinerary, 
   getItinerary,
@@ -60,4 +65,15 @@ router.get('/activities/:inquiryToken/:cityName/:date', getAvailableActivities);
 router.post('/product-info/:activityCode', checkInquiryToken, getActivityDetails);
 router.post('/activity/reference', checkInquiryToken, createActivityBookingReference);
 
-module.exports = router;
+// Transfer Routes
+router.post(
+  '/:itineraryToken/transfers/update',
+  checkInquiryToken, updateTransfersForChange
+);
+
+router.get(
+  '/:itineraryToken/transfers/options',
+  checkInquiryToken, getTransferOptions
+);
+
+module.exports = router; 

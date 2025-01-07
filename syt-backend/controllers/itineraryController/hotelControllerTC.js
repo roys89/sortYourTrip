@@ -329,13 +329,13 @@ module.exports = {
             id: staticContent?.id,
             contact: staticContent?.contact,
             descriptions: staticContent?.descriptions,
-            images: staticContent?.images,
-            nearByAttractions: staticContent?.nearByAttractions
+            // images: staticContent?.images,
+            // nearByAttractions: staticContent?.nearByAttractions
           }],
           hotelDetails: {
             name: staticContent?.name,
             starRating: staticContent?.starRating,
-            reviews: staticContent?.reviews,
+            // reviews: staticContent?.reviews,
             geolocation: staticContent?.geoCode,
             address: staticContent?.contact?.address,
           },

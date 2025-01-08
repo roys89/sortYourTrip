@@ -1,25 +1,50 @@
-// controllers/transferController.js
+// controllers/itineraryController/transferControllerLA.js
+
 const TransferGetQuotesService = require('../../services/transferServices/transferGetQuoteSservice');
 const TransferQuoteDetailsService = require('../../services/transferServices/transferQuoteDetailsService');
 
 // Helper function to format date
 const formatTransferDate = (dateStr) => {
-  if (!dateStr) return null;
-  // If it's already ISO string, return as is
-  if (dateStr.includes('T')) return dateStr;
-  
-  // If it's just a date string, append time
-  if (dateStr.includes('-')) {
-    return `${dateStr}T00:00:00.000Z`;
+  try {
+    if (!dateStr) return null;
+
+    // If dateStr is already a Date object, convert to ISO string
+    if (dateStr instanceof Date) {
+      return dateStr.toISOString();
+    }
+
+    // If it's a string, handle different formats
+    if (typeof dateStr === 'string') {
+      // If it's already ISO string, return as is
+      if (dateStr.includes('T')) return dateStr;
+      
+      // If it's just a date string, append time
+      if (dateStr.includes('-')) {
+        return `${dateStr}T00:00:00.000Z`;
+      }
+    }
+    
+    // For any other format or type, try to create a new Date
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date format');
+    }
+    return date.toISOString();
+
+  } catch (error) {
+    console.error('Error formatting transfer date:', error, { dateStr });
+    return new Date().toISOString(); // Fallback to current date
   }
-  
-  // Handle other formats
-  const date = new Date(dateStr);
-  return date.toISOString();
 };
 
 exports.getGroundTransfer = async (transferData) => {
   try {
+    console.log('Get ground transfer input:', {
+      startDate: transferData.startDate,
+      origin: transferData.origin,
+      destination: transferData.destination
+    });
+
     // Calculate total number of travelers
     const totalTravelers = transferData.travelers.rooms.reduce((sum, room) => {
       const adultCount = room.adults.length;
@@ -29,11 +54,16 @@ exports.getGroundTransfer = async (transferData) => {
 
     // Format dates properly
     const pickupDate = formatTransferDate(transferData.startDate);
-    const returnDate = new Date(new Date(pickupDate).getTime() + 24 * 60 * 60 * 1000).toISOString();
-
     if (!pickupDate) {
       throw new Error('Invalid pickup date format');
     }
+
+    // Calculate return date (24 hours after pickup)
+    const returnDate = formatTransferDate(
+      new Date(new Date(pickupDate).getTime() + 24 * 60 * 60 * 1000)
+    );
+
+    console.log('Formatted dates:', { pickupDate, returnDate });
 
     const quoteParams = {
       origin: {
@@ -52,7 +82,6 @@ exports.getGroundTransfer = async (transferData) => {
       returnDate,
       inquiryToken: transferData.inquiryToken,
       travelers: transferData.travelers || { rooms: [{ adults: [1], children: [] }] },
-      // Add flight number if available
       flightNumber: transferData.flightNumber
     };
 
@@ -90,7 +119,7 @@ exports.getGroundTransfer = async (transferData) => {
             quotation_id: quoteData.quotation_id,
             distance: quoteData.distance,
             duration: quoteData.duration,
-            flightNumber: transferData.flightNumber // Include flight number in response
+            flightNumber: transferData.flightNumber
           };
         }
       }

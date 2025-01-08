@@ -1,7 +1,8 @@
 const Itinerary = require('../../models/Itinerary');
 const { getGroundTransfer } = require("./transferControllerLA");
 const apiLogger = require('../../helpers/apiLogger');
-
+const TransferLockManager = require('../../services/transferServices/transferLockManager');
+const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
 // Helper function to format address to single line
 function formatAddressToSingleLine(addressObj) {
   if (!addressObj) return null;
@@ -158,6 +159,14 @@ exports.replaceHotel = async (req, res) => {
   const { cityName, date, newHotelDetails } = req.body; 
   const inquiryToken = req.headers['x-inquiry-token'];
 
+  // Try to acquire lock
+  if (!TransferLockManager.acquireLock(itineraryToken, cityName, date)) {
+    return res.status(409).json({ 
+      success: false,
+      message: 'Another update is in progress for this hotel'
+    });
+  }
+
   try {
     const itinerary = await Itinerary.findOne({ 
       itineraryToken,
@@ -191,21 +200,29 @@ exports.replaceHotel = async (req, res) => {
       message: `Successfully booked ${newHotelDetails.hotelDetails.name}`
     }];
 
-    // Update related transfers
+    let transferUpdateStatus = {
+      success: true,
+      message: null
+    };
+
+    // Update related transfers with better error handling
     try {
-      const updatedTransfers = await updateTransfersForHotelChange(
+      const updatedTransfers = await TransferOrchestrationService.updateTransfersForHotelChange({
         itinerary,
         cityName,
         date,
         newHotelDetails,
         inquiryToken
-      );
+      });
 
       // Replace the transfers for the day 
       itinerary.cities[cityIndex].days[dayIndex].transfers = updatedTransfers;
     } catch (transferError) {
       console.error('Error updating transfers:', transferError);
-      // Continue with hotel update even if transfer update fails
+      transferUpdateStatus = {
+        success: false,
+        message: 'Hotel updated but transfers could not be updated automatically'
+      };
     }
 
     // Save the updated itinerary
@@ -213,7 +230,9 @@ exports.replaceHotel = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Hotel and related transfers updated successfully',
+      partialSuccess: !transferUpdateStatus.success,
+      transferUpdateFailed: !transferUpdateStatus.success,
+      message: transferUpdateStatus.message || 'Hotel and related transfers updated successfully',
       itinerary: updatedItinerary
     });
 
@@ -224,6 +243,9 @@ exports.replaceHotel = async (req, res) => {
       message: 'Error updating hotel and transfers',
       error: error.message
     });
+  } finally {
+    // Always release the lock
+    TransferLockManager.releaseLock(itineraryToken, cityName, date);
   }
 };
 

@@ -33,13 +33,12 @@ const Profile = () => {
   const theme = useTheme();
   const { user } = useSelector(state => state.auth);
   const [itineraries, setItineraries] = useState([]);
-  const [itineraryLoading, setItineraryLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchItineraries = async () => {
       try {
-        setItineraryLoading(true);
+        setLoading(true);
         const token = localStorage.getItem('token');
         
         const response = await axios.get('http://localhost:5000/api/auth/itineraries', {
@@ -53,9 +52,8 @@ const Profile = () => {
           setItineraries(response.data.itineraries);
         }
       } catch (error) {
-        console.error('Error fetching itineraries:', error.response || error);  // Enhanced error logging
+        console.error('Error fetching itineraries:', error.response || error);
       } finally {
-        setItineraryLoading(false);
         setLoading(false);
       }
     };
@@ -71,9 +69,38 @@ const Profile = () => {
     dispatch(logout());
   };
 
-  const getInitials = (firstName, lastName) => {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
-  };
+  const InfoItem = ({ icon, label, value }) => (
+    <Box 
+      sx={{ 
+        p: 2,
+        borderRadius: 2,
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        overflow: 'hidden',
+      }}
+    >
+      {React.cloneElement(icon, { sx: { fontSize: 20, color: theme.palette.primary.main } })}
+      <Box sx={{ overflow: 'hidden', flex: 1 }}>
+        <Typography variant="caption" color="textSecondary">
+          {label}
+        </Typography>
+        <Typography 
+          variant="body1" 
+          fontWeight="medium"
+          sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '100%',
+          }}
+        >
+          {value}
+        </Typography>
+      </Box>
+    </Box>
+  );
 
   const ProfileSection = () => (
     <Paper
@@ -98,16 +125,13 @@ const Profile = () => {
           ) : (
             <Avatar
               alt={`${user.firstName} ${user.lastName}`}
+              src="/assets/images/profile-placeholder.png"
               sx={{
                 width: 120,
                 height: 120,
-                bgcolor: theme.palette.primary.main,
-                fontSize: '2.5rem',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
               }}
-            >
-              {getInitials(user.firstName, user.lastName)}
-            </Avatar>
+            />
           )}
         </Grid>
 
@@ -186,41 +210,7 @@ const Profile = () => {
     </Paper>
   );
 
-  const InfoItem = ({ icon, label, value }) => (
-    <Box 
-      sx={{ 
-        p: 2,
-        borderRadius: 2,
-        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        overflow: 'hidden',
-      }}
-    >
-      {React.cloneElement(icon, { sx: { fontSize: 20, color: theme.palette.primary.main } })}
-      <Box sx={{ overflow: 'hidden', flex: 1 }}>
-        <Typography variant="caption" color="textSecondary">
-          {label}
-        </Typography>
-        <Typography 
-          variant="body1" 
-          fontWeight="medium"
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '100%',
-          }}
-        >
-          {value}
-        </Typography>
-      </Box>
-    </Box>
-  );
-
-  const ItineraryCard = ({ itinerary }) => {
-    return (
+  const ItineraryCard = ({ itinerary }) => (
     <Card 
       sx={{ 
         mb: 2,
@@ -277,7 +267,8 @@ const Profile = () => {
         </Grid>
       </CardContent>
     </Card>
-  );}
+  );
+
   return (
     <Container maxWidth="xl" sx={{ mt: '2rem', py: 4, px: { xs: 1, sm: 2, md: 4 } }}>
       <Grid container spacing={3}>
@@ -306,10 +297,6 @@ const Profile = () => {
               [...Array(3)].map((_, index) => (
                 <Skeleton key={index} variant="rectangular" height={200} sx={{ mb: 2, borderRadius: 2 }} />
               ))
-            ) : itineraryLoading ? (
-              <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-                <Typography>Loading itineraries...</Typography>
-              </Box>
             ) : itineraries?.length > 0 ? (
               itineraries.map((itinerary, index) => (
                 <ItineraryCard 

@@ -361,11 +361,13 @@ module.exports = {
             id: staticContent?.id,
             contact: staticContent?.contact,
             descriptions: staticContent?.descriptions,
+            images: staticContent?.images,
           }],
           hotelDetails: {
             name: staticContent?.name,
             starRating: staticContent?.starRating,
             geolocation: staticContent?.geoCode,
+            reviews: staticContent?.reviews,
             address: staticContent?.contact?.address,
           },
         },

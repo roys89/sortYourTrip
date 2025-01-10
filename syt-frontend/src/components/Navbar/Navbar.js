@@ -207,7 +207,7 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
       {user?.role === "admin" && (
         <NavbarLink to="/markup-management">Markup</NavbarLink>
       )}
-
+  
       {isAuthenticated ? (
         <>
           <Tooltip title="Notifications">
@@ -221,7 +221,7 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
             <IconButton onClick={handleUserMenuOpen} sx={{ p: 0 }}>
               <Avatar
                 alt={`${user?.firstName} ${user?.lastName}`}
-                src={user?.avatar}
+                src="/assets/images/profile-placeholder.png"
                 sx={{ width: 32, height: 32 }}
               />
             </IconButton>

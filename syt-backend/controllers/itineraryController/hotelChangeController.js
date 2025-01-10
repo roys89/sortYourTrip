@@ -192,7 +192,7 @@ selectHotelRoom: async (req, res) => {
               contact: staticContent?.contact,
               descriptions: staticContent?.descriptions,
               images: staticContent?.images,
-              nearByAttractions: staticContent?.nearByAttractions
+              // nearByAttractions: staticContent?.nearByAttractions
             }],
             hotelDetails: {
               name: staticContent?.name,

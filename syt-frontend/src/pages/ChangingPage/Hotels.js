@@ -1,4 +1,4 @@
-  import {
+import {
   Alert,
   Button,
   Card,
@@ -16,95 +16,118 @@ import HotelDetailModal from "./HotelDetailModal";
 import FilterMenu from "./HotelFilter";
 import "./Hotels.css";
 
-  // HotelCard Component
-  const HotelCard = React.memo(({ hotel, onViewHotel, dates }) => {
-    // Handle image URL
-    const imageUrl =
-      hotel.images?.[0]?.links?.find((link) => link.size === "Standard")?.url ||
-      hotel.heroImage ||
-      "/api/placeholder/400/300";
+// HotelCard Component
+const HotelCard = React.memo(({ hotel, onViewHotel, dates }) => {
+  // Handle image URL
+  const imageUrl =
+    hotel.images?.[0]?.links?.find((link) => link.size === "Standard")?.url ||
+    hotel.heroImage ||
+    "/api/placeholder/400/300";
 
-    const starCount = parseInt(hotel.starRating || hotel.category || "0", 10);
+  const starCount = parseInt(hotel.starRating || hotel.category || "0", 10);
 
-    // Updated to handle new rate structure
-    const lowestRate = hotel.availability?.rate || {};
-    const displayPrice = lowestRate.finalRate
-      ? `${
-          lowestRate.rate?.currency || "INR"
-        } ${lowestRate.finalRate.toLocaleString()}`
-      : "Price on request";
+  // Updated to handle new rate structure
+  const lowestRate = hotel.availability?.rate || {};
+  const displayPrice = lowestRate.finalRate
+    ? `${
+        lowestRate.rate?.currency || "INR"
+      } ${lowestRate.finalRate.toLocaleString()}`
+    : "Price on request";
 
-    return (
-      <Card className="hotel-card">
-        <div className="flex flex-col md:flex-row">
-          <div className="hotel-image-container">
-            <img
-              src={imageUrl}
-              alt={hotel.name || "Hotel"}
-              className="hotel-image"
-              onError={(e) => {
-                e.target.src = "/api/placeholder/400/300";
-                console.log(
-                  "Image error for hotel:",
-                  hotel.name,
-                  "URL:",
-                  imageUrl
-                );
-              }}
-            />
+  return (
+    <Card className="hotel-card w-full">
+      <div className="flex flex-col md:flex-row">
+        <div className="hotel-image-container w-full md:w-1/3 lg:w-1/4">
+          <img
+            src={imageUrl}
+            alt={hotel.name || "Hotel"}
+            className="hotel-image w-full h-48 md:h-auto object-cover"
+            onError={(e) => {
+              e.target.src = "/api/placeholder/400/300";
+              console.log(
+                "Image error for hotel:",
+                hotel.name,
+                "URL:",
+                imageUrl
+              );
+            }}
+          />
+        </div>
+
+        <div className="hotel-content flex-grow p-4 space-y-2">
+          <div>
+            <Typography 
+              variant="h6" 
+              className="mb-2 text-base md:text-lg truncate"
+            >
+              {hotel.name || "Hotel Name"}
+            </Typography>
+            
+            <div className="star-rating mb-2 text-yellow-500">
+              {[...Array(starCount)].map((_, i) => (
+                <span key={i}>★</span>
+              ))}
+            </div>
+            
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              className="mb-2 text-sm truncate"
+            >
+              {hotel.contact?.address?.line1 ||
+                hotel.contact?.address?.city?.name ||
+                "Address not available"}
+            </Typography>
+
+            {dates && dates.checkIn && dates.checkOut ? (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                className="mb-2 text-sm"
+              >
+                Stay Duration: {dates.checkIn} - {dates.checkOut}
+              </Typography>
+            ) : (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                className="mb-2 text-sm"
+              >
+                Stay dates not available
+              </Typography>
+            )}
           </div>
 
-          <div className="hotel-content">
+          <div className="price-container flex flex-col md:flex-row justify-between items-end space-y-2 md:space-y-0">
             <div>
-              <Typography variant="h6" className="mb-2">
-                {hotel.name || "Hotel Name"}
-              </Typography>
-              <div className="star-rating">
-                {[...Array(starCount)].map((_, i) => (
-                  <span key={i}>★</span>
-                ))}
-              </div>
-              <Typography variant="body2" color="text.secondary" className="mb-4">
-                {hotel.contact?.address?.line1 ||
-                  hotel.contact?.address?.city?.name ||
-                  "Address not available"}
-              </Typography>
-
-              {dates && dates.checkIn && dates.checkOut ? (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  className="mb-2"
-                >
-                  Stay Duration: {dates.checkIn} - {dates.checkOut}
-                </Typography>
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  className="mb-2"
-                >
-                  Stay dates not available
-                </Typography>
-              )}
-            </div>
-
-            <div className="price-container">
-              <Typography variant="caption" className="starting-price">
+              <Typography 
+                variant="caption" 
+                className="starting-price text-xs text-gray-600"
+              >
                 Starting from
               </Typography>
-              <Typography variant="h6" className="price-amount">
+              <Typography 
+                variant="h6" 
+                className="price-amount text-base md:text-lg font-bold"
+              >
                 {displayPrice}
               </Typography>
-              <Button variant="contained" onClick={() => onViewHotel(hotel)}>
-                View Hotel
-              </Button>
             </div>
+            
+            <Button 
+              variant="contained" 
+              size="small"
+              className="w-full md:w-auto mt-2 md:mt-0"
+              onClick={() => onViewHotel(hotel)}
+            >
+              View Hotel
+            </Button>
           </div>
         </div>
-      </Card>
-    );
-  });
+      </div>
+    </Card>
+  );
+});
 
   // Main HotelsPage Component
   const HotelsPage = () => {
@@ -499,33 +522,46 @@ import "./Hotels.css";
     }
 
     return (
-      <Container maxWidth="xl" className="hotels-page">
-        <div className="hotels-header">
-          <Stack direction="row" spacing={2} alignItems="center">
+      <Container maxWidth="xl" className="hotels-page px-2 md:px-4">
+        <div className="hotels-header mb-4">
+          <Stack 
+            direction={{ xs: 'column', md: 'row' }} 
+            spacing={2} 
+            alignItems={{ xs: 'start', md: 'center' }}
+          >
             <Button
               variant="outlined"
+              size="small"
               startIcon={<ArrowLeft className="w-4 h-4" />}
               onClick={handleBackToItinerary}
-              className="back-button"
+              className="back-button mb-2 md:mb-0"
             >
               Back to Itinerary
             </Button>
-
-            <Typography variant="h4" component="h1">
-              Available Hotels in {city}
-            </Typography>
-
+  
+            <div className="flex-grow">
+              <Typography 
+                variant="h4" 
+                component="h1" 
+                className="text-xl md:text-2xl lg:text-3xl mb-2 md:mb-0"
+              >
+                Available Hotels in {city}
+              </Typography>
+            </div>
+  
             {datesLoading ? (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" className="text-sm">
                 Loading stay dates...
               </Typography>
             ) : dates.checkIn && dates.checkOut ? (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" className="text-sm">
                 Stay Period: {dates.checkIn} to {dates.checkOut}
               </Typography>
             ) : null}
-
-            <div className="filter-menu-container">
+          </Stack>
+  
+          <div className="flex flex-col md:flex-row justify-between items-center mt-4 space-y-2 md:space-y-0">
+            <div className="filter-menu-container w-full md:w-auto">
               <FilterMenu
                 onSort={handleSort}
                 onFilter={handleFilter}
@@ -534,62 +570,66 @@ import "./Hotels.css";
                 priceRange={priceRange}
               />
             </div>
-
+  
             {totalHotels > 0 && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                className="text-sm text-center md:text-left"
+              >
                 Showing {displayedHotels.length} of {totalHotels} hotels
               </Typography>
             )}
-          </Stack>
+          </div>
         </div>
-
-        <div className="hotels-grid">
+  
+        <div className="hotels-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayedHotels.map((hotel) => (
             <HotelCard
               key={`${hotel.hotel_code}-${hotel.search_id}`}
               hotel={hotel}
               dates={dates}
-              onViewHotel={handleViewHotel} // Use the handleViewHotel function
+              onViewHotel={handleViewHotel}
             />
           ))}
         </div>
-
+  
         {hasMore && allHotels.length < totalHotels && (
-      <div className="text-center">
-        <Button
-          variant="outlined"
-          onClick={handleLoadMore}
-          disabled={loading}
-          className="load-more-button"
-        >
-          {loading ? (
-            <div className="flex items-center gap-2">
-              <LoadingSpinner2 
-                message={`Loading more hotels... (${allHotels.length} of ${totalHotels})`} 
-              />
-            </div>
-          ) : (
-            `Load More Hotels (${allHotels.length} of ${totalHotels})`
-          )}
-        </Button>
-      </div>
-    )}
-
+          <div className="text-center mt-6">
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={handleLoadMore}
+              disabled={loading}
+              className="load-more-button"
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <LoadingSpinner2 
+                    message={`Loading more hotels... (${allHotels.length} of ${totalHotels})`} 
+                  />
+                </div>
+              ) : (
+                `Load More Hotels (${allHotels.length} of ${totalHotels})`
+              )}
+            </Button>
+          </div>
+        )}
+  
         {displayedHotels.length === 0 && !loading && (
-          <div className="no-results">
-            <Typography variant="h6">
+          <div className="no-results text-center p-8">
+            <Typography variant="h6" className="mb-4">
               No hotels found matching your criteria
             </Typography>
             <Button
               variant="outlined"
               onClick={() => handleFilter("reset")}
-              className="mt-4"
             >
               Reset Filters
             </Button>
           </div>
         )}
-
+  
         {selectedHotel && (
           <div className="hotel-modal">
             <HotelDetailModal
@@ -599,7 +639,7 @@ import "./Hotels.css";
               onAddHotel={handleAddHotel}
               isLoading={isReplacing}
               itineraryToken={itineraryToken}
-              inquiryToken={inquiryToken} // Pass the inquiryToken
+              inquiryToken={inquiryToken}
               city={city}
               date={checkIn}
               dates={dates}
@@ -610,5 +650,5 @@ import "./Hotels.css";
       </Container>
     );
   };
-
+  
   export default HotelsPage;

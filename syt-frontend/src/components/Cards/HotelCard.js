@@ -20,7 +20,7 @@ const HotelCard = ({
 
   // Looking at the data structure, hotel data is nested in the response
   const hotelDetails = hotel?.data?.items?.[0] || {};
-  const hotelStatic = hotel?.data?.staticContent?.[0] || {};
+  const hotelStatic = hotel?.data?.hotelDetails || {}; // Updated to use hotelDetails
   
   // Get the selected room and rate info
   const roomAndRate = hotelDetails?.selectedRoomsAndRates?.[0] || {};
@@ -28,7 +28,7 @@ const HotelCard = ({
   const getHotelName = () => hotelStatic?.name || 'Hotel Name Not Available';
   const getStarCount = () => parseInt(hotelStatic?.starRating) || 0;
   const getAddress = () => {
-    const location = hotelStatic?.contact?.address;
+    const location = hotelStatic?.address; // Updated to directly use address from hotelDetails
     if (!location) return '';
     return [location.line1, location.line2, location.city?.name].filter(Boolean).join(', ');
   };
@@ -67,13 +67,6 @@ const HotelCard = ({
       checkIn: hotel.checkIn,
       checkOut: hotel.checkOut
     };
-  
-    console.log('=== HOTEL CHANGE NAVIGATION DATA ===');
-    console.log('Original hotel:', hotel);
-    console.log('Navigation state:', navigationState);
-    console.log('Hotel details:', hotelDetails);
-    console.log('Room and rate:', roomAndRate);
-    console.log('====================================');
   
     dispatch(setChangeHotel({
       ...hotel,

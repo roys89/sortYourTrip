@@ -1,5 +1,5 @@
 import axios from "axios";
-import { AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, X } from 'lucide-react';
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
@@ -17,12 +17,15 @@ const HotelDetailModal = ({
   existingHotelPrice
 }) => {
   const navigate = useNavigate();
+  
+  // All state declarations consolidated at the top
   const [selectedRecommendation, setSelectedRecommendation] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [detailsError, setDetailsError] = useState(null);
   const [hotelDetails, setHotelDetails] = useState(null);
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const [expandedSections, setExpandedSections] = useState({});  // Only declared once
   const [bookingStatus, setBookingStatus] = useState({
     loading: false,
     success: false,
@@ -31,7 +34,6 @@ const HotelDetailModal = ({
     partialSuccess: false
   });
 
-  // Fetch hotel details on component mount
   useEffect(() => {
     const fetchHotelDetails = async () => {
       try {
@@ -136,8 +138,6 @@ const HotelDetailModal = ({
             descriptions: selectRoomResponse.data.data.staticContent?.[0]?.descriptions,
             contact: selectRoomResponse.data.data.staticContent?.[0]?.contact,
             images: selectRoomResponse.data.data.staticContent?.[0]?.images,
-            nearByAttractions: selectRoomResponse.data.data.staticContent?.[0]?.nearByAttractions,
-            starRating: selectRoomResponse.data.data.staticContent?.[0]?.starRating
           }],
           hotelDetails: {
             name: selectRoomResponse.data.data.hotelDetails?.name,
@@ -145,15 +145,6 @@ const HotelDetailModal = ({
             reviews: selectRoomResponse.data.data.hotelDetails?.reviews,
             geolocation: selectRoomResponse.data.data.hotelDetails?.geolocation || selectRoomResponse.data.data.hotelDetails?.geoCode,
             address: selectRoomResponse.data.data.hotelDetails?.address
-          },
-          data: {
-            hotelDetails: {
-              name: selectRoomResponse.data.data.hotelDetails?.name,
-              starRating: selectRoomResponse.data.data.hotelDetails?.starRating,
-              reviews: selectRoomResponse.data.data.hotelDetails?.reviews,
-              geolocation: selectRoomResponse.data.data.hotelDetails?.geolocation || selectRoomResponse.data.data.hotelDetails?.geoCode,
-              address: selectRoomResponse.data.data.hotelDetails?.address
-            }
           }
         }
       };
@@ -225,7 +216,7 @@ const HotelDetailModal = ({
     );
   };
 
-  // Helper functions for room details
+  // Helper functions
   const getRateDetails = (rateId) => roomRateData?.rates?.[rateId];
 
   const getRoomDetailsFromOccupancy = (occupancy) => {
@@ -252,8 +243,6 @@ const HotelDetailModal = ({
     }, 0);
   };
 
-  // Manage expanded sections
-  const [expandedSections, setExpandedSections] = useState({});
   const toggleSection = (groupId) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -261,7 +250,6 @@ const HotelDetailModal = ({
     }));
   };
 
-  // Render recommendation details
   const renderRecommendationDetails = (recommendation) => {
     if (!recommendation?.rates) return null;
 
@@ -270,7 +258,7 @@ const HotelDetailModal = ({
     const firstRate = rates[0];
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {rates.map((rate, index) => {
           if (!rate?.occupancies) return null;
 
@@ -281,7 +269,7 @@ const HotelDetailModal = ({
             return (
               <div key={`${index}-${occIndex}`} className="border-b pb-3 last:border-b-0">
                 <p className="font-medium">{room.name}</p>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs sm:text-sm text-gray-600">
                   <p>Adults: {occupancy.numOfAdults}</p>
                   {occupancy.numOfChildren > 0 && (
                     <p>
@@ -291,7 +279,7 @@ const HotelDetailModal = ({
                     </p>
                   )}
                 </div>
-                <div className="mt-2 text-sm text-gray-600">
+                <div className="mt-2 text-xs sm:text-sm text-gray-600">
                   <p>{rate.refundable ? "Refundable" : "Non-refundable"}</p>
                   {rate.boardBasis?.description && (
                     <p>{rate.boardBasis.description}</p>
@@ -301,14 +289,13 @@ const HotelDetailModal = ({
             );
           });
         })}
-        <div className="text-right font-semibold text-lg text-blue-600">
+        <div className="text-right font-semibold text-base sm:text-lg text-blue-600">
           {firstRate?.currency || "USD"} {totalPrice.toLocaleString()}
         </div>
       </div>
     );
   };
 
-  // Render room type section
   const renderRoomTypeSection = (groupId, recommendations) => {
     const standardRoom = roomRateData?.standardizedRooms?.[groupId];
     if (!standardRoom) return null;
@@ -320,16 +307,16 @@ const HotelDetailModal = ({
       : (hasImage ? standardRoom.images[0].links.find((l) => l.size === "Standard")?.url : "/api/placeholder/96/96");
   
     return (
-      <div key={groupId} className="mb-4">
+      <div key={groupId} className="mb-3 sm:mb-4">
         <div
           onClick={() => toggleSection(groupId)}
-          className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer hover:border-blue-200 transition-all duration-200"
+          className="flex items-center justify-between p-3 sm:p-4 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer hover:border-blue-200 transition-all duration-200"
         >
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <img
               src={imageUrl}
               alt={standardRoom.name}
-              className="w-16 h-16 object-cover rounded-lg"
+              className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg"
               onError={() => {
                 if (!imageErrorMap[groupId]) {
                   setImageErrorMap(prev => ({
@@ -339,45 +326,39 @@ const HotelDetailModal = ({
                 }
               }}
             />
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                 {standardRoom.name}
               </h3>
               {standardRoom.type && (
-                <p className="text-sm text-gray-600">{standardRoom.type}</p>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">{standardRoom.type}</p>
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
-              {recommendations.length} option
-              {recommendations.length !== 1 ? "s" : ""}
+          <div className="flex items-center ml-2 sm:ml-4">
+            <div className="text-xs sm:text-sm text-gray-600 mr-2">
+              {recommendations.length} option{recommendations.length !== 1 ? "s" : ""}
             </div>
             <svg
-              className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
+              className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-500 transition-transform duration-200 ${
                 isExpanded ? "transform rotate-180" : ""
               }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </div>
         </div>
 
         {isExpanded && (
-          <div className="mt-2 space-y-3 pl-20">
+          <div className="mt-2 space-y-2 pl-2 md:pl-20">
             {recommendations.map((rec) => (
               <div
                 key={rec.id}
                 onClick={() => setSelectedRecommendation(rec)}
-                className={`cursor-pointer p-4 rounded-lg ${
+                className={`cursor-pointer p-3 sm:p-4 rounded-lg ${
                   selectedRecommendation?.id === rec.id
                     ? "bg-blue-50 border-2 border-blue-500"
                     : "bg-white border border-gray-100 hover:border-blue-200"
@@ -392,7 +373,6 @@ const HotelDetailModal = ({
     );
   };
 
-  // Render star rating
   const renderStarRating = () => {
     const rating = hotel.starRating || hotel.category;
     if (!rating) return null;
@@ -402,9 +382,7 @@ const HotelDetailModal = ({
     return (
       <div className="flex items-center mb-2">
         {Array.from({ length: numRating }, (_, i) => (
-          <span key={i} className="text-yellow-400">
-            ★
-          </span>
+          <span key={i} className="text-yellow-400">★</span>
         ))}
       </div>
     );
@@ -471,23 +449,30 @@ const HotelDetailModal = ({
 
     // Default state
     return (
-      <div className="flex justify-end space-x-4">
+      <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4">
         <button
           onClick={onClose}
-          className="px-4 py-2 border rounded hover:bg-gray-50"
+          className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50"
         >
           Cancel
         </button>
         <button
           onClick={handleConfirm}
-          disabled={!selectedRecommendation}
-          className={`px-4 py-2 rounded text-white ${
-            !selectedRecommendation
+          disabled={!selectedRecommendation || bookingStatus.loading}
+          className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white ${
+            !selectedRecommendation || bookingStatus.loading
               ? "bg-blue-300 cursor-not-allowed"
               : "bg-blue-500 hover:bg-blue-600"
           }`}
         >
-          Select Rooms
+          {bookingStatus.loading ? (
+            <div className="flex items-center justify-center">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
+            </div>
+          ) : (
+            "Select Rooms"
+          )}
         </button>
       </div>
     );
@@ -527,78 +512,105 @@ const HotelDetailModal = ({
     || "/api/placeholder/800/400";
 
   // Main render
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white z-10 p-4 border-b flex justify-between items-center">
-          <h2 className="text-xl font-bold">{hotel.name}</h2>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            Close
-          </button>
-        </div>
+return (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center pt-10">
+    <div className="bg-white w-full md:rounded-lg h-full md:h-auto md:w-[90%] md:max-w-5xl md:max-h-[85vh] overflow-y-auto">
+      {/* Header - Made sticky and more compact on mobile */}
+      <div className="sticky top-0 bg-white z-10 p-3 sm:p-4 border-b flex justify-between items-center">
+        <h2 className="text-lg sm:text-xl font-bold truncate pr-2">{hotel.name}</h2>
+        <button
+          onClick={onClose}
+          className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-100"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Hotel Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <img
-                src={imageUrl}
-                alt={hotel.name}
-                className="w-full h-64 object-cover rounded"
-                onError={(e) => {
-                  if (!imageError) {
-                    setImageError(true);
-                    e.target.src = "/api/placeholder/400/300";
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">{hotel.name}</h3>
-              {renderStarRating()}
+      {/* Content - Improved padding and spacing for mobile */}
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Hotel Basic Info - Responsive grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
+          <div className="w-full">
+            <img
+              src={imageUrl}
+              alt={hotel.name}
+              className="w-full h-40 md:h-64 object-cover rounded"
+              onError={(e) => {
+                if (!imageError) {
+                  setImageError(true);
+                  e.target.src = "/api/placeholder/400/300";
+                }
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-base sm:text-lg font-semibold">{hotel.name}</h3>
+            {renderStarRating()}
+            <div className="text-sm text-gray-600">
               {hotel.descriptions?.map(
                 (desc, index) =>
                   desc.type === "location" && (
-                    <p key={index} className="text-gray-600 text-sm">
-                      {desc.text}
-                    </p>
+                    <p key={index}>{desc.text}</p>
                   )
               )}
             </div>
           </div>
+        </div>
 
-          {/* Price change alert if applicable */}
-          {existingHotelPrice && (
-            <Alert className={existingHotelPrice > calculateTotalPrice(selectedRecommendation) ? "bg-green-50" : "bg-yellow-50"}>
-              <AlertTitle>Price Difference Alert</AlertTitle>
-              <AlertDescription>
-                The new price is {existingHotelPrice > calculateTotalPrice(selectedRecommendation) ? "lower" : "higher"} than your current hotel price.
+        {/* Price Alert - More compact on mobile */}
+        {existingHotelPrice && (
+          <Alert className={`${existingHotelPrice > calculateTotalPrice(selectedRecommendation) ? "bg-green-50" : "bg-yellow-50"} p-3 sm:p-4`}>
+            <AlertTitle className="text-sm sm:text-base">Price Difference Alert</AlertTitle>
+            <AlertDescription className="text-xs sm:text-sm">
+              The new price is {existingHotelPrice > calculateTotalPrice(selectedRecommendation) ? "lower" : "higher"} than your current hotel price.
+              <div className="mt-1">
                 Current: ${existingHotelPrice.toLocaleString()}
-                {selectedRecommendation && ` → New: $${calculateTotalPrice(selectedRecommendation).toLocaleString()}`}
-              </AlertDescription>
-            </Alert>
+                {selectedRecommendation && ` → New: ${calculateTotalPrice(selectedRecommendation).toLocaleString()}`}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Room Types - Improved mobile layout */}
+        <div className="space-y-3 sm:space-y-4">
+          {Object.entries(groupedRecommendations).map(([groupId, recs]) => 
+            renderRoomTypeSection(groupId, recs)
           )}
+        </div>
 
-          {/* Room Types and Recommendations */}
-          <div className="space-y-6">
-            {Object.entries(groupedRecommendations).map(([groupId, recs]) =>
-              renderRoomTypeSection(groupId, recs)
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="p-6 border-t">
-            {renderActionButtons()}
+        {/* Action Buttons - More spacing and bottom margin */}
+        <div className="sticky bottom-0 bg-white border-t p-3 sm:p-4 mt-auto mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4">
+            <button
+              onClick={onClose}
+              className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!selectedRecommendation || bookingStatus.loading}
+              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white ${
+                !selectedRecommendation || bookingStatus.loading
+                  ? "bg-blue-300 cursor-not-allowed"
+                  : "bg-blue-500 hover:bg-blue-600"
+              }`}
+            >
+              {bookingStatus.loading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </div>
+              ) : (
+                "Select Rooms"
+              )}
+            </button>
           </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default HotelDetailModal;

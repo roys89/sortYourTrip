@@ -25,122 +25,71 @@ const ItineraryMap = ({ itineraryData }) => {
     const locations = [];
     const routeSegments = [];
     
+    // Process each city
     data.cities.forEach((city, cityIndex) => {
-      let lastCityHotel = null;
-      
-      city.days.forEach((day, dayIndex) => {
-        // First day flights and arrival
-        if (dayIndex === 0 && day.flights?.length > 0) {
-          const firstFlight = day.flights[0];
-          const { originAirport, arrivalAirport } = firstFlight.flightData;
-          
-          locations.push({
-            coordinates: [originAirport.location.longitude, originAirport.location.latitude],
-            name: originAirport.name,
-            description: `${originAirport.city} (${originAirport.code})`,
-            type: 'airport'
-          });
-          
-          locations.push({
-            coordinates: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-            name: arrivalAirport.name,
-            description: `${arrivalAirport.city} (${arrivalAirport.code})`,
-            type: 'airport'
-          });
-          
-          routeSegments.push({
-            from: [originAirport.location.longitude, originAirport.location.latitude],
-            to: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-            type: 'flight'
-          });
-          
-          // If there's a hotel on arrival day, add route from airport to hotel
-          if (day.hotels?.length > 0) {
-            const firstHotel = day.hotels[0];
-            const hotelGeo = firstHotel.data?.staticContent?.[0].geoCode;
+      // Process each day in the city
+      city.days.forEach((day) => {
+        // Process flights
+        if (day.flights && day.flights.length > 0) {
+          day.flights.forEach(flight => {
+            const { originAirport, arrivalAirport } = flight.flightData;
             
-            routeSegments.push({
-              from: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-              to: [parseFloat(hotelGeo.long), parseFloat(hotelGeo.lat)],
-              type: 'ground'
+            // Add origin airport
+            locations.push({
+              coordinates: [originAirport.location.longitude, originAirport.location.latitude],
+              name: originAirport.name,
+              description: `${originAirport.city} (${originAirport.code})`,
+              type: 'airport'
             });
-          }
+            
+            // Add destination airport
+            locations.push({
+              coordinates: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
+              name: arrivalAirport.name,
+              description: `${arrivalAirport.city} (${arrivalAirport.code})`,
+              type: 'airport'
+            });
+            
+            // Add flight route
+            routeSegments.push({
+              from: [originAirport.location.longitude, originAirport.location.latitude],
+              to: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
+              type: 'flight'
+            });
+          });
         }
         
-        // Hotels
-        if (day.hotels?.length > 0) {
-          const hotel = day.hotels[0];
-          const hotelDetails = hotel.data?.staticContent?.[0];
-          
-          locations.push({
-            coordinates: [
-              parseFloat(hotelDetails.geoCode.long), 
-              parseFloat(hotelDetails.geoCode.lat)
-            ],
-            name: hotelDetails.name,
-            description: city.city,
-            type: 'hotel'
+        // Process hotels
+        if (day.hotels && day.hotels.length > 0) {
+          day.hotels.forEach(hotel => {
+            if (hotel.success && hotel.data?.hotelDetails) {
+              const hotelDetails = hotel.data.hotelDetails;
+              
+              locations.push({
+                coordinates: [
+                  parseFloat(hotelDetails.geolocation.long),
+                  parseFloat(hotelDetails.geolocation.lat)
+                ],
+                name: hotelDetails.name,
+                description: `${hotelDetails.address.city.name}, ${hotelDetails.address.country.name}`,
+                type: 'hotel'
+              });
+            }
           });
-          lastCityHotel = {
-            location: [
-              parseFloat(hotelDetails.geoCode.long), 
-              parseFloat(hotelDetails.geoCode.lat)
-            ]
-          };
         }
         
-        // City transitions
-        if (cityIndex < data.cities.length - 1 && dayIndex === city.days.length - 1) {
-          const nextCity = data.cities[cityIndex + 1];
-          const nextCityFirstDay = nextCity.days[0];
-          const nextCityFirstHotel = nextCityFirstDay.hotels?.[0];
-          
-          if (lastCityHotel && nextCityFirstHotel) {
-            const nextHotelGeo = nextCityFirstHotel.data?.staticContent?.[0].geoCode;
+        // Process transfers
+        if (day.transfers && day.transfers.length > 0) {
+          day.transfers.forEach(transfer => {
+            const { origin, destination } = transfer.details;
             
-            routeSegments.push({
-              from: lastCityHotel.location,
-              to: [
-                parseFloat(nextHotelGeo.long), 
-                parseFloat(nextHotelGeo.lat)
-              ],
-              type: 'ground'
-            });
-          }
-        }
-
-        // Final departure
-        if (cityIndex === data.cities.length - 1 && dayIndex === city.days.length - 1 && day.flights?.length > 0) {
-          const lastFlight = day.flights[0];
-          const { originAirport, arrivalAirport } = lastFlight.flightData;
-          
-          // Route from last hotel to departure airport
-          if (lastCityHotel) {
-            routeSegments.push({
-              from: lastCityHotel.location,
-              to: [originAirport.location.longitude, originAirport.location.latitude],
-              type: 'ground'
-            });
-          }
-          
-          locations.push({
-            coordinates: [originAirport.location.longitude, originAirport.location.latitude],
-            name: originAirport.name,
-            description: `${originAirport.city} (${originAirport.code})`,
-            type: 'airport'
-          });
-          
-          locations.push({
-            coordinates: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-            name: arrivalAirport.name,
-            description: `${arrivalAirport.city} (${arrivalAirport.code})`,
-            type: 'airport'
-          });
-          
-          routeSegments.push({
-            from: [originAirport.location.longitude, originAirport.location.latitude],
-            to: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-            type: 'flight'
+            if (origin && destination && origin.lat && origin.long && destination.lat && destination.long) {
+              routeSegments.push({
+                from: [parseFloat(origin.long), parseFloat(origin.lat)],
+                to: [parseFloat(destination.long), parseFloat(destination.lat)],
+                type: 'transfer'
+              });
+            }
           });
         }
       });
@@ -162,7 +111,7 @@ const ItineraryMap = ({ itineraryData }) => {
       const mapInstance = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: 'mapbox://styles/mapbox/light-v10',
-        center: [55.296249, 25.276987],
+        center: [55.296249, 25.276987], // Dubai coordinates as default center
         zoom: 3
       });
 
@@ -171,7 +120,17 @@ const ItineraryMap = ({ itineraryData }) => {
       mapInstance.on('load', () => {
         // Add markers
         locations.forEach(location => {
-          const markerColor = location.type === 'airport' ? '#1976d2' : '#4CAF50';
+          let markerColor;
+          switch(location.type) {
+            case 'airport':
+              markerColor = '#1976d2';
+              break;
+            case 'hotel':
+              markerColor = '#4CAF50';
+              break;
+            default:
+              markerColor = '#FFA000';
+          }
           
           const marker = new mapboxgl.Marker({
             color: markerColor
@@ -265,11 +224,11 @@ const ItineraryMap = ({ itineraryData }) => {
         <div className="flex gap-4 mt-4 text-sm">
           <div className="flex items-center">
             <div className="w-4 h-4 bg-blue-600 rounded-full mr-2" />
-            <span>Airports</span>
+            <span>Airports & Flights</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-green-600 rounded-full mr-2" />
-            <span>Hotels</span>
+            <span>Hotels & Transfers</span>
           </div>
         </div>
       </div>

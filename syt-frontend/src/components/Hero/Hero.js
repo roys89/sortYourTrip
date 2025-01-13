@@ -64,6 +64,7 @@ const HeroCarousel = () => {
         <ChevronRight className="w-8 h-8 text-white" />
       </button>
 
+      {/* Background Images Carousel */}
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
           key={currentSlide}
@@ -73,7 +74,7 @@ const HeroCarousel = () => {
           animate="center"
           exit="exit"
           transition={{
-            x: { type: "tween", duration: 0.5, ease: "easeInOut" },
+            x: { type: "tween", duration: 0.8, ease: "easeInOut" },
             opacity: { duration: 0.8 }
           }}
           className="absolute inset-0 w-full h-full"
@@ -97,29 +98,15 @@ const HeroCarousel = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Content */}
+      {/* Fixed Content */}
       <div className="relative z-20 h-full flex items-center justify-center">
         <div className="container mx-auto px-4 text-center">
-          <motion.h1 
-            key={`title-${currentSlide}`}
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -30, opacity: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4"
-          >
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
             SEE THE WORLD IN A NEW LIGHT
-          </motion.h1>
-          <motion.p 
-            key={`subtitle-${currentSlide}`}
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -30, opacity: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-lg md:text-xl lg:text-2xl text-white mb-8"
-          >
+          </h1>
+          <p className="text-lg md:text-xl lg:text-2xl text-white mb-8">
             One-Stop Shop for Your Personalized and Customizable Travel Experience
-          </motion.p>
+          </p>
 
           {/* Progress Bars */}
           <div className="flex justify-center gap-3 mt-12">

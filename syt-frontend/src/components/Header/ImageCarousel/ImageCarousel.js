@@ -1,33 +1,58 @@
-// src/components/Header/ImageCarousel/ImageCarousel.js
-import { motion } from 'framer-motion';
 import React from 'react';
 import './ImageCarousel.css';
 
+const destinations = [
+  {
+    image: '/assets/destinations/hawaii.jpg',
+    title: 'Tropical Paradise',
+    location: 'Hawaii, USA'
+  },
+  {
+    image: '/assets/destinations/louvre.jpg',
+    title: 'Art and Culture',
+    location: 'Paris, France'
+  },
+  {
+    image: '/assets/destinations/sydney.jpg',
+    title: 'Urban Coastal Charm',
+    location: 'Sydney, Australia'
+  },
+  {
+    image: '/assets/destinations/coast.jpg',
+    title: 'Coastal Serenity',
+    location: 'Coastal Retreat'
+  },
+  {
+    image: '/assets/destinations/paris.jpg',
+    title: 'City of Lights',
+    location: 'Paris, France'
+  },
+  {
+    image: '/assets/destinations/dubai.jpg',
+    title: 'Modern Marvel',
+    location: 'Dubai, UAE'
+  },
+  {
+    image: '/assets/destinations/alps.jpg',
+    title: 'Mountain Majesty',
+    location: 'The Alps'
+  }
+];
+
 const ImageCarousel = () => {
-  const images = [
-    '/assets/destinations/hawaii.jpg',
-    '/assets/destinations/louvre.jpg',
-    '/assets/destinations/sydney.jpg',
-    '/assets/destinations/coast.jpg',
-    '/assets/destinations/paris.jpg',
-    '/assets/destinations/dubai.jpg',
-    '/assets/destinations/alps.jpg'
-  ];
+  // Duplicate destinations to create continuous scroll
+  const carouselDestinations = [...destinations, ...destinations];
 
   return (
     <div className="image-carousel">
       <div className="carousel-track">
-        {images.concat(images).map((src, index) => (
-          <motion.div
-            key={index}
-            className="carousel-item"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-            viewport={{ once: true }}
-          >
-            <img src={src} alt={`Destination ${index + 1}`} />
-          </motion.div>
+        {carouselDestinations.map((dest, index) => (
+          <div key={index} className="carousel-item">
+            <img 
+              src={dest.image} 
+              alt={`Destination ${dest.title}`} 
+            />
+          </div>
         ))}
       </div>
     </div>

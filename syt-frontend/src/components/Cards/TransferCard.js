@@ -1,11 +1,17 @@
 import { useTheme } from '@mui/material/styles';
-import { Car, Clock, Info, MapPin, Users } from 'lucide-react';
+import { Clock, Info, MapPin } from 'lucide-react';
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { setChangeTransfer, setSelectedTransfer } from '../../redux/slices/transferSlice';
 import './Card.css';
 
 const PLACEHOLDER_IMAGE = '/assets/images/api/placeholder/400/320';
+
+const truncateAddress = (address, maxLength = 30) => {
+  return address && address.length > maxLength 
+    ? `${address.slice(0, maxLength)}...`
+    : address;
+};
 
 const TransferCard = ({ transfer }) => {
   const dispatch = useDispatch();
@@ -21,7 +27,6 @@ const TransferCard = ({ transfer }) => {
   };
 
   const vehicle = transfer.details.selectedQuote?.quote?.vehicle;
-  const routeDetails = transfer.details.selectedQuote?.routeDetails;
 
   return (
     <div className="common-card-base">
@@ -50,53 +55,65 @@ const TransferCard = ({ transfer }) => {
             </div>
 
             {/* Main Details Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-4">
-              {/* Left Column - Route & Passengers */}
-              <div className="space-y-4">
-                {/* Route Info */}
-                <div className="flex items-start space-x-2">
-                  <MapPin size={16} color={iconColor} className="flex-shrink-0 mt-1" />
-                  <div className="space-y-1">
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium text-blue-300 w-12">From:</span>
-                      <span className="text-sm text-gray-100">{transfer.details.origin?.display_address}</span>
+            <div className="space-y-4">
+              {/* Route Info */}
+              <div className="flex items-center space-x-2">
+                <MapPin size={16} color={iconColor} className="flex-shrink-0" />
+                <div className="flex flex-col w-full">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2">
+                    <span className="text-sm text-gray-100 mb-1 sm:mb-0">
+                      From: {truncateAddress(transfer.details.origin?.display_address)}
+                    </span>
+                    <div className="hidden sm:flex items-center mx-2">
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="24" 
+                        height="24" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke={iconColor} 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        className="lucide lucide-arrow-right"
+                      >
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
                     </div>
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium text-blue-300 w-12">To:</span>
-                      <span className="text-sm text-gray-100">{transfer.details.destination?.display_address}</span>
+                    <div className="sm:hidden flex items-center self-center w-full justify-center my-1">
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="24" 
+                        height="24" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke={iconColor} 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        className="lucide lucide-arrow-down"
+                      >
+                        <path d="M12 5v14" />
+                        <path d="m19 12-7 7-7-7" />
+                      </svg>
                     </div>
+                    <span className="text-sm text-gray-100">
+                      To: {truncateAddress(transfer.details.destination?.display_address)}
+                    </span>
                   </div>
-                </div>
-
-                {/* Passenger Info */}
-                <div className="flex items-center space-x-2 text-gray-100">
-                  <Users size={16} color={iconColor} className="flex-shrink-0" />
-                  <span className="text-sm">
-                    {transfer.details.totalTravelers} travelers
-                  </span>
                 </div>
               </div>
 
-              {/* Right Column - Vehicle & Journey Details */}
-              <div className="space-y-4">
-                {/* Vehicle Capacity */}
-                <div className="flex items-center space-x-2 text-gray-100">
-                  <Car size={16} color={iconColor} className="flex-shrink-0" />
-                  <span className="text-sm">
-                    Max {vehicle?.ve_max_capacity} passengers, {vehicle?.ve_luggage_capacity} luggage
-                  </span>
+              {/* Journey Details */}
+              <div className="flex items-center space-x-4 text-gray-100">
+                <div className="flex items-center space-x-2">
+                  <Clock size={16} color={iconColor} className="flex-shrink-0" />
+                  <span className="text-sm">{transfer.details.duration} minutes</span>
                 </div>
-
-                {/* Journey Details */}
-                <div className="flex items-center space-x-4 text-gray-100">
-                  <div className="flex items-center space-x-2">
-                    <Clock size={16} color={iconColor} className="flex-shrink-0" />
-                    <span className="text-sm">{transfer.details.duration} minutes</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Info size={16} color={iconColor} className="flex-shrink-0" />
-                    <span className="text-sm">{transfer.details.distance}</span>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <Info size={16} color={iconColor} className="flex-shrink-0" />
+                  <span className="text-sm">{transfer.details.distance}</span>
                 </div>
               </div>
             </div>

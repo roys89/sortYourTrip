@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setChangeHotel, setSelectedHotel } from '../../redux/slices/hotelSlice';
+import { openRoomChangeModal } from '../../redux/slices/roomChangeSlice';
 import './Card.css';
 
 const HotelCard = ({ 
@@ -20,22 +21,27 @@ const HotelCard = ({
 
   // Looking at the data structure, hotel data is nested in the response
   const hotelDetails = hotel?.data?.items?.[0] || {};
-  const hotelStatic = hotel?.data?.hotelDetails || {}; // Updated to use hotelDetails
+  const hotelStatic = hotel?.data?.hotelDetails || {};
+  const traceId = hotel?.data?.traceId;
+  const hotelId = hotel?.data?.staticContent?.[0].id;
   
   // Get the selected room and rate info
   const roomAndRate = hotelDetails?.selectedRoomsAndRates?.[0] || {};
+  const currentRoomPrice = roomAndRate?.rate?.finalRate || 0;
 
   const getHotelName = () => hotelStatic?.name || 'Hotel Name Not Available';
   const getStarCount = () => parseInt(hotelStatic?.starRating) || 0;
   const getAddress = () => {
-    const location = hotelStatic?.address; // Updated to directly use address from hotelDetails
+    const location = hotelStatic?.address;
     if (!location) return '';
     return [location.line1, location.line2, location.city?.name].filter(Boolean).join(', ');
   };
 
   const getImageUrl = () => {
     if (imageLoadError) return '/api/placeholder/400/300';
-    return hotel?.data?.staticContent?.[0]?.heroImage || hotel?.data?.staticContent?.[0]?.images?.[0]?.links?.[0]?.url || '/api/placeholder/400/300';
+    return hotel?.data?.staticContent?.[0]?.heroImage || 
+           hotel?.data?.staticContent?.[0]?.images?.[0]?.links?.[0]?.url || 
+           '/api/placeholder/400/300';
   };
 
   const getRooms = () => {
@@ -78,6 +84,23 @@ const HotelCard = ({
     }));
   
     navigate('/hotels', { state: navigationState });
+  };
+
+  const handleRoomChange = () => {
+    dispatch(openRoomChangeModal({
+      hotel,
+      hotelId,
+      traceId,
+      itineraryToken,
+      inquiryToken,
+      city,
+      date,
+      dates: {
+        checkIn: hotel.checkIn,
+        checkOut: hotel.checkOut
+      },
+      existingPrice: currentRoomPrice
+    }));
   };
 
   if (!hotelDetails || !hotelStatic) {
@@ -175,6 +198,12 @@ const HotelCard = ({
               Change Hotel
             </button>
           )}
+          <button
+            onClick={handleRoomChange}
+            className="common-button-base common-button-change"
+          >
+            Change Room
+          </button>
         </div>
       </div>
     </div>

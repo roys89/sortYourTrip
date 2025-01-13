@@ -192,6 +192,7 @@ selectHotelRoom: async (req, res) => {
               contact: staticContent?.contact,
               descriptions: staticContent?.descriptions,
               images: staticContent?.images,
+              facilities: staticContent?.facilities,
               // nearByAttractions: staticContent?.nearByAttractions
             }],
             hotelDetails: {
@@ -202,8 +203,6 @@ selectHotelRoom: async (req, res) => {
               address: staticContent?.contact?.address,
             },
           },
-          checkIn: result.searchRequestLog.checkIn,
-          checkOut: result.searchRequestLog.checkOut
       });
 
   } catch (error) {
@@ -215,4 +214,45 @@ selectHotelRoom: async (req, res) => {
       });
   }
 }
+};
+
+module.exports.getHotelRooms = async (req, res) => {
+  const { inquiryToken, hotelId } = req.params;
+  const { traceId, cityName, checkIn } = req.query;
+
+  try {
+    // Get auth token
+    const authToken = await HotelTokenManager.getOrSetToken(
+      inquiryToken,
+      async () => await HotelAuthService.getAuthToken(inquiryToken)
+    );
+
+    // Prepare params for itinerary creation
+    const itineraryParams = {
+      hotelId: hotelId,
+      traceId: traceId,
+      cityName: cityName,
+      startDate: checkIn
+    };
+
+    // Get room details using HotelItineraryService
+    const hotelDetails = await HotelItineraryService.createItinerarySequential(
+      itineraryParams,
+      authToken,
+      inquiryToken
+    );
+
+    res.json({
+      success: true,
+      data: hotelDetails
+    });
+
+  } catch (error) {
+    console.error("Error fetching hotel rooms:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Failed to fetch hotel rooms",
+      details: error.details || {}
+    });
+  }
 };

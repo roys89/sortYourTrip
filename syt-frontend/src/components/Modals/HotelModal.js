@@ -1,64 +1,124 @@
-import { Baby, Bed, Check, ChevronDown, ChevronUp, Clock, MapPin, Star, Users, X } from 'lucide-react';
+import {
+  Baby, Bed,
+  Calendar,
+  Check, ChevronDown, ChevronUp,
+  Info,
+  MapPin,
+  MoreHorizontal,
+  Shield,
+  Star, Users, X
+} from 'lucide-react';
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { closeModal } from "../../redux/slices/hotelSlice";
 import './Modal.css';
 
-// Collapsible Component
-const Collapsible = ({ title, children, icon: Icon }) => {
-  const [isOpen, setIsOpen] = useState(true);
+// Image Collage Component
+const ImageCollage = ({ images }) => {
+  const [visibleImageCount, setVisibleImageCount] = useState(5);
+  const [isFullGalleryMode, setIsFullGalleryMode] = useState(false);
+
+  // If no images, return placeholder
+  if (!images || images.length === 0) {
+    return (
+      <div className="w-full h-[400px]">
+        <img 
+          src="/api/placeholder/1200/600" 
+          alt="Hotel Placeholder" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  // Determine which images to show
+  const processedImages = images
+    .map(img => ({
+      url: img.links.find(l => l.size === 'Standard')?.url || img.links[0].url,
+      caption: img.caption || 'Hotel Image'
+    }))
+    .filter(img => img.url);
+
+  // Slice images based on visibility and mode
+  const imagesToShow = isFullGalleryMode 
+    ? processedImages.slice(0, visibleImageCount)
+    : processedImages.slice(0, 5);
+
+  // Handle view more
+  const handleViewMore = () => {
+    if (isFullGalleryMode) {
+      setVisibleImageCount(prevCount => prevCount + 10);
+    } else {
+      setIsFullGalleryMode(true);
+      setVisibleImageCount(10);
+    }
+  };
 
   return (
-    <div className="modal-section">
+    <div className="w-full">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {imagesToShow.map((img, index) => {
+          // Special styling for the first image and last image with view more
+          const isFirstImage = index === 0;
+          const isLastImage = index === imagesToShow.length - 1;
+          const hasMoreImages = processedImages.length > imagesToShow.length;
+          
+          return (
+            <div 
+              key={index} 
+              className={`
+                relative overflow-hidden
+                ${isFirstImage ? 'col-span-2 row-span-2' : 'aspect-square'}
+                ${isLastImage && hasMoreImages ? 'cursor-pointer' : ''}
+              `}
+            >
+              <img 
+                src={img.url} 
+                alt={img.caption} 
+                className="w-full h-full object-cover"
+              />
+              {isLastImage && hasMoreImages && (
+                <div 
+                  className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                  onClick={handleViewMore}
+                >
+                  <div className="flex items-center gap-2 text-white">
+                    <MoreHorizontal />
+                    <span>View More ({processedImages.length - imagesToShow.length})</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Collapsible Component
+const Collapsible = ({ title, children, icon: Icon, defaultOpen = true }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border-b last:border-b-0">
       <div 
-        className="modal-section-title cursor-pointer flex justify-between items-center"
+        className="flex justify-between items-center p-4 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center gap-2">
-          {Icon && <Icon size={18} className="modal-icon" />}
-          <h3>{title}</h3>
+        <div className="flex items-center gap-3">
+          {Icon && <Icon size={20} className="text-primary-main" />}
+          <h3 className="text-lg font-semibold">{title}</h3>
         </div>
-        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
       </div>
       {isOpen && (
-        <div className="mt-4">
+        <div className="p-4 pt-0">
           {children}
         </div>
       )}
     </div>
   );
-};
-
-// Parse room description into structured sections
-const parseRoomDescription = (description) => {
-  // Remove any leading/trailing whitespace and split by paragraph
-  const paragraphs = description.trim().split('</p>').map(p => p.replace('<p>', '').trim()).filter(Boolean);
-  
-  // Group paragraphs by category
-  const sections = {};
-  let currentCategory = 'General';
-
-  paragraphs.forEach(para => {
-    // Check if paragraph starts with a bold category
-    const categoryMatch = para.match(/<strong>(.+?)<\/strong>|<b>(.+?)<\/b>/);
-    if (categoryMatch) {
-      currentCategory = (categoryMatch[1] || categoryMatch[2]).replace(':', '');
-      // Remove the category from the paragraph
-      para = para.replace(/<strong>.*?<\/strong>|<b>.*?<\/b>/, '').trim();
-    }
-
-    // Initialize category if not exists
-    if (!sections[currentCategory]) {
-      sections[currentCategory] = [];
-    }
-
-    // Add paragraph to the current category
-    if (para) {
-      sections[currentCategory].push(para.replace(/<\/?strong>|<\/?b>/g, ''));
-    }
-  });
-
-  return sections;
 };
 
 const HotelModal = () => {
@@ -71,69 +131,60 @@ const HotelModal = () => {
   const hotelData = selectedHotel?.data;
   const staticContent = hotelData?.staticContent?.[0] || {};
   const hotelItems = hotelData?.items?.[0] || {};
-  const roomDetails = hotelItems?.selectedRoomsAndRates?.[0] || {};
-  const rateDetails = roomDetails?.rate || {};
-  const roomInfo = roomDetails?.room || {};
+  const roomDetails = hotelItems?.selectedRoomsAndRates || [];
+  const hotelDetails = hotelData?.hotelDetails || {};
+  const images = staticContent?.images || [];
 
-  // Helper functions to extract data safely
-  const getHotelName = () => staticContent?.name || 'Hotel Name Unavailable';
-  const getImageUrl = () => staticContent?.heroImage || '/api/placeholder/800/400';
-  const getStarCount = () => parseInt(staticContent?.starRating) || 0;
+  // Helper functions
+  const getHotelName = () => hotelDetails?.name || 'Hotel Name Unavailable';
+  const getStarCount = () => parseInt(hotelDetails?.starRating) || 0;
   const getAddress = () => {
-    const contact = staticContent?.contact?.address;
-    return contact 
-      ? [contact.line1, contact.line2, contact.city?.name].filter(Boolean).join(', ') 
+    const address = hotelDetails?.address;
+    return address 
+      ? [address.line1, address.city?.name, address.country?.name].filter(Boolean).join(', ') 
       : 'Address Not Available';
   };
 
-  // Extract room details
-  const getRooms = () => {
-    return [{
-      room_type: roomInfo?.name || 'Room',
-      no_of_adults: roomDetails?.occupancy?.adults || 0,
-      no_of_children: roomDetails?.occupancy?.children || 0,
-      no_of_rooms: 1,
-      description: roomInfo?.description || ''
-    }];
+  // Compile all hotel amenities
+  const getAllFacilities = () => {
+    const staticFacilities = staticContent?.facilities || [];
+    return staticFacilities.map(facility => facility.name).filter(Boolean);
   };
 
-  // Extract check-in/out times
-  const getCheckTimes = () => {
-    const checkInPolicy = staticContent?.checkinInfo || {};
-    const checkOutPolicy = staticContent?.checkoutInfo || {};
-    
-    return {
-      checkIn: checkInPolicy.beginTime || 'Not specified',
-      checkOut: checkOutPolicy.time || 'Not specified'
-    };
+  // Compile all hotel descriptions
+  const getDescriptions = () => {
+    const descriptions = staticContent?.descriptions || [];
+    return descriptions.reduce((acc, desc) => {
+      if (desc.type && desc.text) {
+        acc[desc.type] = desc.text;
+      }
+      return acc;
+    }, {});
   };
 
-  // Check refundability
-  const isRefundable = () => {
-    return rateDetails?.refundable === true;
+  // Compile cancelation policies
+  const getCancellationPolicies = () => {
+    const policies = [];
+    roomDetails.forEach(room => {
+      const roomPolicies = room?.rate?.cancellationPolicies || [];
+      policies.push(...roomPolicies);
+    });
+    return policies;
   };
 
-  // Extract facilities
-  const getFacilities = () => {
-    const allFacilities = roomInfo?.facilities || [];
-    return allFacilities.map(facility => facility.name).filter(Boolean);
+  // Compile room details
+  const getRoomDetails = () => {
+    return roomDetails.map(room => ({
+      name: room.room?.name || 'Room',
+      description: room.room?.description || '',
+      occupancy: room.occupancy,
+      rate: room.rate
+    }));
   };
-
-  // Extract policies
-  const getPolicies = () => {
-    return rateDetails?.policies || [];
-  };
-
-  // Extract rate includes
-  const getRateIncludes = () => {
-    return rateDetails?.includes || [];
-  };
-
-  const { checkIn, checkOut } = getCheckTimes();
 
   return (
     <div className="modal-overlay">
-      <div className="modal-container modal-enter">
+      <div className="modal-container">
         {/* Close Button */}
         <button 
           onClick={() => dispatch(closeModal())}
@@ -142,143 +193,122 @@ const HotelModal = () => {
           <X size={24} />
         </button>
 
-        {/* Hero Image */}
-        <div className="modal-banner">
-          <img
-            src={getImageUrl()}
-            alt={getHotelName()}
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {/* Entire Content Scrollable */}
+        <div className="w-full h-full overflow-y-auto">
+          {/* Image Collage */}
+          <ImageCollage images={images} />
 
-        {/* Scrollable Content */}
-        <div className="modal-content">
-          {/* Header */}
-          <div className="modal-section">
-            <h2 className="text-xl font-bold mb-4 modal-text-base">{getHotelName()}</h2>
-            <div className="flex flex-wrap items-center gap-4">
+          {/* Hotel Header */}
+          <div className="p-6 border-b">
+            <h2 className="text-2xl font-bold mb-2">{getHotelName()}</h2>
+            <div className="flex items-center gap-4">
               <div className="flex items-center text-yellow-400">
                 {[...Array(getStarCount())].map((_, i) => (
                   <Star key={i} size={20} fill="currentColor" />
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <MapPin size={18} className="modal-icon" />
-                <span className="modal-text-secondary">{getAddress()}</span>
+                <MapPin size={18} className="text-primary-main" />
+                <span className="text-gray-600">{getAddress()}</span>
               </div>
             </div>
           </div>
 
-          {/* Room Types */}
-          {getRooms().length > 0 && (
-            <Collapsible title="Room Types" icon={Bed}>
-              <div className="modal-grid-2">
-                {getRooms().map((room, index) => {
-                  // Parse room description
-                  const roomSections = room.description 
-                    ? parseRoomDescription(room.description) 
-                    : {};
+          {/* Descriptions */}
+          <Collapsible title="About the Hotel" icon={Info}>
+            {Object.entries(getDescriptions()).map(([type, text]) => (
+              <div key={type} className="mb-4">
+                <h4 className="font-semibold mb-2 capitalize">{type.replace('_', ' ')}</h4>
+                <p className="text-gray-600">{text}</p>
+              </div>
+            ))}
+          </Collapsible>
 
-                  return (
-                    <div key={index} className="modal-card">
-                      <h4 className="modal-text-strong mb-2">{room.room_type}</h4>
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="flex items-center gap-2">
-                          <Users size={16} className="modal-icon" />
-                          <span className="modal-text-secondary">Adults: {room.no_of_adults}</span>
-                        </div>
-                        {room.no_of_children > 0 && (
-                          <div className="flex items-center gap-2">
-                            <Baby size={16} className="modal-icon" />
-                            <span className="modal-text-secondary">Children: {room.no_of_children}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Detailed Room Description */}
-                      {Object.entries(roomSections).map(([category, details]) => (
-                        <div key={category} className="mb-3">
-                          <h5 className="modal-text-strong text-sm mb-1">{category}</h5>
-                          <ul className="list-disc list-inside text-sm modal-text-secondary">
-                            {details.map((detail, idx) => (
-                              <li key={idx}>{detail}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+          {/* Room Details */}
+          <Collapsible title="Room Types" icon={Bed}>
+            {getRoomDetails().map((room, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 mb-4">
+                <h3 className="text-lg font-semibold mb-3">{room.name}</h3>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Users size={16} className="text-primary-main" />
+                    <span>Adults: {room.occupancy?.adults || 0}</span>
+                  </div>
+                  {room.occupancy?.childAges && room.occupancy.childAges.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Baby size={16} className="text-primary-main" />
+                      <span>Children: {room.occupancy.childAges.length} (Ages: {room.occupancy.childAges.join(', ')})</span>
                     </div>
-                  );
-                })}
-              </div>
-            </Collapsible>
-          )}
-
-          {/* Check Times */}
-          <Collapsible title="Check-in/Check-out Times" icon={Clock}>
-            <div className="modal-grid-2">
-              <div className="modal-info-box">
-                <div className="flex items-center gap-2">
-                  <Clock size={16} className="modal-icon" />
-                  <span className="modal-text-secondary">Check-in: {checkIn}</span>
+                  )}
+                </div>
+                {room.description && (
+                  <p className="text-gray-600 mb-3">{room.description}</p>
+                )}
+                {room.rate?.boardBasis && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Check size={16} className="text-primary-main" />
+                    <span>Meal Plan: {room.rate.boardBasis.description}</span>
+                  </div>
+                )}
+                <div className="text-sm text-gray-500">
+                  Price: {room.rate?.baseRate} {room.rate?.currency}
                 </div>
               </div>
-              <div className="modal-info-box">
-                <div className="flex items-center gap-2">
-                  <Clock size={16} className="modal-icon" />
-                  <span className="modal-text-secondary">Check-out: {checkOut}</span>
-                </div>
-              </div>
-            </div>
+            ))}
           </Collapsible>
 
-          {/* Refund Status */}
-          <Collapsible title="Refund Status">
-            <div className={isRefundable() ? 'modal-status-success' : 'modal-status-error'}>
-              {isRefundable() ? 'Refundable' : 'Non-Refundable'}
-            </div>
-          </Collapsible>
-
-          {/* Rate Includes */}
-          {getRateIncludes().length > 0 && (
-            <Collapsible title="Rate Includes" icon={Check}>
-              <div className="modal-grid-3">
-                {getRateIncludes().map((include, index) => (
-                  <div key={index} className="modal-info-box">
-                    <span className="modal-text-secondary">{include}</span>
+          {/* Cancellation Policies */}
+          <Collapsible title="Cancellation Policies" icon={Calendar}>
+            {getCancellationPolicies().map((policy, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-gray-600 mb-2">{policy.text}</p>
+                {policy.rules?.map((rule, ruleIndex) => (
+                  <div key={ruleIndex} className="mb-2">
+                    <div className="flex justify-between">
+                      <span>Period Start: {new Date(rule.start).toLocaleString()}</span>
+                      <span>Period End: {new Date(rule.end).toLocaleString()}</span>
+                    </div>
+                    <div className="text-sm">
+                      Cancellation Value: {rule.value} {rule.valueType}
+                    </div>
                   </div>
                 ))}
               </div>
-            </Collapsible>
-          )}
+            ))}
+          </Collapsible>
 
           {/* Facilities */}
-          {getFacilities().length > 0 && (
-            <Collapsible title="Room Facilities" icon={Check}>
-              <div className="modal-grid-3">
-                {getFacilities().map((facility, index) => (
-                  <div key={index} className="modal-info-box">
-                    <span className="modal-text-secondary">{facility}</span>
-                  </div>
-                ))}
-              </div>
-            </Collapsible>
-          )}
+          <Collapsible title="Hotel Facilities" icon={Check}>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {getAllFacilities().map((facility, index) => (
+                <div key={index} className="flex items-center gap-2 text-gray-600">
+                  <Check size={16} className="text-primary-main" />
+                  <span>{facility}</span>
+                </div>
+              ))}
+            </div>
+          </Collapsible>
 
-          {/* Policies */}
-          {getPolicies().length > 0 && (
-            <Collapsible title="Hotel Policies" icon={Check}>
-              <div className="space-y-2">
-                {getPolicies().map((policy, index) => (
-                  <div key={index} className="modal-card">
-                    <h4 className="modal-text-strong mb-2">{policy.type}</h4>
-                    <p className="modal-text-secondary" 
-                       dangerouslySetInnerHTML={{ __html: policy.text || 'No details available' }}
-                    />
-                  </div>
-                ))}
+          {/* Safety & Policies */}
+          <Collapsible title="Safety & Policies" icon={Shield} defaultOpen={false}>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">Check-in/Check-out</h4>
+                <p className="text-gray-600">
+                  Check-in: From {hotelData?.searchRequestLog?.checkIn || 'Not specified'}
+                  <br />
+                  Check-out: Until {hotelData?.searchRequestLog?.checkOut || 'Not specified'}
+                </p>
               </div>
-            </Collapsible>
-          )}
+              <div>
+                <h4 className="font-semibold mb-2">Additional Information</h4>
+                <ul className="list-disc list-inside text-gray-600">
+                  <li>PAN Card Mandatory: {hotelData?.isPanMandatoryForBooking ? 'Yes' : 'No'}</li>
+                  <li>Passport Mandatory: {hotelData?.isPassportMandatoryForBooking ? 'Yes' : 'No'}</li>
+                </ul>
+              </div>
+            </div>
+          </Collapsible>
         </div>
       </div>
     </div>

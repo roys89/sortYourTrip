@@ -439,3 +439,60 @@ exports.updateActivityWithBookingRef = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.replaceRoom = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { cityName, date, newHotelDetails } = req.body; 
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    const itinerary = await Itinerary.findOne({ 
+      itineraryToken,
+      inquiryToken 
+    });
+
+    if (!itinerary) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Itinerary not found'
+      });
+    }
+
+    // Find and update the hotel
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+
+    if (cityIndex === -1 || dayIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'City or day not found in itinerary'
+      });
+    }
+
+    // Update the hotel's room details
+    itinerary.cities[cityIndex].days[dayIndex].hotels = [{
+      success: true,
+      data: newHotelDetails,
+      checkIn: newHotelDetails.checkIn,
+      checkOut: newHotelDetails.checkOut,
+      message: `Successfully updated room in ${newHotelDetails.hotelDetails.name}`
+    }];
+
+    // Save the updated itinerary
+    const updatedItinerary = await itinerary.save();
+
+    res.json({
+      success: true,
+      message: 'Room updated successfully',
+      itinerary: updatedItinerary
+    });
+
+  } catch (error) {
+    console.error('Error replacing room:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating room',
+      error: error.message
+    });
+  }
+};

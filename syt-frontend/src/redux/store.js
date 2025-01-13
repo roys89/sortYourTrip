@@ -9,6 +9,7 @@ import itineraryReducer from './slices/itinerarySlice';
 import markupReducer from './slices/markupSlice';
 import notificationReducer from './slices/notificationsSlice';
 import priceReducer from './slices/priceSlice';
+import roomChangeReducer from './slices/roomChangeSlice';
 import transferReducer from './slices/transferSlice';
 
 export const store = configureStore({
@@ -22,7 +23,8 @@ export const store = configureStore({
     markup: markupReducer, 
     price: priceReducer,
     notifications: notificationReducer,
-    booking: bookingReducer
+    booking: bookingReducer,
+    roomChange: roomChangeReducer,
   }
 });
 

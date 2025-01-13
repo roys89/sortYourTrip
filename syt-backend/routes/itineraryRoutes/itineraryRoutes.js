@@ -20,12 +20,14 @@ const {
   replaceActivity,
   removeActivity,
   updateActivityWithBookingRef,
+  replaceRoom
 } = require('../../controllers/itineraryController/itineraryModificationController');
 
 const {
   searchAvailableHotels,
   getHotelDetails,
-  selectHotelRoom
+  selectHotelRoom,
+  getHotelRooms
 } = require('../../controllers/itineraryController/hotelChangeController');
 
 const {
@@ -54,10 +56,12 @@ router.put('/:itineraryToken/activity', checkInquiryToken, replaceActivity);
 router.delete('/:itineraryToken/activity', checkInquiryToken, removeActivity);
 router.put('/:itineraryToken/hotel', checkInquiryToken, replaceHotel);
 router.put('/:itineraryToken/activity/booking-ref', checkInquiryToken, updateActivityWithBookingRef);
+router.put('/:itineraryToken/room', checkInquiryToken, replaceRoom);
 
 // New Hotel Change Routes
 router.get('/hotels/:inquiryToken/:cityName/:checkIn/:checkOut', checkInquiryToken, searchAvailableHotels);
 router.get('/hotels/:inquiryToken/:hotelId/details', checkInquiryToken, getHotelDetails);
+router.get('/hotels/:inquiryToken/:hotelId/rooms', checkInquiryToken, getHotelRooms);
 router.post('/hotels/:inquiryToken/:hotelId/select-room', checkInquiryToken, selectHotelRoom);
 
 // Activity Routes

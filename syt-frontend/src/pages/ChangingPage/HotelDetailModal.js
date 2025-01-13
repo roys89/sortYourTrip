@@ -123,13 +123,6 @@ const HotelDetailModal = ({
         date,
         newHotelDetails: {
           ...selectRoomResponse.data.data,
-          traceId: selectRoomResponse.data.data.traceId || traceId,
-          traceIdDetail: selectRoomResponse.data.data.traceIdDetail || {},
-          code: selectRoomResponse.data.data.code || "",
-          totalAmount: selectRoomResponse.data.data.totalAmount || 0,
-          items: selectRoomResponse.data.data.items || [],
-          isPanMandatoryForBooking: selectRoomResponse.data.data.isPanMandatoryForBooking || false,
-          isPassportMandatoryForBooking: selectRoomResponse.data.data.isPassportMandatoryForBooking || false,
           checkIn: date,
           checkOut: dates.checkOut,
           staticContent: [{
@@ -138,6 +131,7 @@ const HotelDetailModal = ({
             descriptions: selectRoomResponse.data.data.staticContent?.[0]?.descriptions,
             contact: selectRoomResponse.data.data.staticContent?.[0]?.contact,
             images: selectRoomResponse.data.data.staticContent?.[0]?.images,
+            facilities: selectRoomResponse.data.data.staticContent?.[0]?.facilities,
           }],
           hotelDetails: {
             name: selectRoomResponse.data.data.hotelDetails?.name,
@@ -564,8 +558,8 @@ return (
             <AlertDescription className="text-xs sm:text-sm">
               The new price is {existingHotelPrice > calculateTotalPrice(selectedRecommendation) ? "lower" : "higher"} than your current hotel price.
               <div className="mt-1">
-                Current: ${existingHotelPrice.toLocaleString()}
-                {selectedRecommendation && ` → New: ${calculateTotalPrice(selectedRecommendation).toLocaleString()}`}
+                Current: INR {existingHotelPrice.toLocaleString()}
+                {selectedRecommendation && ` → New: INR ${calculateTotalPrice(selectedRecommendation).toLocaleString()}`}
               </div>
             </AlertDescription>
           </Alert>

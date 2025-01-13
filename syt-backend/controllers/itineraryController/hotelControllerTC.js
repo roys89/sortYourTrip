@@ -152,85 +152,119 @@ function processRecommendations(itineraryResponse) {
  * Helper function to select room rates with retry logic
  */
 async function selectRoomRatesWithRetry(itineraryResponse, travelersDetails, params) {
-  const MAX_RETRIES = 3;
+  const MAX_ROOM_RATE_RETRIES = 5;
+  const MAX_HOTEL_ATTEMPTS = 3;
   const RETRY_DELAY = 1000; // 1 second
-  const MAX_DURATION = 30000; // 30 seconds
-  const startTime = Date.now();
-
-  const recommendationTotals = processRecommendations(itineraryResponse);
-  let attempts = 0;
+  let hotelAttempts = 0;
   let lastError = null;
-
-  for (const recommendation of recommendationTotals) {
-    if (attempts >= MAX_RETRIES || Date.now() - startTime >= MAX_DURATION) {
-      break;
-    }
-
+  
+  while (hotelAttempts < MAX_HOTEL_ATTEMPTS) {
     try {
-      attempts++;
+      const recommendationTotals = processRecommendations(itineraryResponse);
+      let roomRateAttempts = 0;
       
-      // Format room allocations
-      const roomAllocations = recommendation.rates.map((rate, index) => ({
-        rateId: rate.id,
-        roomId: rate.occupancies[0].roomId,
-        occupancy: {
-          adults: travelersDetails.rooms[index].adults.length,
-          ...(travelersDetails.rooms[index].children?.length > 0 && {
-            childAges: travelersDetails.rooms[index].children
-              .map(age => parseInt(age))
-              .filter(age => !isNaN(age))
-          })
-        }
-      }));
+      for (const recommendation of recommendationTotals) {
+        while (roomRateAttempts < MAX_ROOM_RATE_RETRIES) {
+          try {
+            roomRateAttempts++;
+            
+            // Format room allocations
+            const roomAllocations = recommendation.rates.map((rate, index) => ({
+              rateId: rate.id,
+              roomId: rate.occupancies[0].roomId,
+              occupancy: {
+                adults: travelersDetails.rooms[index].adults.length,
+                ...(travelersDetails.rooms[index].children?.length > 0 && {
+                  childAges: travelersDetails.rooms[index].children
+                    .map(age => parseInt(age))
+                    .filter(age => !isNaN(age))
+                })
+              }
+            }));
 
-      const rateSelection = {
-        roomsAndRateAllocations: roomAllocations,
-        traceId: itineraryResponse.results[0].traceIdDetails?.id,
-        items: itineraryResponse.results[0].items,
-        itineraryCode: itineraryResponse.results[0].itinerary?.code,
-        recommendationId: recommendation.recommendationId,
-        inquiryToken: params.inquiryToken,
+            const rateSelection = {
+              roomsAndRateAllocations: roomAllocations,
+              traceId: itineraryResponse.results[0].traceIdDetails?.id,
+              items: itineraryResponse.results[0].items,
+              itineraryCode: itineraryResponse.results[0].itinerary?.code,
+              recommendationId: recommendation.recommendationId,
+              inquiryToken: params.inquiryToken,
+              cityName: params.cityName,
+              date: params.startDate
+            };
+
+            const response = await HotelRoomRatesService.selectRoomRates(
+              rateSelection,
+              params.authToken
+            );
+
+            if (response.success) {
+              return { 
+                success: true,
+                rateSelection,
+                roomRatesResponse: response 
+              };
+            }
+
+          } catch (error) {
+            lastError = error;
+            console.log(`Room rate attempt ${roomRateAttempts} failed:`, error.message);
+
+            if (roomRateAttempts >= MAX_ROOM_RATE_RETRIES) {
+              console.log('Max room rate retries reached, trying with a different hotel');
+              break;
+            }
+
+            // Add delay between retries
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          }
+        }
+      }
+
+      // If we get here, all room rate attempts failed for current hotel
+      hotelAttempts++;
+      
+      if (hotelAttempts >= MAX_HOTEL_ATTEMPTS) {
+        throw new Error('All hotel attempts exhausted');
+      }
+
+      // Try with a different hotel
+      console.log(`Trying with a different hotel. Attempt ${hotelAttempts + 1}/${MAX_HOTEL_ATTEMPTS}`);
+      
+      // Get a new hotel and create new itinerary
+      const newHotel = searchResponse.results[0].similarHotels[hotelAttempts];
+      if (!newHotel) {
+        throw new Error('No more hotels available to try');
+      }
+
+      const newItineraryParams = {
+        hotelId: newHotel.id,
+        traceId: searchResponse?.results?.[0]?.traceIdDetails?.id,
         cityName: params.cityName,
-        date: params.startDate
+        startDate: params.startDate
       };
 
-      const response = await HotelRoomRatesService.selectRoomRates(
-        rateSelection,
-        params.authToken
+      itineraryResponse = await HotelItineraryService.createItinerarySequential(
+        newItineraryParams,
+        params.authToken,
+        params.inquiryToken
       );
-
-      if (response.success) {
-        return { 
-          success: true,
-          rateSelection,
-          roomRatesResponse: response 
-        };
-      }
 
     } catch (error) {
       lastError = error;
-      console.log(`Attempt ${attempts} failed for recommendation ${recommendation.recommendationId}:`, error.message);
-
-      // If error isn't related to availability, break immediately
-      if (!error.details?.error?.errors?.some(e => 
-        e.includes("Not Available") || 
-        e.includes("Price Changed") || 
-        e.includes("Sold out"))) {
-        break;
-      }
-
-      // Add delay between retries
-      if (attempts < MAX_RETRIES && Date.now() - startTime < MAX_DURATION) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      if (hotelAttempts >= MAX_HOTEL_ATTEMPTS) {
+        throw {
+          message: "All hotel attempts failed",
+          attempts: hotelAttempts,
+          lastError
+        };
       }
     }
   }
 
-  // If we get here, all attempts failed
   throw {
     message: "All room rate selection attempts failed",
-    attempts,
-    duration: Date.now() - startTime,
+    attempts: hotelAttempts,
     lastError
   };
 }
@@ -362,6 +396,7 @@ module.exports = {
             contact: staticContent?.contact,
             descriptions: staticContent?.descriptions,
             images: staticContent?.images,
+            facilities: staticContent?.facilities,
           }],
           hotelDetails: {
             name: staticContent?.name,

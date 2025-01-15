@@ -18,6 +18,7 @@ const ContactUs = lazy(() => import("./pages/ContactUs/ContactUs"));
 const ItineraryPage = lazy(() => import("./pages/ItineraryPage/ItineraryPage"));
 const ActivitiesPage = lazy(() => import("./pages/ChangingPage/Activities"));
 const HotelsPage = lazy(() => import("./pages/ChangingPage/Hotels"));
+const FlightPage = lazy(() => import("./pages/ChangingPage/Flights"));
 const BookingForm = lazy(() => import("./pages/BookingForm/BookingForm"));
 const MarkupManagement = lazy(() =>
   import("./pages/MarkupManagement/MarkupManagement")
@@ -73,6 +74,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <HotelsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/Flights"
+          element={
+            <ProtectedRoute>
+              <FlightPage />
             </ProtectedRoute>
           }
         />

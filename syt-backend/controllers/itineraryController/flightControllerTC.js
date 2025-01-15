@@ -364,6 +364,7 @@ module.exports = {
       const formattedFlight = formatFlightResponse(
         {
           ...bookingResult.selectedFlight,
+          type: requestData.type,
           departureCity,
           arrivalCity: cities[0],
           origin_location: {

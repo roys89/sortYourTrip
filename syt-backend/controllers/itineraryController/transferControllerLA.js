@@ -1,5 +1,3 @@
-// controllers/itineraryController/transferControllerLA.js
-
 const TransferGetQuotesService = require('../../services/transferServices/transferGetQuoteSservice');
 const TransferQuoteDetailsService = require('../../services/transferServices/transferQuoteDetailsService');
 
@@ -91,9 +89,10 @@ exports.getGroundTransfer = async (transferData) => {
       const { data: quoteData } = quoteResponse.quotes;
       const quotes = quoteData.quotes;
 
-      // Find the first vehicle with capacity >= totalTravelers
+      // Find the vehicle with capacity exactly equal to totalTravelers + 1
+      const requiredCapacity = totalTravelers + 1;
       const suitableQuote = quotes.find(
-        (quote) => parseInt(quote.vehicle.capacity, 10) >= totalTravelers
+        (quote) => parseInt(quote.vehicle.capacity, 10) >= requiredCapacity
       );
 
       if (suitableQuote) {
@@ -127,7 +126,7 @@ exports.getGroundTransfer = async (transferData) => {
 
     return {
       type: "error",
-      message: "No suitable transfer found",
+      message: "No transfer vehicle with sufficient capacity found",
     };
   } catch (error) {
     console.error("Error in ground transfer processing:", error);

@@ -1,11 +1,19 @@
 import { ArrowRight, Clock, Plane, Timer } from 'lucide-react';
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { setChangeFlight, setSelectedFlight } from '../../redux/slices/flightSlice';
+import { useNavigate } from 'react-router-dom';
+import { setSelectedFlight } from '../../redux/slices/flightSlice';
 import './Card.css';
 
-const FlightCard = ({ flight }) => {
+const FlightCard = ({ 
+  flight, 
+  inquiryToken,
+  itineraryToken,
+  travelersDetails,
+  showChange = false 
+}) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const flightData = flight?.flightData;
 
   if (!flightData) {
@@ -14,6 +22,29 @@ const FlightCard = ({ flight }) => {
 
   const formatTime = (date, time) => {
     return time || 'Not available';
+  };
+
+  const handleViewDetails = () => {
+    dispatch(setSelectedFlight(flight));
+  };
+
+  const handleChangeFlight = () => {
+    const navigationState = {
+      type: flightData.type,
+      origin: flightData.originAirport,
+      destination: flightData.arrivalAirport,
+      departureDate: flightData.departureDate,
+      inquiryToken,
+      itineraryToken,
+      travelersDetails,
+      oldFlightCode: flightData.flightCode,
+      existingFlightPrice: flightData.fareDetails?.finalFare
+    };
+
+    // Add console log to show navigation state details
+    console.log('Navigating to /flights with state:', navigationState);
+
+    navigate('/flights', { state: navigationState });
   };
 
   return (
@@ -46,9 +77,6 @@ const FlightCard = ({ flight }) => {
                       <Timer size={16} className="text-blue-500" />
                       <span>{formatTime(segment.departureTime, new Date(segment.departureTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }))}</span>
                     </div>
-                    {index === 0 && (
-                      <span className="text-gray-300 text-sm">{flightData.originAirport?.code}</span>
-                    )}
                   </div>
 
                   {/* Flight Duration */}
@@ -62,7 +90,6 @@ const FlightCard = ({ flight }) => {
                       </div>
                       <ArrowRight size={16} className="text-blue-500 absolute right-0 top-1/2 transform -translate-y-1/2" />
                     </div>
-                    <span className="text-xs text-gray-300">Flight {segment.flightNumber}</span>
                   </div>
 
                   {/* Arrival */}
@@ -72,9 +99,6 @@ const FlightCard = ({ flight }) => {
                       <Timer size={16} className="text-blue-500" />
                       <span>{formatTime(segment.arrivalTime, new Date(segment.arrivalTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }))}</span>
                     </div>
-                    {index === flightData.segments.length - 1 && (
-                      <span className="text-gray-300 text-sm">{flightData.arrivalAirport?.code}</span>
-                    )}
                   </div>
                 </div>
 
@@ -83,7 +107,7 @@ const FlightCard = ({ flight }) => {
                   <div className="flex justify-center my-4">
                     <div className="flex items-center space-x-2 text-gray-300 bg-gray-800 bg-opacity-50 px-4 py-2 rounded-full">
                       <Clock size={16} className="text-blue-500" />
-                      <span className="text-sm">Layover at {flightData.segments[index + 1].origin}: {Math.floor(segment.groundTime / 60)}h {segment.groundTime % 60}m</span>
+                      <span className="text-sm">Layover: {Math.floor(segment.groundTime / 60)}h {segment.groundTime % 60}m</span>
                     </div>
                   </div>
                 )}
@@ -91,24 +115,22 @@ const FlightCard = ({ flight }) => {
             ))}
           </div>
 
-          {/* Right Column - Price and Buttons */}
+          {/* Action Buttons */}
           <div className="flex flex-col space-y-4 sm:w-auto w-full lg:min-w-[140px]">
-           
-            {/* Action Buttons */}
-            <div className="flex flex-col space-y-2">
+            <button 
+              onClick={handleViewDetails}
+              className="common-button-base common-button-view"
+            >
+              View Details
+            </button>
+            {showChange && (
               <button 
-                onClick={() => dispatch(setSelectedFlight(flight))}
-                className="common-button-base common-button-view"
-              >
-                View Details
-              </button>
-              <button 
-                onClick={() => dispatch(setChangeFlight(flight))}
+                onClick={handleChangeFlight}
                 className="common-button-base common-button-change"
               >
                 Change Flight
               </button>
-            </div>
+            )}
           </div>
         </div>
       </div>

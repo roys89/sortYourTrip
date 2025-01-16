@@ -20,6 +20,7 @@ const {
   removeActivity,
   updateActivityWithBookingRef,
   replaceRoom,
+  replaceFlight
 } = require("../../controllers/itineraryController/itineraryModificationController"); 
 
 const {
@@ -32,9 +33,8 @@ const {
 // Import new flight controller
 const {
   searchAvailableFlights,
-  // getFlightDetails,
-  // selectFlight,
-  replaceFlight,
+  getFareRules,
+  selectFlight
 } = require("../../controllers/itineraryController/flightChangeController");
 
 const {
@@ -68,6 +68,7 @@ router.put(
   updateActivityWithBookingRef
 );
 router.put("/:itineraryToken/room", checkInquiryToken, replaceRoom);
+router.put("/:itineraryToken/flight", checkInquiryToken, replaceFlight);
 
 // Flight Change Routes
 router.post(
@@ -76,18 +77,18 @@ router.post(
   searchAvailableFlights
 );
 
-// router.get(
-//   "/flights/:inquiryToken/:flightId/details",
-//   checkInquiryToken,
-//   getFlightDetails
-// );
+router.get(
+  "/flights/:inquiryToken/fare-rules",
+  checkInquiryToken,
+  getFareRules
+);
 
-// router.post(
-//   "/flights/:inquiryToken/:flightId/select",
-//   checkInquiryToken,
-//   selectFlight
-// );
-// router.put("/:itineraryToken/flight", checkInquiryToken, replaceFlight);
+
+router.post(
+  "/flights/:inquiryToken/:resultIndex/select",
+  checkInquiryToken,
+  selectFlight
+);
 
 // Hotel Change Routes
 router.get(

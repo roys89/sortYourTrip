@@ -1,239 +1,233 @@
 import {
   AttachMoney,
-  FilterList,
-  QueryBuilder,
-  SortByAlpha
+  QueryBuilder
 } from '@mui/icons-material';
 import {
+  Box,
   Button,
   Checkbox,
-  Drawer,
   FormControlLabel,
   FormGroup,
   Menu,
   MenuItem,
   Slider,
+  Stack,
+  Tab,
+  Tabs,
   Typography
 } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-const FlightFilterMenu = ({ 
-  priceRange, 
-  filters, 
-  setFilters, 
-  currentSort, 
-  setCurrentSort 
-}) => {
-  // State for drawer and menus
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sortAnchorEl, setSortAnchorEl] = useState(null);
+const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, priceRange }) => {
+  const [sliderValue, setSliderValue] = useState(filters.priceRange);
 
-  // Sorting options
-  const sortOptions = [
-    { 
-      value: 'priceAsc', 
-      label: 'Price: Low to High', 
-      icon: <AttachMoney /> 
-    },
-    { 
-      value: 'priceDesc', 
-      label: 'Price: High to Low', 
-      icon: <AttachMoney /> 
-    },
-    { 
-      value: 'durationAsc', 
-      label: 'Duration: Shortest First', 
-      icon: <QueryBuilder /> 
-    }
-  ];
-
-  // Handle price range change
-  const handlePriceChange = (event, newValue) => {
-    setFilters(prev => ({
-      ...prev,
-      priceRange: newValue
-    }));
+  // Handle slider change with local state
+  const handleSliderChange = (_, newValue) => {
+    setSliderValue(newValue);
   };
 
-  // Handle airline filter
-  const handleAirlineFilter = (airlineName) => {
-    setFilters(prev => {
-      const currentAirlines = prev.airlines;
-      const newAirlines = currentAirlines.includes(airlineName)
-        ? currentAirlines.filter(a => a !== airlineName)
-        : [...currentAirlines, airlineName];
-      
-      return {
-        ...prev,
-        airlines: newAirlines
-      };
-    });
+  // Only update parent state when sliding is complete
+  const handleSliderChangeCommitted = (_, newValue) => {
+    onFilter('priceRange', newValue);
   };
 
-  // Handle stops filter
-  const handleStopsFilter = (stops) => {
-    setFilters(prev => ({
-      ...prev,
-      stops: prev.stops === stops ? null : stops
-    }));
-  };
+  useEffect(() => {
+    setSliderValue(filters.priceRange);
+  }, [filters.priceRange]);
 
-  // Render price filter
-  const renderPriceFilter = () => (
-    <div className="p-4">
-      <Typography gutterBottom>Price Range</Typography>
-      <Slider
-        value={filters.priceRange}
-        onChange={handlePriceChange}
-        valueLabelDisplay="auto"
-        min={priceRange.min}
-        max={priceRange.max}
-        valueLabelFormat={(value) => `₹${value.toLocaleString()}`}
-      />
-      <div className="flex justify-between">
-        <Typography variant="body2">
-          Min: ₹{filters.priceRange[0].toLocaleString()}
-        </Typography>
-        <Typography variant="body2">
-          Max: ₹{filters.priceRange[1].toLocaleString()}
-        </Typography>
-      </div>
-    </div>
-  );
-
-  // Render airline filter
-  const renderAirlineFilter = () => (
-    <div className="p-4">
-      <Typography gutterBottom>Airlines</Typography>
-      <FormGroup>
+  if (type === 'sort') {
+    return (
+      <Box sx={{ p: 2, width: 280 }}>
+        <Typography variant="subtitle2" sx={{ mb: 2 }}>Sort Flights By</Typography>
         {[
-          { name: 'Air India', code: 'AI' },
-          { name: 'Indigo', code: '6E' },
-          { name: 'Emirates', code: 'EK' },
-          { name: 'Qatar Airways', code: 'QR' },
-          // Add more airlines as needed
-        ].map((airline) => (
-          <FormControlLabel
-            key={airline.code}
-            control={
-              <Checkbox
-                checked={filters.airlines.includes(airline.name)}
-                onChange={() => handleAirlineFilter(airline.name)}
-              />
-            }
-            label={airline.name}
-          />
-        ))}
-      </FormGroup>
-    </div>
-  );
-
-  // Render stops filter
-  const renderStopsFilter = () => (
-    <div className="p-4">
-      <Typography gutterBottom>Stops</Typography>
-      <div className="flex space-x-2">
-        {[0, 1, 2].map((stops) => (
-          <Button
-            key={stops}
-            variant={filters.stops === stops ? 'contained' : 'outlined'}
-            color="primary"
-            onClick={() => handleStopsFilter(stops)}
+          { 
+            value: 'priceAsc', 
+            label: 'Price: Low to High',
+            icon: <AttachMoney fontSize="small" />
+          },
+          { 
+            value: 'priceDesc', 
+            label: 'Price: High to Low',
+            icon: <AttachMoney fontSize="small" />
+          },
+          { 
+            value: 'durationAsc', 
+            label: 'Duration: Shortest First',
+            icon: <QueryBuilder fontSize="small" />
+          }
+        ].map(option => (
+          <MenuItem 
+            key={option.value}
+            onClick={() => onSort(option.value)}
+            selected={currentSort === option.value}
+            sx={{ height: 40 }}
           >
-            {stops === 0 ? 'Non-Stop' : `${stops} Stop${stops > 1 ? 's' : ''}`}
-          </Button>
+            {option.icon}
+            <span className="ml-2">{option.label}</span>
+          </MenuItem>
         ))}
-      </div>
-    </div>
-  );
-
-  // Render sort menu
-  const renderSortMenu = () => (
-    <Menu
-      anchorEl={sortAnchorEl}
-      open={Boolean(sortAnchorEl)}
-      onClose={() => setSortAnchorEl(null)}
-    >
-      {sortOptions.map((option) => (
-        <MenuItem
-          key={option.value}
-          onClick={() => {
-            setCurrentSort(option.value);
-            setSortAnchorEl(null);
-          }}
-          selected={currentSort === option.value}
-        >
-          {option.icon}
-          <span className="ml-2">{option.label}</span>
-        </MenuItem>
-      ))}
-    </Menu>
-  );
+      </Box>
+    );
+  }
 
   return (
-    <div className="flight-filter-container mb-4">
-      <div className="flex justify-between items-center">
-        {/* Filter Button */}
-        <Button
-          startIcon={<FilterList />}
-          variant="outlined"
-          onClick={() => setDrawerOpen(true)}
-        >
-          Filters
-        </Button>
+    <Box sx={{ p: 2, width: 280 }}>
+      <Stack spacing={3}>
+        {/* Airline Filter */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Airlines</Typography>
+          <FormGroup>
+            {[
+              { name: 'Air India', code: 'AI' },
+              { name: 'Indigo', code: '6E' },
+              { name: 'Emirates', code: 'EK' },
+              { name: 'Qatar Airways', code: 'QR' }
+            ].map((airline) => (
+              <FormControlLabel
+                key={airline.code}
+                control={
+                  <Checkbox
+                    checked={filters.airlines.includes(airline.name)}
+                    onChange={() => {
+                      const currentAirlines = filters.airlines;
+                      const newAirlines = currentAirlines.includes(airline.name)
+                        ? currentAirlines.filter(a => a !== airline.name)
+                        : [...currentAirlines, airline.name];
+                      
+                      onFilter('airlines', newAirlines);
+                    }}
+                  />
+                }
+                label={airline.name}
+              />
+            ))}
+          </FormGroup>
+        </Box>
 
-        {/* Sort Button */}
-        <Button
-          startIcon={<SortByAlpha />}
-          variant="outlined"
-          onClick={(e) => setSortAnchorEl(e.currentTarget)}
-        >
-          Sort
-        </Button>
+        {/* Stops Filter */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Stops</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            {[0, 1, 2].map((stops) => (
+              <Button
+                key={stops}
+                variant={filters.stops === stops ? 'contained' : 'outlined'}
+                color="primary"
+                size="small"
+                onClick={() => onFilter('stops', filters.stops === stops ? null : stops)}
+              >
+                {stops === 0 ? 'Non-Stop' : `${stops} Stop${stops > 1 ? 's' : ''}`}
+              </Button>
+            ))}
+          </Box>
+        </Box>
 
-        {renderSortMenu()}
-      </div>
-
-      {/* Filter Drawer */}
-      <Drawer
-        anchor="right"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-      >
-        <div className="w-80 p-4">
-          <Typography variant="h6" className="mb-4">
-            Filter Flights
+        {/* Price Range */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Price Range (₹{priceRange.min.toLocaleString()} - ₹{priceRange.max.toLocaleString()})
           </Typography>
+          <Slider
+            value={sliderValue}
+            onChange={handleSliderChange}
+            onChangeCommitted={handleSliderChangeCommitted}
+            min={priceRange.min}
+            max={priceRange.max}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(value) => `₹${value.toLocaleString()}`}
+            disableSwap
+          />
+        </Box>
 
-          {renderPriceFilter()}
-          {renderAirlineFilter()}
-          {renderStopsFilter()}
-
-          <div className="mt-4 flex justify-between">
-            <Button 
-              variant="outlined" 
-              onClick={() => {
-                setFilters({
-                  priceRange: [priceRange.min, priceRange.max],
-                  airlines: [],
-                  stops: null
-                });
-              }}
-            >
-              Reset Filters
-            </Button>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={() => setDrawerOpen(false)}
-            >
-              Apply
-            </Button>
-          </div>
-        </div>
-      </Drawer>
-    </div>
+        {/* Reset Button */}
+        <Button 
+          size="small" 
+          onClick={() => onFilter('reset')}
+          variant="outlined"
+          fullWidth
+        >
+          Reset Filters
+        </Button>
+      </Stack>
+    </Box>
   );
-};
+});
+
+const FlightFilterMenu = React.memo(({ 
+  onSort, 
+  onFilter, 
+  currentSort, 
+  filters, 
+  priceRange 
+}) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [currentTab, setCurrentTab] = useState('sort');
+
+  const handleClose = () => setAnchorEl(null);
+
+  const handleClickFilter = (event) => {
+    setAnchorEl(event.currentTarget);
+    setCurrentTab('filter');
+  };
+
+  const handleClickSort = (event) => {
+    setAnchorEl(event.currentTarget);
+    setCurrentTab('sort');
+  };
+
+  // Helper function to handle filter changes
+  const handleFilterChange = (type, value) => {
+    if (type === 'reset') {
+      // Reset to full range
+      onFilter({
+        priceRange: [priceRange.min, priceRange.max],
+        airlines: [],
+        stops: null
+      });
+      return;
+    }
+
+    // For specific filter types
+    onFilter(type, value);
+  };
+
+  return (
+    <Box>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
+        PaperProps={{
+          sx: { width: 280 }
+        }}
+      >
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}>
+          <Tabs 
+            value={currentTab} 
+            onChange={(_, tab) => setCurrentTab(tab)}
+            sx={{ minHeight: 48 }}
+          >
+            <Tab label="Filter" value="filter" />
+            <Tab label="Sort" value="sort" />
+          </Tabs>
+        </Box>
+        <MenuContent 
+          type={currentTab}
+          onSort={(value) => { 
+            onSort(value); 
+            handleClose(); 
+          }}
+          onFilter={(type, value) => { 
+            handleFilterChange(type, value); 
+            if (type === 'reset') handleClose(); 
+          }}
+          currentSort={currentSort}
+          filters={filters}
+          priceRange={priceRange}
+        />
+      </Menu>
+    </Box>
+  );
+});
 
 export default FlightFilterMenu;

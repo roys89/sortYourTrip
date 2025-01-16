@@ -3,6 +3,7 @@ const { getGroundTransfer } = require("./transferControllerLA");
 const apiLogger = require('../../helpers/apiLogger');
 const TransferLockManager = require('../../services/transferServices/transferLockManager');
 const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
+const FlightUtils = require('../../utils/flight/flightUtils');
 // Helper function to format address to single line
 function formatAddressToSingleLine(addressObj) {
   if (!addressObj) return null;
@@ -492,6 +493,119 @@ exports.replaceRoom = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error updating room',
+      error: error.message
+    });
+  }
+};
+
+
+exports.replaceFlight = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { 
+    cityName, 
+    date, 
+    newFlightDetails,
+    type // departure_flight, return_flight, inter_city_flight, etc.
+  } = req.body;
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    // Find the itinerary
+    const itinerary = await Itinerary.findOne({ 
+      itineraryToken,
+      inquiryToken 
+    });
+
+    if (!itinerary) {
+      return res.status(404).json({
+        success: false,
+        message: 'Itinerary not found'
+      });
+    }
+
+    // Find the specific city and day
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'City not found in itinerary'
+      });
+    }
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Day not found in itinerary'
+      });
+    }
+
+    // Prepare flight for storage
+    const flightToStore = {
+      type: type || 'departure_flight',
+      flightData: newFlightDetails
+    };
+
+    // Update the flight for the specific day
+    const currentDay = itinerary.cities[cityIndex].days[dayIndex];
+    
+    // If flights don't exist or we want to replace all flights
+    currentDay.flights = [flightToStore];
+
+    // Update related transfers
+    try {
+      const updatedTransfers = await TransferOrchestrationService.updateTransfersForChange({
+        itinerary,
+        changeType: 'FLIGHT_CHANGE',
+        changeDetails: {
+          cityName,
+          date,
+          newFlightDetails,
+          type: type || 'departure_flight'
+        },
+        inquiryToken
+      });
+
+      // Replace the transfers for the day 
+      currentDay.transfers = updatedTransfers;
+    } catch (transferError) {
+      console.error('Error updating transfers:', transferError);
+      return res.status(200).json({
+        success: true,
+        partialSuccess: true,
+        transferUpdateFailed: true,
+        message: 'Flight updated but transfers could not be updated automatically',
+        error: transferError.message
+      });
+    }
+
+    // Validate flight data 
+    try {
+      // You might want to create a more comprehensive validation method
+      if (!newFlightDetails.flightCode || !newFlightDetails.origin || !newFlightDetails.destination) {
+        console.warn('Incomplete flight data:', newFlightDetails);
+        // You can choose to throw an error or just log a warning
+      }
+    } catch (validationError) {
+      console.warn('Flight data validation warning:', validationError.message);
+    }
+
+    // Save the updated itinerary
+    const updatedItinerary = await itinerary.save();
+
+    res.json({
+      success: true,
+      message: 'Flight and related transfers updated successfully',
+      partialSuccess: false,
+      transferUpdateFailed: false,
+      itinerary: updatedItinerary
+    });
+
+  } catch (error) {
+    console.error('Error replacing flight:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating flight and transfers',
       error: error.message
     });
   }

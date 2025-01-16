@@ -1,43 +1,12 @@
+const FlightTokenManager = require('../../services/tokenManagers/flightTokenManager');
 const FlightAuthService = require('../../services/flightServices/flightAuthService');
 const FlightSearchService = require('../../services/flightServices/flightSearchService');
+const FlightFareRulesService = require('../../services/flightServices/flightFareRulesService');
+const FlightCreateItineraryService = require('../../services/flightServices/flightCreateItineraryService');
+const logger = require('../../utils/logger');
 const ItineraryInquiry = require('../../models/ItineraryInquiry');
-const Itinerary = require('../../models/Itinerary');
-const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
-
-// Helper function to get unique airlines
-function getUniqueAirlines(flights) {
-  const airlineMap = new Map();
-  
-  flights.forEach(flight => {
-    const airline = flight.sg[0].al.alN;
-    const count = airlineMap.get(airline) || 0;
-    airlineMap.set(airline, count + 1);
-  });
-
-  return Array.from(airlineMap, ([name, count]) => ({ name, count }));
-}
-
-// Helper function to get unique stops
-function getUniqueStops(flights) {
-  const stopsMap = new Map();
-  
-  flights.forEach(flight => {
-    const stops = flight.sg.length - 1;
-    const count = stopsMap.get(stops) || 0;
-    stopsMap.set(stops, count + 1);
-  });
-
-  return Array.from(stopsMap, ([stops, count]) => ({ 
-    stops, 
-    label: stops === 0 ? 'Direct' : `${stops} Stop${stops > 1 ? 's' : ''}`, 
-    count 
-  }));
-}
-
-// Helper function to calculate flight duration
-function calculateFlightDuration(flight) {
-  return flight.sg.reduce((total, segment) => total + (segment.dr || 0), 0);
-}
+const FlightUtils = require("../../utils/flight/flightUtils");
+const CityAirport = require('../../models/CityAirport');
 
 module.exports = {
   searchAvailableFlights: async (req, res) => {
@@ -46,13 +15,12 @@ module.exports = {
       origin, 
       destination, 
       departureDate,
-      type = 'flight',
+      type,
       oldFlightCode,
       existingFlightPrice,
       travelersDetails
     } = req.body;
     
-    // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
 
@@ -65,86 +33,76 @@ module.exports = {
         });
       }
 
-      // Find and validate inquiry
+      // Get inquiry details to ensure we have the latest context
       const inquiry = await ItineraryInquiry.findOne({ 
         itineraryInquiryToken: inquiryToken 
       });
 
       if (!inquiry) {
-        return res.status(404).json({ 
-          success: false,
-          message: "Itinerary inquiry not found" 
-        });
+        return res.status(404).json({ message: "Inquiry not found" });
       }
 
-      // Authenticate and get flight search token
-      const authResponse = await FlightAuthService.login(inquiryToken);
-      if (!authResponse.success) {
-        return res.status(401).json({
-          success: false,
-          message: "Flight authentication failed"
-        });
-      }
+      // Get auth token
+      const authToken = await FlightTokenManager.getOrSetToken(
+        inquiryToken,
+        async () => {
+          const authResponse = await FlightAuthService.login(inquiryToken);
+          return authResponse.token;
+        }
+      );
 
-      const token = authResponse.token;
-      
-      // Prepare search parameters
+      // Search flights - matching detailed city object structure
       const searchParams = {
         departureCity: {
-          city: origin.city,
-          iata: origin.code,
-          country: origin.country,
+          city: origin.city || inquiry.departureCity.city,
+          iata: origin.code || inquiry.departureCity.iata,
+          country: origin.country || inquiry.departureCity.country,
           location: {
-            latitude: origin.location?.latitude,
-            longitude: origin.location?.longitude
+            latitude: origin.location?.latitude || inquiry.departureCity.latitude,
+            longitude: origin.location?.longitude || inquiry.departureCity.longitude
           }
         },
         arrivalCity: {
-          city: destination.city,
-          iata: destination.code,
-          country: destination.country,
+          city: destination.city || inquiry.selectedCities[0].city,
+          iata: destination.code || inquiry.selectedCities[0].iata,
+          country: destination.country || inquiry.selectedCities[0].country,
           location: {
-            latitude: destination.location?.latitude,
-            longitude: destination.location?.longitude
+            latitude: destination.location?.latitude || inquiry.selectedCities[0].lat,
+            longitude: destination.location?.longitude || inquiry.selectedCities[0].long
           }
         },
         date: departureDate,
-        travelers: travelersDetails,
+        travelers: travelersDetails || inquiry.travelersDetails,
         inquiryToken,
         type,
-        token,
+        token: authToken,
         context: {
           oldFlightCode,
           existingFlightPrice: Number(existingFlightPrice)
         }
       };
 
-      // Search for flights
       const searchResponse = await FlightSearchService.searchFlights(searchParams);
 
       if (!searchResponse.success) {
-        return res.status(400).json({
-          success: false,
-          message: searchResponse.error || "Flight search failed"
-        });
+        throw new Error(searchResponse.error || "Flight search failed");
       }
 
-      // Filter flights by duration
+      // Filter valid duration flights
       const validDurationFlights = searchResponse.data.results.outboundFlights.filter((flight) => {
-        const totalDuration = calculateFlightDuration(flight);
+        const totalDuration = flight.sg.reduce((total, segment) => {
+          return total + (segment.aD || 0) + (segment.gT || 0);
+        }, 0);
         return totalDuration <= 24 * 60; // 24 hours in minutes
       });
 
-      // Sort and remove price outliers
+      // Sort and paginate
       const sortedFlights = [...validDurationFlights].sort((a, b) => a.pF - b.pF);
       const totalFlights = sortedFlights.length;
-
-      // Paginate flights
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
       const paginatedFlights = sortedFlights.slice(startIndex, endIndex);
 
-      // Prepare response with pagination
       res.json({
         success: true,
         data: {
@@ -161,170 +119,186 @@ module.exports = {
           context: {
             oldFlightCode,
             existingFlightPrice: Number(existingFlightPrice)
-          },
-          facets: {
-            airlines: getUniqueAirlines(paginatedFlights),
-            stops: getUniqueStops(paginatedFlights)
           }
         }
       });
 
     } catch (error) {
-      console.error('Flight Search Error:', error);
+      console.error("Error searching flights:", error);
       res.status(500).json({
-        success: false, 
-        message: "Unexpected error during flight search",
-        error: error.message
+        success: false,
+        message: error.message || "Failed to search flights"
       });
     }
   },
 
-  replaceFlight: async (req, res) => {
-    const { itineraryToken } = req.params;
-    const { cityName, date, newFlightDetails } = req.body;
-    const inquiryToken = req.headers['x-inquiry-token'];
+  getFareRules: async (req, res) => {
+    const { inquiryToken } = req.params;
+    const { traceId, resultIndex, cityName, date } = req.query;
 
     try {
-      const itinerary = await Itinerary.findOne({ 
-        itineraryToken,
-        inquiryToken 
+      const authToken = await FlightTokenManager.getOrSetToken(
+        inquiryToken,
+        async () => {
+          const authResponse = await FlightAuthService.login(inquiryToken);
+          return authResponse.token;
+        }
+      );
+
+      const rulesResponse = await FlightFareRulesService.getFareRules({
+        traceId,
+        resultIndex,
+        inquiryToken,
+        cityName,
+        date,
+        token: authToken
       });
-
-      if (!itinerary) {
-        return res.status(404).json({
-          success: false,
-          message: 'Itinerary not found'
-        });
-      }
-
-      const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
-      const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
-
-      if (cityIndex === -1 || dayIndex === -1) {
-        return res.status(404).json({
-          success: false,
-          message: 'City or day not found'
-        });
-      }
-
-      // Update the flight
-      itinerary.cities[cityIndex].days[dayIndex].flights = [{
-        flightData: newFlightDetails
-      }];
-
-      // Update related transfers
-      try {
-        const updatedTransfers = await TransferOrchestrationService.updateTransfersForChange({
-          itinerary,
-          changeType: 'FLIGHT_CHANGE',
-          changeDetails: {
-            cityName,
-            date,
-            newFlightDetails
-          },
-          inquiryToken
-        });
-
-        itinerary.cities[cityIndex].days[dayIndex].transfers = updatedTransfers;
-      } catch (transferError) {
-        console.error('Error updating transfers:', transferError);
-        return res.status(200).json({
-          success: true,
-          partialSuccess: true,
-          transferUpdateFailed: true,
-          message: 'Flight updated but transfers could not be updated automatically'
-        });
-      }
-
-      const updatedItinerary = await itinerary.save();
 
       res.json({
         success: true,
-        message: 'Flight and transfers updated successfully',
-        itinerary: updatedItinerary
+        data: rulesResponse.data
       });
 
     } catch (error) {
-      console.error('Error replacing flight:', error);
+      console.error('Error fetching fare rules:', error);
       res.status(500).json({
         success: false,
-        message: error.message
+        message: error.message || "Failed to get fare rules"
       });
     }
-  }
-};
+  },
 
+  selectFlight: async (req, res) => {
+    const { inquiryToken, resultIndex } = req.params;
+    const { traceId, cityName, date, type } = req.body;
 
-module.exports.replaceFlight = async (req, res) => {
-  const { itineraryToken } = req.params;
-  const { cityName, date, newFlightDetails } = req.body;
-  const inquiryToken = req.headers['x-inquiry-token'];
+    logger.info('selectFlight called with params: ' + 
+      `inquiryToken=${inquiryToken}, ` +
+      `resultIndex=${resultIndex}, ` +
+      `traceId=${traceId}, ` +
+      `cityName=${cityName}, ` +
+      `date=${date}, ` +
+      `type=${type}`
+    );
 
-  try {
-    const itinerary = await Itinerary.findOne({ 
-      itineraryToken,
-      inquiryToken 
-    });
-
-    if (!itinerary) {
-      return res.status(404).json({
-        success: false,
-        message: 'Itinerary not found'
-      });
-    }
-
-    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
-    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
-
-    if (cityIndex === -1 || dayIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'City or day not found'
-      });
-    }
-
-    // Update the flight
-    itinerary.cities[cityIndex].days[dayIndex].flights = [{
-      flightData: newFlightDetails
-    }];
-
-    // Update related transfers
     try {
-      const updatedTransfers = await TransferOrchestrationService.updateTransfersForChange({
-        itinerary,
-        changeType: 'FLIGHT_CHANGE',
-        changeDetails: {
-          cityName,
-          date,
-          newFlightDetails
-        },
-        inquiryToken
+      // Get inquiry details
+      const inquiry = await ItineraryInquiry.findOne({ 
+        itineraryInquiryToken: inquiryToken 
       });
 
-      itinerary.cities[cityIndex].days[dayIndex].transfers = updatedTransfers;
-    } catch (transferError) {
-      console.error('Error updating transfers:', transferError);
-      return res.status(200).json({
+      if (!inquiry) {
+        logger.info('Inquiry not found for token: ' + inquiryToken);
+        return res.status(404).json({ 
+          success: false,
+          message: "Inquiry not found" 
+        });
+      }
+
+      // Get auth token
+      const authToken = await FlightTokenManager.getOrSetToken(
+        inquiryToken,
+        async () => {
+          const authResponse = await FlightAuthService.login(inquiryToken);
+          return authResponse.token;
+        }
+      );
+
+      // Create itinerary
+      const itineraryResponse = await FlightCreateItineraryService.createItinerary({
+        traceId,
+        resultIndex,
+        inquiryToken,
+        cityName,
+        date,
+        token: authToken
+      });
+      
+      logger.info('Itinerary Response: ' + JSON.stringify(itineraryResponse, null, 2));
+
+      if (!itineraryResponse.success || !itineraryResponse.data || !itineraryResponse.data.results) {
+        logger.info('Failed to create flight itinerary: ' + 
+          (itineraryResponse.error || 'Unknown error')
+        );
+        return res.status(400).json({
+          success: false,
+          error: itineraryResponse.error || 'Failed to create flight itinerary',
+          details: itineraryResponse.details || itineraryResponse
+        });
+      }
+
+      // Format the flight data using FlightUtils
+      const formattedFlight = FlightUtils.formatFlightResponse(itineraryResponse.data);
+
+      if (!formattedFlight) {
+        throw new Error('Failed to format flight data');
+      }
+
+      // Find origin and destination locations
+      const originLocation = await CityAirport.findOne({ 
+        iata: formattedFlight.originAirport.code 
+      }) || inquiry.selectedCities.find(
+        city => city.iata === formattedFlight.originAirport.code
+      ) || inquiry.departureCity;
+
+      const destinationLocation = await CityAirport.findOne({ 
+        iata: formattedFlight.arrivalAirport.code 
+      }) || inquiry.selectedCities.find(
+        city => city.iata === formattedFlight.arrivalAirport.code
+      );
+
+      // Validate location data
+      if (!originLocation) {
+        logger.error(`Could not find origin location for flight type: ${type}`);
+        throw new Error(`Could not find origin location for flight type: ${type}`);
+      }
+
+      if (!destinationLocation) {
+        logger.error(`Could not find destination location for flight type: ${type}`);
+        throw new Error(`Could not find destination location for flight type: ${type}`);
+      }
+
+      // Enhance with detailed location data
+      const enhancedFlight = {
+        ...formattedFlight,
+        type,
+        originAirport: {
+          ...formattedFlight.originAirport,
+          country: originLocation.country || '',
+          location: {
+            latitude: parseFloat(originLocation.latitude || originLocation.lat || 0),
+            longitude: parseFloat(originLocation.longitude || originLocation.long || 0)
+          }
+        },
+        arrivalAirport: {
+          ...formattedFlight.arrivalAirport,
+          country: destinationLocation.country || '',
+          location: {
+            latitude: parseFloat(destinationLocation.latitude || destinationLocation.lat || 0),
+            longitude: parseFloat(destinationLocation.longitude || destinationLocation.long || 0)
+          }
+        }
+      };
+
+      return res.json({
         success: true,
-        partialSuccess: true,
-        transferUpdateFailed: true,
-        message: 'Flight updated but transfers could not be updated automatically'
+        data: enhancedFlight
+      });
+
+    } catch (error) {
+      logger.error('Error selecting flight: ' + error.message);
+      logger.error('Error Details: ' + JSON.stringify({
+        message: error.message,
+        stack: error.stack,
+        inquiryToken,
+        resultIndex
+      }, null, 2));
+
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to select flight',
+        details: error.message
       });
     }
-
-    const updatedItinerary = await itinerary.save();
-
-    res.json({
-      success: true,
-      message: 'Flight and transfers updated successfully',
-      itinerary: updatedItinerary
-    });
-
-  } catch (error) {
-    console.error('Error replacing flight:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
   }
 };

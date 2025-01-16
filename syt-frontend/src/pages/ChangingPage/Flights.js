@@ -1,11 +1,16 @@
+import ViewListIcon from '@mui/icons-material/ViewList';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import {
   Alert,
+  Box,
   Button,
   Card,
   Container,
   Stack,
   Typography
 } from "@mui/material";
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { ArrowLeft } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
@@ -19,7 +24,8 @@ import FlightFilterMenu from "./FlightFilterMenu";
 const FlightCard = React.memo(({ 
   flight, 
   onViewFlight, 
-  existingPrice 
+  existingPrice,
+  viewMode 
 }) => {
   const segment = flight.sg[0]; // First segment
   
@@ -43,8 +49,9 @@ const FlightCard = React.memo(({
   };
 
   return (
-    <Card className="flight-card w-full hover:shadow-lg transition-shadow duration-300">
-      <div className="p-4 flex flex-col md:flex-row justify-between items-start gap-4">
+    <Card className={`flight-card w-full hover:shadow-lg transition-shadow duration-300 
+      ${viewMode === 'grid' ? 'flight-card-grid' : ''}`}>
+      <div className={`p-4 flex ${viewMode === 'grid' ? 'flex-col' : 'flex-col md:flex-row'} justify-between items-start gap-4`}>
         {/* Airline Info */}
         <div className="flex-shrink-0">
           <h3 className="text-lg font-semibold">{segment.al.alN}</h3>
@@ -124,6 +131,9 @@ const FlightsPage = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalFlights, setTotalFlights] = useState(0);
+
+  // View Mode State
+  const [viewMode, setViewMode] = useState('list');
 
   // Filters and Sorting
   const [filters, setFilters] = useState({
@@ -327,49 +337,74 @@ const FlightsPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" className="flights-page">
+    <Container maxWidth="xl" className="flights-page mt-16">
       {/* Header */}
-      <Stack spacing={2} className="mb-6">
-        <Button
-          variant="outlined"
-          startIcon={<ArrowLeft className="w-4 h-4" />}
-          onClick={handleBackToItinerary}
-          className="w-fit"
+      <Box className="activity-header">
+        <Stack 
+          direction="row" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          sx={{ mb: 3 }}
         >
-          Back to Itinerary
-        </Button>
+          <div>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Flights from {origin.city} to {destination.city}
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              {new Date(departureDate).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Typography>
+          </div>
 
-        <Typography variant="h4" component="h1">
-          Flights from {origin.city} to {destination.city}
-        </Typography>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Button
+              startIcon={<ArrowLeft className="w-4 h-4" />}
+              onClick={handleBackToItinerary}
+              variant="outlined"
+            >
+              Back to Itinerary
+            </Button>
 
-        <Typography variant="body2" color="text.secondary">
-          {new Date(departureDate).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
-        </Typography>
-      </Stack>
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, newValue) => newValue && setViewMode(newValue)}
+                size="small"
+              >
+                <ToggleButton value="list">
+                  <ViewListIcon />
+                </ToggleButton>
+                <ToggleButton value="grid">
+                  <ViewModuleIcon />
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
 
-      {/* Filter and Sorting */}
-      <FlightFilterMenu
-        priceRange={priceRange}
-        filters={filters}
-        setFilters={setFilters}
-        currentSort={currentSort}
-        setCurrentSort={setCurrentSort}
-      />
+            <FlightFilterMenu
+              priceRange={priceRange}
+              filters={filters}
+              setFilters={setFilters}
+              currentSort={currentSort}
+              setCurrentSort={setCurrentSort}
+            />
+          </Stack>
+        </Stack>
+      </Box>
 
       {/* Flights Grid */}
-      <div className="flights-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div className={`flights-grid grid ${viewMode === 'grid' ? 'md:grid-cols-2' : 'grid-cols-1'} gap-4 mb-6`}>
         {displayedFlights.map((flight) => (
           <FlightCard
             key={flight.rI}
             flight={flight}
             onViewFlight={handleViewFlight}
             existingPrice={existingFlightPrice}
+            viewMode={viewMode}
           />
         ))}
       </div>
@@ -397,14 +432,19 @@ const FlightsPage = () => {
 
       {/* Flight Detail Modal */}
       {selectedFlight && (
-        <FlightDetailModal
-          flight={selectedFlight}
-          onClose={() => setSelectedFlight(null)}
-          itineraryToken={itineraryToken}
-          inquiryToken={inquiryToken}
-          existingPrice={existingFlightPrice}
-        />
-      )}
+  <FlightDetailModal
+    flight={selectedFlight}
+    onClose={() => setSelectedFlight(null)}
+    itineraryToken={itineraryToken}
+    inquiryToken={inquiryToken}
+    existingPrice={existingFlightPrice}
+    type={type}                           // Add this
+    originCityName={origin.city}          // Add this
+    destinationCityName={destination.city} // Add this
+    date={departureDate}
+    traceId={traceId}
+  />
+)}
     </Container>
   );
 };

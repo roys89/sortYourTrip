@@ -1,28 +1,15 @@
-// controllers/itineraryController/flightController.js
+// controllers/flightControllerTC.js
 
 const FlightAuthService = require("../../services/flightServices/flightAuthService");
 const FlightSearchService = require("../../services/flightServices/flightSearchService");
 const FlightFareRulesService = require("../../services/flightServices/flightFareRulesService");
 const FlightCreateItineraryService = require("../../services/flightServices/flightCreateItineraryService");
-
-/**
- * Helper function to calculate total flight duration in minutes
- */
-function calculateTotalDuration(flight) {
-  return flight.sg.reduce((total, segment) => {
-    return total + (segment.aD || 0) + (segment.gT || 0); // Include both air duration and ground time
-  }, 0);
-}
+const FlightUtils = require("../../utils/flight/flightUtils");
 
 /**
  * Helper function to attempt booking a specific flight with retries
  */
-async function tryFlightBooking(
-  flights,
-  searchResponse,
-  params,
-  currentIndex = 0
-) {
+async function tryFlightBooking(flights, searchResponse, params, currentIndex = 0) {
   if (currentIndex >= flights.length) {
     return {
       success: false,
@@ -45,19 +32,17 @@ async function tryFlightBooking(
     });
 
     // Create itinerary
-    const itineraryResponse =
-      await FlightCreateItineraryService.createItinerary({
-        traceId: searchResponse.data.traceId,
-        resultIndex: selectedFlight.rI,
-        inquiryToken: params.inquiryToken,
-        cityName: params.cityName,
-        date: params.date,
-        token: params.token,
-      });
+    const itineraryResponse = await FlightCreateItineraryService.createItinerary({
+      traceId: searchResponse.data.traceId,
+      resultIndex: selectedFlight.rI,
+      inquiryToken: params.inquiryToken,
+      cityName: params.cityName,
+      date: params.date,
+      token: params.token,
+    });
 
     if (!itineraryResponse.success) {
-      // Check both possible error structures
-      const errorCode =
+      const errorCode = 
         itineraryResponse.details?.error?.errorCode ||
         itineraryResponse.details?.details?.error?.errorCode;
       const errorMessage =
@@ -66,16 +51,9 @@ async function tryFlightBooking(
 
       if (errorCode == 1000 || errorCode == 50) {
         console.log(
-          `Flight ${
-            currentIndex + 1
-          } not available (Error ${errorCode}): ${errorMessage}, trying next flight...`
+          `Flight ${currentIndex + 1} not available (Error ${errorCode}): ${errorMessage}, trying next flight...`
         );
-        return tryFlightBooking(
-          flights,
-          searchResponse,
-          params,
-          currentIndex + 1
-        );
+        return tryFlightBooking(flights, searchResponse, params, currentIndex + 1);
       }
 
       return {
@@ -102,12 +80,7 @@ async function tryFlightBooking(
       console.log(
         `Flight ${currentIndex + 1} not available, trying next flight...`
       );
-      return tryFlightBooking(
-        flights,
-        searchResponse,
-        params,
-        currentIndex + 1
-      );
+      return tryFlightBooking(flights, searchResponse, params, currentIndex + 1);
     }
 
     throw error;
@@ -128,147 +101,6 @@ function getPreferredIndex(length, preference) {
   }
 }
 
-/**
- * Format flight response for consistency
- */
-function formatFlightResponse(flight, itineraryData, fareRulesData) {
-  if (!flight?.sg?.length) return null;
-
-  const firstSegment = flight.sg[0];
-  const lastSegment = flight.sg[flight.sg.length - 1];
-
-  // Calculate total duration and landing time
-  const totalDuration = flight.sg.reduce((total, segment) => {
-    return total + (segment.aD || 0);
-  }, 0);
-
-  const departureTime = new Date(firstSegment.or.dT);
-  const landingTime = new Date(departureTime);
-  landingTime.setMinutes(landingTime.getMinutes() + totalDuration);
-
-  // Get airport metadata
-  const airportMetaData = itineraryData.airportMetaData || [];
-  const originAirportData = airportMetaData.find(
-    (am) => am.airportCode === firstSegment.or.aC
-  );
-  const destinationAirportData = airportMetaData.find(
-    (am) => am.airportCode === lastSegment.ds.aC
-  );
-
-  return {
-    // Flight identification
-    type: flight.type || "flight",
-    transportationType: "flight",
-    flightProvider: lastSegment.al.alN,
-    flightCode: `${lastSegment.al.alC}${lastSegment.al.fN}`,
-
-    // Route information
-    origin: firstSegment.or.cN,
-    destination: lastSegment.ds.cN,
-
-    // Origin airport details
-    originAirport: {
-      name: firstSegment.or.aN,
-      code: firstSegment.or.aC,
-      city: firstSegment.or.cN,
-      country: firstSegment.or.cnN,
-      location: {
-        latitude: parseFloat(
-          originAirportData?.latitude ||
-            firstSegment.or?.location?.latitude ||
-            flight.departureCity?.latitude ||
-            flight.departureCity?.lat ||
-            0
-        ),
-        longitude: parseFloat(
-          originAirportData?.longitude ||
-            firstSegment.or?.location?.longitude ||
-            flight.departureCity?.longitude ||
-            flight.departureCity?.long ||
-            0
-        ),
-      },
-    },
-
-    // Destination airport details
-    arrivalAirport: {
-      name: lastSegment.ds.aN,
-      code: lastSegment.ds.aC,
-      city: lastSegment.ds.cN,
-      country: lastSegment.ds.cnN,
-      location: {
-        latitude: parseFloat(
-          destinationAirportData?.latitude ||
-            lastSegment.ds?.location?.latitude ||
-            flight.arrivalCity?.latitude ||
-            flight.arrivalCity?.lat ||
-            0
-        ),
-        longitude: parseFloat(
-          destinationAirportData?.longitude ||
-            lastSegment.ds?.location?.longitude ||
-            flight.arrivalCity?.longitude ||
-            flight.arrivalCity?.long ||
-            0
-        ),
-      },
-    },
-
-    // Time details
-    departureDate: firstSegment.or.dT.split("T")[0],
-    departureTime: new Date(firstSegment.or.dT).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    landingTime: landingTime.toISOString(),
-    arrivalTime: new Date(lastSegment.ds.aT).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-
-    // Flight details
-    airline: lastSegment.al.alN,
-    flightDuration: `${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m`,
-    price: flight.pF,
-
-    // Fare information
-    fareDetails: {
-      baseFare: flight.bF,
-      taxAndSurcharge: flight.tAS,
-      serviceFee: flight.sF,
-      finalFare: flight.fF,
-    },
-
-    // Additional properties
-    isRefundable: !flight.iR,
-    isLowCost: flight.iL,
-
-    // Segment details
-    segments: flight.sg.map((segment) => ({
-      baggage: segment.bg,
-      cabinBaggage: segment.cBg,
-      flightNumber: `${segment.al.alC}${segment.al.fN}`,
-      origin: segment.or.cN,
-      destination: segment.ds.cN,
-      departureTime: segment.or.dT,
-      arrivalTime: segment.ds.aT,
-      duration: segment.dr,
-      groundTime: segment.gT,
-    })),
-
-    // Rules and booking information
-    fareRules: fareRulesData.results?.[0]?.fareRuleDetail,
-    itineraryDetails: {
-      itineraryCode: itineraryData.itineraryCode,
-      pnrDetails: itineraryData.pnrDetails,
-      bookingStatus: itineraryData.bookingStatus,
-    },
-  };
-}
-
-/**
- * Main controller function to get flights with retry logic
- */
 module.exports = {
   getFlights: async (requestData) => {
     try {
@@ -317,7 +149,7 @@ module.exports = {
 
       // Filter out flights that exceed 24 hours
       const validDurationFlights = flights.filter((flight) => {
-        const totalDuration = calculateTotalDuration(flight);
+        const totalDuration = FlightUtils.calculateTotalDuration(flight);
         return totalDuration <= 24 * 60; // 24 hours in minutes
       });
 
@@ -360,41 +192,48 @@ module.exports = {
         throw new Error(bookingResult.error);
       }
 
-      // Format and return the successful booking
-      const formattedFlight = formatFlightResponse(
-        {
-          ...bookingResult.selectedFlight,
-          type: requestData.type,
-          departureCity,
-          arrivalCity: cities[0],
-          origin_location: {
-            latitude: departureCity.latitude || departureCity.lat,
-            longitude: departureCity.longitude || departureCity.long,
-          },
-          destination_location: {
-            latitude: cities[0].latitude || cities[0].lat,
-            longitude: cities[0].longitude || cities[0].long,
-          },
-        },
-        bookingResult.itinerary,
-        bookingResult.fareRules
-      );
+      // First format the flight data from itinerary
+      const formattedFlight = FlightUtils.formatFlightResponse(bookingResult.itinerary);
+      
+      if (!formattedFlight) {
+        throw new Error('Failed to format flight data');
+      }
 
-      return [formattedFlight];
+      // Then enhance with location data
+      const enhancedFlight = {
+        ...formattedFlight,
+        type: requestData.type,
+        originAirport: {
+          ...formattedFlight.originAirport,
+          name: departureCity.name || departureCity.city,
+          code: departureCity.code,
+          city: departureCity.city,
+          country: departureCity.country,
+          location: {
+            latitude: parseFloat(departureCity.latitude || departureCity.lat || 0),
+            longitude: parseFloat(departureCity.longitude || departureCity.long || 0)
+          }
+        },
+        arrivalAirport: {
+          ...formattedFlight.arrivalAirport,
+          name: cities[0].name || cities[0].city,
+          code: cities[0].code,
+          city: cities[0].city,
+          country: cities[0].country,
+          location: {
+            latitude: parseFloat(cities[0].latitude || cities[0].lat || 0),
+            longitude: parseFloat(cities[0].longitude || cities[0].long || 0)
+          }
+        }
+      };
+
+      return [enhancedFlight];
     } catch (error) {
       console.error("Error in getFlights:", {
         message: error.message,
         details: error.errorDetails || error.response?.data || {},
         stack: error.stack,
       });
-
-      if (error.errorDetails) {
-        return {
-          success: false,
-          error: error.message,
-          details: error.errorDetails,
-        };
-      }
 
       return {
         success: false,
@@ -403,4 +242,60 @@ module.exports = {
       };
     }
   },
+
+  createFlightItinerary: async (requestData) => {
+    try {
+      const response = await FlightCreateItineraryService.createItinerary(requestData);
+      
+      if (!response.success) {
+        return {
+          success: false,
+          error: response.error || 'Failed to create flight itinerary',
+          details: response.details
+        };
+      }
+
+      // Format the itinerary data using the utility
+      const formattedFlight = FlightUtils.formatFlightResponse(response.data);
+      
+      if (!formattedFlight) {
+        throw new Error('Failed to format flight data');
+      }
+
+      // Then enhance with location data
+      const enhancedFlight = {
+        ...formattedFlight,
+        type: requestData.type,
+        originAirport: {
+          ...formattedFlight.originAirport,
+          country: requestData.departureCity.country,
+          location: {
+            latitude: parseFloat(requestData.departureCity.latitude || 0),
+            longitude: parseFloat(requestData.departureCity.longitude || 0)
+          }
+        },
+        arrivalAirport: {
+          ...formattedFlight.arrivalAirport,
+          country: requestData.cities[0].country,
+          location: {
+            latitude: parseFloat(requestData.cities[0].latitude || 0),
+            longitude: parseFloat(requestData.cities[0].longitude || 0)
+          }
+        }
+      };
+
+      return {
+        success: true,
+        data: enhancedFlight
+      };
+
+    } catch (error) {
+      console.error('Error in createFlightItinerary:', error);
+      return {
+        success: false,
+        error: 'Failed to process flight itinerary',
+        details: error.message
+      };
+    }
+  }
 };

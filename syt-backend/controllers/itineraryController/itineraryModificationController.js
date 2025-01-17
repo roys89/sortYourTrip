@@ -1,9 +1,10 @@
 const Itinerary = require('../../models/Itinerary');
-const { getGroundTransfer } = require("./transferControllerLA");
+const { getGroundTransfer } = require("../transferController/transferControllerLA");
 const apiLogger = require('../../helpers/apiLogger');
 const TransferLockManager = require('../../services/transferServices/transferLockManager');
 const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
 const FlightUtils = require('../../utils/flight/flightUtils');
+
 // Helper function to format address to single line
 function formatAddressToSingleLine(addressObj) {
   if (!addressObj) return null;

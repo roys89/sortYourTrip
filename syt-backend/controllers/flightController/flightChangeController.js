@@ -23,25 +23,24 @@ module.exports = {
     
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-
+  
     try {
-      // Validate required parameters
       if (!inquiryToken || !origin || !destination || !departureDate) {
         return res.status(400).json({ 
           success: false,
           message: "Missing required flight search parameters" 
         });
       }
-
-      // Get inquiry details to ensure we have the latest context
+  
+      // Get inquiry details
       const inquiry = await ItineraryInquiry.findOne({ 
         itineraryInquiryToken: inquiryToken 
       });
-
+  
       if (!inquiry) {
         return res.status(404).json({ message: "Inquiry not found" });
       }
-
+  
       // Get auth token
       const authToken = await FlightTokenManager.getOrSetToken(
         inquiryToken,
@@ -50,8 +49,8 @@ module.exports = {
           return authResponse.token;
         }
       );
-
-      // Search flights - matching detailed city object structure
+  
+      // Search parameters
       const searchParams = {
         departureCity: {
           city: origin.city || inquiry.departureCity.city,
@@ -81,28 +80,22 @@ module.exports = {
           existingFlightPrice: Number(existingFlightPrice)
         }
       };
-
+  
       const searchResponse = await FlightSearchService.searchFlights(searchParams);
-
+  
       if (!searchResponse.success) {
         throw new Error(searchResponse.error || "Flight search failed");
       }
-
-      // Filter valid duration flights
-      const validDurationFlights = searchResponse.data.results.outboundFlights.filter((flight) => {
-        const totalDuration = flight.sg.reduce((total, segment) => {
-          return total + (segment.aD || 0) + (segment.gT || 0);
-        }, 0);
-        return totalDuration <= 24 * 60; // 24 hours in minutes
-      });
-
-      // Sort and paginate
-      const sortedFlights = [...validDurationFlights].sort((a, b) => a.pF - b.pF);
-      const totalFlights = sortedFlights.length;
+  
+      // Get all flights for the current page
+      const allFlights = searchResponse.data.results.outboundFlights;
+      const totalFlights = allFlights.length;
+      
+      // Calculate pagination
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
-      const paginatedFlights = sortedFlights.slice(startIndex, endIndex);
-
+      const paginatedFlights = allFlights.slice(startIndex, endIndex);
+  
       res.json({
         success: true,
         data: {
@@ -122,7 +115,7 @@ module.exports = {
           }
         }
       });
-
+  
     } catch (error) {
       console.error("Error searching flights:", error);
       res.status(500).json({

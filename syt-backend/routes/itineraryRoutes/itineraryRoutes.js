@@ -5,7 +5,7 @@ const router = express.Router();
 const {
   getTransferOptions,
   updateTransfersForChange,
-} = require("../../controllers/itineraryController/transferChangeController");
+} = require("../../controllers/transferController/transferChangeController");
 
 const {
   createItinerary,
@@ -28,20 +28,20 @@ const {
   getHotelDetails,
   selectHotelRoom,
   getHotelRooms,
-} = require("../../controllers/itineraryController/hotelChangeController");
+} = require("../../controllers/hotelController/hotelChangeController");
 
 // Import new flight controller
 const {
   searchAvailableFlights,
   getFareRules,
   selectFlight
-} = require("../../controllers/itineraryController/flightChangeController");
+} = require("../../controllers/flightController/flightChangeController");
 
 const {
   getActivityDetails,
   getAvailableActivities,
   createActivityBookingReference,
-} = require("../../controllers/itineraryController/activityControllerGRNC");
+} = require("../../controllers/activityController/activityControllerGRNC");
 
 // Middleware
 const checkInquiryToken = (req, res, next) => {

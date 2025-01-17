@@ -1,7 +1,7 @@
 // services/transferServices/transferOrchestrationService.js
 
-const { getGroundTransfer } = require('../../controllers/itineraryController/transferControllerLA');
-const { getFlights } = require('../../controllers/itineraryController/flightControllerTC');
+const { getGroundTransfer } = require('../../controllers/transferController/transferControllerLA');
+const { getFlights } = require('../../controllers/flightController/flightControllerTC');
 const apiLogger = require('../../helpers/apiLogger');
 
 class TransferOrchestrationService {

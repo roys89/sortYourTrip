@@ -1,456 +1,340 @@
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Button,
-  Divider,
-  Grid,
-  Paper,
-  Typography,
-  useTheme,
-} from "@mui/material";
-import {
   Activity,
   Car,
   ChevronDown,
   Hotel,
-  MapPin,
   Plane,
-  Receipt,
-  Train
-} from "lucide-react";
-import React, { useState } from "react";
+  Receipt
+} from 'lucide-react';
+import React, { useState } from 'react';
 
 const BookingSummary = ({ itinerary }) => {
-  const theme = useTheme();
-  const [expanded, setExpanded] = useState("activities");
+  const [expanded, setExpanded] = useState('activities');
   const [visibleActivities, setVisibleActivities] = useState(2);
   const [visibleFlights, setVisibleFlights] = useState(2);
   const [visibleTransfers, setVisibleTransfers] = useState(2);
   const [visibleHotels, setVisibleHotels] = useState(2);
 
-  const handleChange = (panel) => (event, newExpanded) => {
-    setExpanded(newExpanded ? panel : false);
+  // Safe number formatting helper
+  const formatNumber = (value) => {
+    if (value === undefined || value === null) return '0';
+    return value.toLocaleString('en-IN') || '0';
   };
 
-  const styles = {
-    sectionTitle: {
-      color: theme.palette.primary.main,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-      mb: 3
-    },
-    accordionStyles: {
-      mb: 3,
-      "&.MuiAccordion-root": {
-        borderRadius: 2,
-        backgroundColor: theme.palette.mode === 'light'
-          ? 'rgba(255, 255, 255, 0.4)'
-          : 'rgba(66, 66, 66, 0.4)',
-        "&:before": {
-          display: "none",
-        },
-      },
-      "&.Mui-expanded": {
-        margin: "0 0 24px 0",
-      },
-      "& .MuiAccordionSummary-root": {
-        borderRadius: 2,
-        "&:hover": {
-          backgroundColor: theme.palette.mode === 'light'
-            ? 'rgba(255, 255, 255, 0.6)'
-            : 'rgba(66, 66, 66, 0.6)',
-        },
-      },
-      "& .MuiAccordionDetails-root": {
-        borderRadius: "0 0 16px 16px",
-      },
-    },
-    paperStyles: {
-      p: 2,
-      display: "flex",
-      alignItems: "center",
-      gap: 2,
-      backgroundColor: theme.palette.mode === 'light'
-        ? 'rgba(255, 255, 255, 0.4)'
-        : 'rgba(66, 66, 66, 0.4)',
-       
-      borderRadius: 2,
-      "&:hover": {
-        backgroundColor: theme.palette.mode === 'light'
-          ? 'rgba(255, 255, 255, 0.6)'
-          : 'rgba(66, 66, 66, 0.6)',
-      },
-    },
-    buttonStyles: {
-      color: theme.palette.primary.main,
-      "&:hover": {
-        backgroundColor: theme.palette.action.hover,
-      },
-    },
-    priceSummary: {
-      p: 2,
-      backgroundColor: theme.palette.mode === 'light'
-        ? 'rgba(255, 255, 255, 0.4)'
-        : 'rgba(66, 66, 66, 0.4)',
-       
-      borderRadius: 2,
-    },
-  };
-
-  const renderActivitiesSummary = () => {
-    const allActivities = itinerary.cities.flatMap((city) =>
-      city.days.flatMap((day) =>
+  // Safely get all activities across all cities
+  const getAllActivities = () => {
+    return itinerary?.cities?.flatMap(city =>
+      city.days?.flatMap(day =>
         (day.activities || [])
-          .filter((a) => a.activityType === "online")
-          .map((activity) => ({ ...activity, date: day.date }))
+          .filter(a => a.activityType === "online")
+          .map(activity => ({ ...activity, date: day.date }))
       )
-    );
+    ) || [];
+  };
 
+  // Safely get all flights across all cities
+  const getAllFlights = () => {
+    return itinerary?.cities?.flatMap(city =>
+      city.days?.flatMap(day => day.flights || [])
+    ) || [];
+  };
+
+  // Safely get all transfers across all cities
+  const getAllTransfers = () => {
+    return itinerary?.cities?.flatMap(city =>
+      city.days?.flatMap(day => day.transfers || [])
+    ) || [];
+  };
+
+  // Safely get all hotels across all cities
+  const getAllHotels = () => {
+    
+return itinerary?.cities?.flatMap(city =>
+      city.days?.flatMap(day => {
+        if (!day.hotels) return [];
+        return day.hotels.map(hotelEntry => {
+          if (hotelEntry.success && hotelEntry.data?.hotelDetails) {
+            return hotelEntry.data.hotelDetails;
+          }
+          return null;
+        }).filter(Boolean);
+      })
+    ) || [];
+
+  };
+
+  const renderActivitiesSection = () => {
+    const allActivities = getAllActivities();
     const displayActivities = allActivities.slice(0, visibleActivities);
     const hasMoreActivities = allActivities.length > visibleActivities;
 
     return (
-      <Accordion
-        expanded={expanded === "activities"}
-        onChange={handleChange("activities")}
-        sx={styles.accordionStyles}
-      >
-        <AccordionSummary
-          expandIcon={<ChevronDown color={theme.palette.text.primary} />}
+      <div className="mb-6">
+        <div 
+          className="bg-white/30 rounded-lg p-4 cursor-pointer"
+          onClick={() => setExpanded(expanded === 'activities' ? '' : 'activities')}
         >
-          <Activity
-            size={24}
-            style={{ marginRight: 10, color: theme.palette.text.primary }}
-          />
-          <Typography variant="subtitle1" fontWeight="medium">
-            Activities ({allActivities.length})
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="w-6 h-6" />
+              <span className="font-medium">Activities ({allActivities.length})</span>
+            </div>
+            <ChevronDown className={`w-5 h-5 transform transition-transform ${expanded === 'activities' ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {expanded === 'activities' && (
+          <div className="mt-4 space-y-4">
             {displayActivities.map((activity, index) => (
-              <Grid item xs={12} key={index}>
-                <Paper sx={styles.paperStyles}>
-                  <MapPin size={24} color={theme.palette.text.secondary} />
-                  <Box flexGrow={1}>
-                    <Typography variant="subtitle2">
-                      {activity.activityName}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {activity.date}
-                    </Typography>
-                  </Box>
-                  <Typography variant="subtitle2" color="primary">
-                    ₹{activity.packageDetails.amount.toLocaleString("en-IN")}
-                  </Typography>
-                </Paper>
-              </Grid>
+              <div key={index} className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium">{activity.activityName}</div>
+                    <div className="text-sm text-gray-600">{activity.date}</div>
+                  </div>
+                                    
+                </div>
+              </div>
             ))}
             {hasMoreActivities && (
-              <Grid item xs={12}>
-                <Button
-                  variant="text"
-                  fullWidth
-                  sx={styles.buttonStyles}
-                  onClick={() => setVisibleActivities(allActivities.length)}
-                  endIcon={<ChevronDown />}
-                >
-                  View All {allActivities.length} Activities
-                </Button>
-              </Grid>
+              <button
+                onClick={() => setVisibleActivities(allActivities.length)}
+                className="w-full text-blue-600 py-2 hover:text-blue-700 flex items-center justify-center gap-2"
+              >
+                View All {allActivities.length} Activities
+                <ChevronDown className="w-4 h-4" />
+              </button>
             )}
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+          </div>
+        )}
+      </div>
     );
   };
 
-  const renderFlightsSummary = () => {
-    const allFlights = itinerary.cities.flatMap((city) =>
-      city.days.flatMap((day) => day.flights || [])
-    );
-
+  const renderFlightsSection = () => {
+    const allFlights = getAllFlights();
     const displayFlights = allFlights.slice(0, visibleFlights);
     const hasMoreFlights = allFlights.length > visibleFlights;
 
     return (
-      <Accordion
-        expanded={expanded === "flights"}
-        onChange={handleChange("flights")}
-        sx={styles.accordionStyles}
-      >
-        <AccordionSummary
-          expandIcon={<ChevronDown color={theme.palette.text.primary} />}
+      <div className="mb-6">
+        <div 
+          className="bg-white/30 rounded-lg p-4 cursor-pointer"
+          onClick={() => setExpanded(expanded === 'flights' ? '' : 'flights')}
         >
-          <Plane
-            size={24}
-            style={{ marginRight: 10, color: theme.palette.text.primary }}
-          />
-          <Typography variant="subtitle1" fontWeight="medium">
-            Flights ({allFlights.length})
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Plane className="w-6 h-6" />
+              <span className="font-medium">Flights ({allFlights.length})</span>
+            </div>
+            <ChevronDown className={`w-5 h-5 transform transition-transform ${expanded === 'flights' ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {expanded === 'flights' && (
+          <div className="mt-4 space-y-4">
             {displayFlights.map((flight, index) => (
-              <Grid item xs={12} key={index}>
-                <Paper sx={styles.paperStyles}>
-                  <Plane size={24} color={theme.palette.text.secondary} />
-                  <Box flexGrow={1}>
-                    <Typography variant="subtitle2">
-                      {flight.flightData.airline} -{" "}
-                      {flight.flightData.flightCode}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {flight.flightData.origin} to{" "}
-                      {flight.flightData.destination}
-                    </Typography>
-                  </Box>
-                  <Typography variant="subtitle2" color="primary">
-                    ₹{flight.flightData.price.toLocaleString("en-IN")}
-                  </Typography>
-                </Paper>
-              </Grid>
+              <div key={index} className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {flight.flightData?.airline} - {flight.flightData?.flightCode}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {flight.flightData?.origin} to {flight.flightData?.destination}
+                    </div>
+                  </div>
+                  
+                </div>
+              </div>
             ))}
             {hasMoreFlights && (
-              <Grid item xs={12}>
-                <Button
-                  variant="text"
-                  fullWidth
-                  sx={styles.buttonStyles}
-                  onClick={() => setVisibleFlights(allFlights.length)}
-                  endIcon={<ChevronDown />}
-                >
-                  View All {allFlights.length} Flights
-                </Button>
-              </Grid>
+              <button
+                onClick={() => setVisibleFlights(allFlights.length)}
+                className="w-full text-blue-600 py-2 hover:text-blue-700 flex items-center justify-center gap-2"
+              >
+                View All {allFlights.length} Flights
+                <ChevronDown className="w-4 h-4" />
+              </button>
             )}
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+          </div>
+        )}
+      </div>
     );
   };
 
-  const renderTransfersSummary = () => {
-    const allTransfers = itinerary.cities.flatMap((city) =>
-      city.days.flatMap((day) => day.transfers || [])
-    );
-
+  const renderTransfersSection = () => {
+    const allTransfers = getAllTransfers();
     const displayTransfers = allTransfers.slice(0, visibleTransfers);
     const hasMoreTransfers = allTransfers.length > visibleTransfers;
 
     return (
-      <Accordion
-        expanded={expanded === "transfers"}
-        onChange={handleChange("transfers")}
-        sx={styles.accordionStyles}
-      >
-        <AccordionSummary
-          expandIcon={<ChevronDown color={theme.palette.text.primary} />}
+      <div className="mb-6">
+        <div 
+          className="bg-white/30 rounded-lg p-4 cursor-pointer"
+          onClick={() => setExpanded(expanded === 'transfers' ? '' : 'transfers')}
         >
-          <Car
-            size={24}
-            style={{ marginRight: 10, color: theme.palette.text.primary }}
-          />
-          <Typography variant="subtitle1" fontWeight="medium">
-            Transfers ({allTransfers.length})
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Car className="w-6 h-6" />
+              <span className="font-medium">Transfers ({allTransfers.length})</span>
+            </div>
+            <ChevronDown className={`w-5 h-5 transform transition-transform ${expanded === 'transfers' ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {expanded === 'transfers' && (
+          <div className="mt-4 space-y-4">
             {displayTransfers.map((transfer, index) => (
-              <Grid item xs={12} key={index}>
-                <Paper sx={styles.paperStyles}>
-                  <Train size={24} color={theme.palette.text.secondary} />
-                  <Box flexGrow={1}>
-                    <Typography variant="subtitle2">
-                      {transfer.type.replace(/_/g, " ")}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {transfer.details.origin.display_address} to{" "}
-                      {transfer.details.destination.display_address}
-                    </Typography>
-                  </Box>
-                  <Typography variant="subtitle2" color="primary">
-                    ₹
-                    {transfer.details.selectedQuote.fare.toLocaleString(
-                      "en-IN"
-                    )}
-                  </Typography>
-                </Paper>
-              </Grid>
+              <div key={index} className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {transfer.type?.replace(/_/g, " ")}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {transfer.details?.origin?.display_address} to {transfer.details?.destination?.display_address}
+                    </div>
+                  </div>
+                  
+                </div>
+              </div>
             ))}
             {hasMoreTransfers && (
-              <Grid item xs={12}>
-                <Button
-                  variant="text"
-                  fullWidth
-                  sx={styles.buttonStyles}
-                  onClick={() => setVisibleTransfers(allTransfers.length)}
-                  endIcon={<ChevronDown />}
-                >
-                  View All {allTransfers.length} Transfers
-                </Button>
-              </Grid>
+              <button
+                onClick={() => setVisibleTransfers(allTransfers.length)}
+                className="w-full text-blue-600 py-2 hover:text-blue-700 flex items-center justify-center gap-2"
+              >
+                View All {allTransfers.length} Transfers
+                <ChevronDown className="w-4 h-4" />
+              </button>
             )}
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+          </div>
+        )}
+      </div>
     );
   };
 
-  const renderHotelsSummary = () => {
-    const allHotels = itinerary.cities.flatMap((city) =>
-      city.days.flatMap((day) => day.hotels || [])
-    );
-
+  const renderHotelsSection = () => {
+    const allHotels = getAllHotels();
     const displayHotels = allHotels.slice(0, visibleHotels);
     const hasMoreHotels = allHotels.length > visibleHotels;
 
     return (
-      <Accordion
-        expanded={expanded === "hotels"}
-        onChange={handleChange("hotels")}
-        sx={styles.accordionStyles}
-      >
-        <AccordionSummary
-          expandIcon={<ChevronDown color={theme.palette.text.primary} />}
+      <div className="mb-6">
+        <div 
+          className="bg-white/30 rounded-lg p-4 cursor-pointer"
+          onClick={() => setExpanded(expanded === 'hotels' ? '' : 'hotels')}
         >
-          <Hotel
-            size={24}
-            style={{ marginRight: 10, color: theme.palette.text.primary }}
-          />
-          <Typography variant="subtitle1" fontWeight="medium">
-            Hotels ({allHotels.length})
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Grid container spacing={2}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Hotel className="w-6 h-6" />
+              <span className="font-medium">Hotels ({allHotels.length})</span>
+            </div>
+            <ChevronDown className={`w-5 h-5 transform transition-transform ${expanded === 'hotels' ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {expanded === 'hotels' && (
+          <div className="mt-4 space-y-4">
             {displayHotels.map((hotel, index) => (
-              <Grid item xs={12} key={index}>
-                <Paper sx={styles.paperStyles}>
-                  <Hotel size={24} color={theme.palette.text.secondary} />
-                  <Box flexGrow={1}>
-                    <Typography variant="subtitle2">{hotel.name}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {hotel.address}
-                    </Typography>
-                  </Box>
-                  <Typography variant="subtitle2" color="primary">
-                    ₹{hotel.rate.price.toLocaleString("en-IN")}
-                  </Typography>
-                </Paper>
-              </Grid>
+              <div key={index} className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium">{hotel?.name || 'Unknown Hotel'}</div>
+                    <div className="text-sm text-gray-600">
+                      {[
+                        hotel?.address?.line1,
+                        hotel?.address?.city?.name,
+                        hotel?.address?.country?.name
+                      ].filter(Boolean).join(', ')}
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
             {hasMoreHotels && (
-              <Grid item xs={12}>
-                <Button
-                  variant="text"
-                  fullWidth
-                  sx={styles.buttonStyles}
-                  onClick={() => setVisibleHotels(allHotels.length)}
-                  endIcon={<ChevronDown />}
-                >
-                  View All {allHotels.length} Hotels
-                </Button>
-              </Grid>
+              <button
+                onClick={() => setVisibleHotels(allHotels.length)}
+                className="w-full text-blue-600 py-2 hover:text-blue-700 flex items-center justify-center gap-2"
+              >
+                View All {allHotels.length} Hotels
+                <ChevronDown className="w-4 h-4" />
+              </button>
             )}
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
+          </div>
+        )}
+      </div>
     );
   };
 
+  const renderPriceSummary = () => (
+    <div className="bg-white/30 rounded-lg p-4">
+      <h3 className="text-lg font-medium mb-4">Price Summary</h3>
+
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Activities Total</span>
+          <span className="text-gray-600">₹{formatNumber(itinerary?.priceTotals?.activities)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Hotels Total</span>
+          <span className="text-gray-600">₹{formatNumber(itinerary?.priceTotals?.hotels)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Flights Total</span>
+          <span className="text-gray-600">₹{formatNumber(itinerary?.priceTotals?.flights)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Transfers Total</span>
+          <span className="text-gray-600">₹{formatNumber(itinerary?.priceTotals?.transfers)}</span>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 my-4"></div>
+
+      <div className="flex justify-between mb-2">
+        <span>Subtotal</span>
+        <span>₹{formatNumber(itinerary?.priceTotals?.subtotal)}</span>
+      </div>
+
+      <div className="flex justify-between mb-2">
+        <span className="text-gray-600">
+          TCS ({itinerary?.priceTotals?.tcsRate || 0}%)
+        </span>
+        <span className="text-gray-600">₹{formatNumber(itinerary?.priceTotals?.tcsAmount)}</span>
+      </div>
+
+      <div className="border-t border-gray-200 my-4"></div>
+
+      <div className="flex justify-between font-medium">
+        <span className="text-lg">Total</span>
+        <span className="text-lg text-blue-600">₹{formatNumber(itinerary?.priceTotals?.grandTotal)}</span>
+      </div>
+    </div>
+  );
+
+  if (!itinerary) {
+    return (
+      <div className="bg-white/40 backdrop-blur rounded-lg p-4 text-center">
+        Loading booking summary...
+      </div>
+    );
+  }
+
   return (
-    <Box sx={{ 
-      backgroundColor: theme.palette.mode === 'light' 
-        ? 'rgba(255,255,255,0.4)' 
-        : 'rgba(66,66,66,0.4)',
-      backdropFilter: 'blur(10px)',
-      borderRadius: 2, 
-      p: { xs: 2, sm: 3 },
-      boxShadow: theme.shadows[2]
-    }}>
-      <Typography variant="h4" sx={styles.sectionTitle}>
-        <Receipt size={32} />
-        Booking Summary
-      </Typography>
+    <div className="bg-white/40 backdrop-blur rounded-lg p-4 md:p-6 shadow">
+      <div className="flex items-center gap-2 mb-6">
+        <Receipt className="w-8 h-8" />
+        <h2 className="text-2xl font-medium">Booking Summary</h2>
+      </div>
 
-      {renderActivitiesSummary()}
-      {renderFlightsSummary()}
-      {renderTransfersSummary()}
-      {renderHotelsSummary()}
-
-      {/* Price Summary */}
-      <Box sx={styles.priceSummary}>
-        <Typography variant="h6" gutterBottom>
-          Price Summary
-        </Typography>
-
-        {/* Individual totals */}
-        <Box sx={{ mb: 2 }}>
-          <Box display="flex" justifyContent="space-between" my={1}>
-            <Typography variant="body2" color="text.secondary">
-              Activities Total
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              ₹{itinerary.priceTotals?.activities?.toLocaleString("en-IN") || 0}
-            </Typography>
-          </Box>
-          <Box display="flex" justifyContent="space-between" my={1}>
-            <Typography variant="body2" color="text.secondary">
-              Hotels Total
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              ₹{itinerary.priceTotals?.hotels?.toLocaleString("en-IN") || 0}
-            </Typography>
-          </Box>
-          <Box display="flex" justifyContent="space-between" my={1}>
-            <Typography variant="body2" color="text.secondary">
-              Flights Total
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              ₹{itinerary.priceTotals?.flights?.toLocaleString("en-IN") || 0}
-            </Typography>
-          </Box>
-          <Box display="flex" justifyContent="space-between" my={1}>
-            <Typography variant="body2" color="text.secondary">
-              Transfers Total
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-            ₹{itinerary.priceTotals?.transfers?.toLocaleString("en-IN") || 0}
-            </Typography>
-          </Box>
-        </Box>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Box display="flex" justifyContent="space-between" my={1}>
-          <Typography variant="body1">Subtotal</Typography>
-          <Typography variant="body1">
-            ₹{itinerary.priceTotals?.subtotal?.toLocaleString("en-IN") || 0}
-          </Typography>
-        </Box>
-        <Box display="flex" justifyContent="space-between" my={1}>
-          <Typography variant="body2" color="text.secondary">
-            TCS ({itinerary.priceTotals?.tcsRate || 0}%)
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            ₹{itinerary.priceTotals?.tcsAmount?.toLocaleString("en-IN") || 0}
-          </Typography>
-        </Box>
-        <Divider sx={{ my: 2 }} />
-        <Box display="flex" justifyContent="space-between">
-          <Typography variant="h6">Total</Typography>
-          <Typography variant="h6" color="primary">
-            ₹{itinerary.priceTotals?.grandTotal?.toLocaleString("en-IN") || 0}
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+      {renderActivitiesSection()}
+      {renderFlightsSection()}
+      {renderTransfersSection()}
+      {renderHotelsSection()}
+      {renderPriceSummary()}
+    </div>
   );
 };
 

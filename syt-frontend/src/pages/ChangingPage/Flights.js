@@ -1,34 +1,21 @@
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SortIcon from '@mui/icons-material/Sort';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  Container,
-  Stack,
-  Typography
-} from "@mui/material";
+import { Alert, Box, Button, Card, Container, Stack, Typography } from "@mui/material";
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { ArrowLeft } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from 'react';
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-
 import LoadingSpinner2 from "../../components/common/LoadingSpinner2";
 import FlightDetailModal from "./FlightDetailModal";
 import FlightFilterMenu from "./FlightFilterMenu";
 
-// FlightCard Component
-const FlightCard = React.memo(({ 
-  flight, 
-  onViewFlight, 
-  existingPrice,
-  viewMode 
-}) => {
-  const segment = flight.sg[0]; // First segment
-  
+const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }) => {
+  const segment = flight.sg[0];
+
   const getTimeDuration = () => {
     const duration = flight.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
     const hours = Math.floor(duration / 60);
@@ -52,7 +39,6 @@ const FlightCard = React.memo(({
     <Card className={`flight-card w-full hover:shadow-lg transition-shadow duration-300 
       ${viewMode === 'grid' ? 'flight-card-grid' : ''}`}>
       <div className={`p-4 flex ${viewMode === 'grid' ? 'flex-col' : 'flex-col md:flex-row'} justify-between items-start gap-4`}>
-        {/* Airline Info */}
         <div className="flex-shrink-0">
           <h3 className="text-lg font-semibold">{segment.al.alN}</h3>
           <p className="text-sm text-gray-600">{`${segment.al.alC} ${segment.al.fN}`}</p>
@@ -61,23 +47,19 @@ const FlightCard = React.memo(({
           )}
         </div>
 
-        {/* Flight Details */}
         <div className="flex-grow flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* Departure */}
           <div className="text-center">
             <p className="text-xl font-bold">{formatTime(segment.or.dT)}</p>
             <p className="text-sm">{segment.or.cN}</p>
             <p className="text-xs text-gray-500">{segment.or.aC}</p>
           </div>
 
-          {/* Duration/Stops */}
           <div className="text-center">
             <p className="text-sm text-gray-600">{getTimeDuration()}</p>
             <div className="w-32 h-px bg-gray-300 my-2"></div>
             <p className="text-xs text-blue-600">{getStops()}</p>
           </div>
 
-          {/* Arrival */}
           <div className="text-center">
             <p className="text-xl font-bold">
               {formatTime(flight.sg[flight.sg.length - 1].ds.aT)}
@@ -89,7 +71,6 @@ const FlightCard = React.memo(({
           </div>
         </div>
 
-        {/* Price and Action */}
         <div className="flex-shrink-0 text-right">
           <p className="text-2xl font-bold text-blue-600">₹{flight.pF}</p>
           {existingPrice && (
@@ -111,31 +92,23 @@ const FlightCard = React.memo(({
   );
 });
 
-// Main FlightsPage Component
 const FlightsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { itineraryToken } = useSelector((state) => state.itinerary);
 
-  // States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allFlights, setAllFlights] = useState([]);
   const [displayedFlights, setDisplayedFlights] = useState([]);
   const [traceId, setTraceId] = useState(null);
-  
-  // Modal State
   const [selectedFlight, setSelectedFlight] = useState(null);
-
-  // Pagination States
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalFlights, setTotalFlights] = useState(0);
-
-  // View Mode State
   const [viewMode, setViewMode] = useState('list');
-
-  // Filters and Sorting
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [currentMenuType, setCurrentMenuType] = useState(null);
   const [filters, setFilters] = useState({
     priceRange: [0, 100000],
     airlines: [],
@@ -144,7 +117,6 @@ const FlightsPage = () => {
   const [currentSort, setCurrentSort] = useState("priceAsc");
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
 
-  // Get state from navigation
   const { 
     origin, 
     destination, 
@@ -156,11 +128,20 @@ const FlightsPage = () => {
     type
   } = location.state || {};
 
-  // Fetch Flights
+  const handleOpenMenu = (event, menuType) => {
+    setMenuAnchorEl(event.currentTarget);
+    setCurrentMenuType(menuType);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchorEl(null);
+  };
+
   const fetchFlights = useCallback(async (pageNum) => {
     try {
       setLoading(true);
-  
+      console.log('Fetching flights for page:', pageNum);
+
       const response = await fetch(
         `http://localhost:5000/api/itinerary/flights/${inquiryToken}?page=${pageNum}&limit=20`,
         {
@@ -188,22 +169,22 @@ const FlightsPage = () => {
       const responseData = await response.json();
       
       if (responseData.success) {
-        const flights = responseData.data.flights || [];
+        const newFlights = responseData.data.flights || [];
         const pagination = responseData.data.pagination || {};
 
-        // Update flights state
-        setAllFlights((prevFlights) => 
-          pageNum === 1 ? flights : [...prevFlights, ...flights]
-        );
+        setAllFlights(prevFlights => {
+          if (pageNum === 1) {
+            return newFlights;
+          }
+          return [...prevFlights, ...newFlights];
+        });
 
-        // Set pagination details
-        setHasMore(pagination.hasMore || false);
-        setTotalFlights(pagination.total || flights.length);
+        setHasMore(pagination.hasMore);
+        setTotalFlights(pagination.total);
         setTraceId(responseData.data.traceId);
 
-        // Set initial price range on first page
-        if (pageNum === 1 && flights.length > 0) {
-          const prices = flights.map(f => f.pF).filter(Boolean);
+        if (pageNum === 1 && newFlights.length > 0) {
+          const prices = newFlights.map(f => f.pF).filter(Boolean);
           const minPrice = Math.min(...prices);
           const maxPrice = Math.max(...prices);
           setPriceRange({ min: minPrice, max: maxPrice });
@@ -232,51 +213,6 @@ const FlightsPage = () => {
     travelersDetails
   ]);
 
-  // Filtering and Sorting Effect
-  useEffect(() => {
-    let filtered = [...allFlights];
-
-    // Price Filter
-    filtered = filtered.filter(flight => 
-      flight.pF >= filters.priceRange[0] && 
-      flight.pF <= filters.priceRange[1]
-    );
-
-    // Airline Filter
-    if (filters.airlines.length > 0) {
-      filtered = filtered.filter(flight => 
-        filters.airlines.includes(flight.sg[0].al.alN)
-      );
-    }
-
-    // Stops Filter
-    if (filters.stops !== null) {
-      filtered = filtered.filter(flight => 
-        filters.stops === 0 
-          ? flight.sg.length === 1 
-          : flight.sg.length - 1 === filters.stops
-      );
-    }
-
-    // Sorting
-    let sorted = [...filtered];
-    sorted.sort((a, b) => {
-      switch (currentSort) {
-        case "priceAsc": return a.pF - b.pF;
-        case "priceDesc": return b.pF - a.pF;
-        case "durationAsc": {
-          const aDuration = a.sg.reduce((total, seg) => total + seg.dr, 0);
-          const bDuration = b.sg.reduce((total, seg) => total + seg.dr, 0);
-          return aDuration - bDuration;
-        }
-        default: return 0;
-      }
-    });
-
-    setDisplayedFlights(sorted);
-  }, [allFlights, filters, currentSort]);
-
-  // Initial Load
   useEffect(() => {
     if (!inquiryToken || !origin || !destination || !departureDate) {
       navigate('/itinerary');
@@ -287,7 +223,49 @@ const FlightsPage = () => {
     fetchFlights(1);
   }, [inquiryToken, origin, destination, departureDate, navigate, fetchFlights]);
 
-  // Load More Handler
+  useEffect(() => {
+    let filtered = [...allFlights];
+
+    filtered = filtered.filter(flight => 
+      flight.pF >= filters.priceRange[0] && 
+      flight.pF <= filters.priceRange[1]
+    );
+
+    if (filters.airlines.length > 0) {
+      filtered = filtered.filter(flight => 
+        filters.airlines.includes(flight.sg[0].al.alN)
+      );
+    }
+
+    if (filters.stops !== null) {
+      filtered = filtered.filter(flight => 
+        filters.stops === 0 
+          ? flight.sg.length === 1 
+          : flight.sg.length - 1 === filters.stops
+      );
+    }
+
+    switch (currentSort) {
+      case "priceAsc":
+        filtered.sort((a, b) => a.pF - b.pF);
+        break;
+      case "priceDesc":
+        filtered.sort((a, b) => b.pF - a.pF);
+        break;
+      case "durationAsc":
+        filtered.sort((a, b) => {
+          const aDuration = a.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
+          const bDuration = b.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
+          return aDuration - bDuration;
+        });
+        break;
+      default:
+        break;
+    }
+
+    setDisplayedFlights(filtered);
+  }, [allFlights, filters, currentSort]);
+
   const handleLoadMore = useCallback(() => {
     if (!loading && hasMore) {
       const nextPage = page + 1;
@@ -296,7 +274,6 @@ const FlightsPage = () => {
     }
   }, [loading, hasMore, page, fetchFlights]);
 
-  // View Flight Handler
   const handleViewFlight = (flight) => {
     setSelectedFlight({
       ...flight,
@@ -306,14 +283,12 @@ const FlightsPage = () => {
     });
   };
 
-  // Back to Itinerary Handler
   const handleBackToItinerary = () => {
     navigate('/itinerary', {
       state: { itineraryInquiryToken: inquiryToken }
     });
   };
 
-  // Loading State
   if (loading && allFlights.length === 0) {
     return (
       <div className="loading-container flex-center">
@@ -322,7 +297,6 @@ const FlightsPage = () => {
     );
   }
 
-  // Error State
   if (error) {
     return (
       <Container className="error-container">
@@ -338,7 +312,6 @@ const FlightsPage = () => {
 
   return (
     <Container maxWidth="xl" className="flights-page mt-16">
-      {/* Header */}
       <Box className="activity-header">
         <Stack 
           direction="row" 
@@ -369,34 +342,56 @@ const FlightsPage = () => {
               Back to Itinerary
             </Button>
 
-            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={(_, newValue) => newValue && setViewMode(newValue)}
-                size="small"
-              >
-                <ToggleButton value="list">
-                  <ViewListIcon />
-                </ToggleButton>
-                <ToggleButton value="grid">
-                  <ViewModuleIcon />
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(_, newValue) => newValue && setViewMode(newValue)}
+                  size="small"
+                >
+                  <ToggleButton value="list">
+                    <ViewListIcon />
+                  </ToggleButton>
+                  <ToggleButton value="grid">
+                    <ViewModuleIcon />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
 
-            <FlightFilterMenu
-              priceRange={priceRange}
-              filters={filters}
-              setFilters={setFilters}
-              currentSort={currentSort}
-              setCurrentSort={setCurrentSort}
-            />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<FilterListIcon />}
+                onClick={(e) => handleOpenMenu(e, 'filter')}
+              >
+                Filter
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<SortIcon />}
+                onClick={(e) => handleOpenMenu(e, 'sort')}
+              >
+                Sort
+              </Button>
+
+              <FlightFilterMenu
+                priceRange={priceRange}
+                filters={filters}
+                setFilters={setFilters}
+                currentSort={currentSort}
+                setCurrentSort={setCurrentSort}
+                anchorEl={menuAnchorEl}
+                onClose={handleCloseMenu}
+                currentTab={currentMenuType}
+              />
+            </Stack>
           </Stack>
         </Stack>
       </Box>
 
-      {/* Flights Grid */}
       <div className={`flights-grid grid ${viewMode === 'grid' ? 'md:grid-cols-2' : 'grid-cols-1'} gap-4 mb-6`}>
         {displayedFlights.map((flight) => (
           <FlightCard
@@ -409,14 +404,12 @@ const FlightsPage = () => {
         ))}
       </div>
 
-      {/* No Flights Found */}
       {displayedFlights.length === 0 && (
         <div className="text-center py-8">
           <Typography variant="h6">No flights found matching your criteria</Typography>
         </div>
       )}
 
-      {/* Load More */}
       {hasMore && (
         <div className="text-center">
           <Button
@@ -430,21 +423,20 @@ const FlightsPage = () => {
         </div>
       )}
 
-      {/* Flight Detail Modal */}
       {selectedFlight && (
-  <FlightDetailModal
-    flight={selectedFlight}
-    onClose={() => setSelectedFlight(null)}
-    itineraryToken={itineraryToken}
-    inquiryToken={inquiryToken}
-    existingPrice={existingFlightPrice}
-    type={type}                           // Add this
-    originCityName={origin.city}          // Add this
-    destinationCityName={destination.city} // Add this
-    date={departureDate}
-    traceId={traceId}
-  />
-)}
+        <FlightDetailModal
+          flight={selectedFlight}
+          onClose={() => setSelectedFlight(null)}
+          itineraryToken={itineraryToken}
+          inquiryToken={inquiryToken}
+          existingPrice={existingFlightPrice}
+          type={type}
+          originCityName={origin.city}
+          destinationCityName={destination.city}
+          date={departureDate}
+          traceId={traceId}
+        />
+      )}
     </Container>
   );
 };

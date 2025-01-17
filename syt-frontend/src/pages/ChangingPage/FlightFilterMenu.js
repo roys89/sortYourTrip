@@ -21,12 +21,10 @@ import React, { useEffect, useState } from 'react';
 const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, priceRange }) => {
   const [sliderValue, setSliderValue] = useState(filters.priceRange);
 
-  // Handle slider change with local state
   const handleSliderChange = (_, newValue) => {
     setSliderValue(newValue);
   };
 
-  // Only update parent state when sliding is complete
   const handleSliderChangeCommitted = (_, newValue) => {
     onFilter('priceRange', newValue);
   };
@@ -73,7 +71,6 @@ const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, 
   return (
     <Box sx={{ p: 2, width: 280 }}>
       <Stack spacing={3}>
-        {/* Airline Filter */}
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Airlines</Typography>
           <FormGroup>
@@ -104,7 +101,6 @@ const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, 
           </FormGroup>
         </Box>
 
-        {/* Stops Filter */}
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Stops</Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -122,7 +118,6 @@ const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, 
           </Box>
         </Box>
 
-        {/* Price Range */}
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
             Price Range (₹{priceRange.min.toLocaleString()} - ₹{priceRange.max.toLocaleString()})
@@ -139,7 +134,6 @@ const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, 
           />
         </Box>
 
-        {/* Reset Button */}
         <Button 
           size="small" 
           onClick={() => onFilter('reset')}
@@ -154,79 +148,69 @@ const MenuContent = React.memo(({ type, onSort, onFilter, currentSort, filters, 
 });
 
 const FlightFilterMenu = React.memo(({ 
-  onSort, 
-  onFilter, 
-  currentSort, 
+  priceRange, 
   filters, 
-  priceRange 
+  setFilters, 
+  currentSort, 
+  setCurrentSort,
+  anchorEl,
+  onClose,
 }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
   const [currentTab, setCurrentTab] = useState('sort');
-
-  const handleClose = () => setAnchorEl(null);
-
-  const handleClickFilter = (event) => {
-    setAnchorEl(event.currentTarget);
-    setCurrentTab('filter');
-  };
-
-  const handleClickSort = (event) => {
-    setAnchorEl(event.currentTarget);
-    setCurrentTab('sort');
-  };
 
   // Helper function to handle filter changes
   const handleFilterChange = (type, value) => {
     if (type === 'reset') {
       // Reset to full range
-      onFilter({
+      setFilters({
         priceRange: [priceRange.min, priceRange.max],
         airlines: [],
         stops: null
       });
+      onClose();
       return;
     }
 
     // For specific filter types
-    onFilter(type, value);
+    setFilters(prev => ({
+      ...prev,
+      [type]: value
+    }));
+  };
+
+  const handleSort = (value) => {
+    setCurrentSort(value);
+    onClose();
   };
 
   return (
-    <Box>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-        PaperProps={{
-          sx: { width: 280 }
-        }}
-      >
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}>
-          <Tabs 
-            value={currentTab} 
-            onChange={(_, tab) => setCurrentTab(tab)}
-            sx={{ minHeight: 48 }}
-          >
-            <Tab label="Filter" value="filter" />
-            <Tab label="Sort" value="sort" />
-          </Tabs>
-        </Box>
-        <MenuContent 
-          type={currentTab}
-          onSort={(value) => { 
-            onSort(value); 
-            handleClose(); 
-          }}
-          onFilter={(type, value) => { 
-            handleFilterChange(type, value); 
-            if (type === 'reset') handleClose(); 
-          }}
-          currentSort={currentSort}
-          filters={filters}
-          priceRange={priceRange}
-        />
-      </Menu>
-    </Box>
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={onClose}
+      PaperProps={{
+        sx: { width: 280 }
+      }}
+    >
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}>
+        <Tabs 
+          value={currentTab} 
+          onChange={(_, tab) => setCurrentTab(tab)}
+          sx={{ minHeight: 48 }}
+        >
+          <Tab label="Filter" value="filter" />
+          <Tab label="Sort" value="sort" />
+        </Tabs>
+      </Box>
+      <MenuContent 
+        type={currentTab}
+        onSort={handleSort}
+        onFilter={handleFilterChange}
+        currentSort={currentSort}
+        filters={filters}
+        priceRange={priceRange}
+      />
+    </Menu>
   );
 });
 

@@ -1,11 +1,24 @@
 const express = require("express");
-const { createItineraryInquiry, getItineraryInquiryByToken } = require("../controllers/itineraryInquiryController");
 const router = express.Router();
 
-// POST request to create a new itinerary inquiry
-router.post("/", express.json(), createItineraryInquiry); // Use body-parser for POST requests
+const {
+  createItineraryInquiry,
+  getItineraryInquiryByToken,
+  updateItineraryInquiry
+} = require("../controllers/itineraryInquiryController");
 
-// GET request to retrieve itinerary inquiry by token
-router.get("/:token", getItineraryInquiryByToken); // No need for body-parser for GET
+// Middleware
+const checkAuth = (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Missing auth token" });
+  }
+  next();
+};
+
+// Routes
+router.post("/", checkAuth, createItineraryInquiry);
+router.get("/:token", getItineraryInquiryByToken);
+router.put("/:token", checkAuth, updateItineraryInquiry);
 
 module.exports = router;

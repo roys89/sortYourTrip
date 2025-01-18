@@ -777,3 +777,17 @@ exports.updateItineraryPrices = async (req, res) => {
     });
   }
 };
+
+
+exports.deleteItinerary = async (req, res) => {
+  try {
+    const { inquiryToken } = req.params;
+    await Itinerary.deleteOne({ inquiryToken });
+    res.status(200).json({ message: "Itinerary deleted successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error deleting itinerary",
+      error: error.message
+    });
+  }
+};

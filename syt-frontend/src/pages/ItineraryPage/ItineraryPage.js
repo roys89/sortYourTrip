@@ -1,12 +1,13 @@
-import { PictureAsPdf } from "@mui/icons-material";
+import { Edit, PictureAsPdf } from "@mui/icons-material";
 import {
-  Alert,
-  AlertTitle,
   Button,
   Container,
   Grid,
+  Alert as MuiAlert,
+  AlertTitle as MuiAlertTitle,
+  Snackbar,
   Typography,
-  useTheme,
+  useTheme
 } from "@mui/material";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
@@ -17,11 +18,12 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import CityAccordion from "../../components/Itinerary/CityAccordion";
 import PriceSummary from "../../components/Itinerary/PriceSummary";
-// import ItineraryMap from "../../components/Map/ItineraryMap";
 import ModalManager from "../../components/ModalManager";
+import ModificationModal from "../../components/ModificationModal/ModificationModal";
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { useAuth } from "../../context/AuthContext";
 import { clearAllActivityStates } from "../../redux/slices/activitySlice";
-import { createItinerary } from "../../redux/slices/itinerarySlice";
+import { createItinerary, resetItineraryState } from "../../redux/slices/itinerarySlice";
 import { generateItineraryPDF } from "../../utils/pdfGenerator";
 import { calculateItineraryTotal } from "../../utils/priceCalculations";
 import "./ItineraryPage.css";
@@ -38,25 +40,19 @@ const ItineraryPage = () => {
     current: 0,
     total: 0,
   });
+  const [isModificationModalOpen, setIsModificationModalOpen] = useState(false);
+  const [isModifying, setIsModifying] = useState(false);
+  const [modificationError, setModificationError] = useState(null);
+  const [isCreatingNewItinerary, setIsCreatingNewItinerary] = useState(false);
 
-  // Select background image based on theme mode
-  const backgroundImage =
-    theme.palette.mode === "dark" ? backgroundImageDark : backgroundImageLight;
+  // Background image selection based on theme
+  const backgroundImage = theme.palette.mode === "dark" ? backgroundImageDark : backgroundImageLight;
 
-  // Set the background image as a CSS variable
   useEffect(() => {
-    // Add data attribute for theme
     document.documentElement.setAttribute("data-theme", theme.palette.mode);
-
-    // Add a small delay to create a more natural transition
     const timer = setTimeout(() => {
-      document.documentElement.style.setProperty(
-        "--background-image",
-        `url(${backgroundImage})`
-      );
+      document.documentElement.style.setProperty("--background-image", `url(${backgroundImage})`);
     }, 50);
-
-    // Clean up the timer to prevent memory leaks
     return () => clearTimeout(timer);
   }, [backgroundImage, theme.palette.mode]);
 
@@ -67,8 +63,7 @@ const ItineraryPage = () => {
   const { state } = location;
   const { isAuthenticated } = useAuth();
 
-  const itineraryInquiryToken =
-    state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
+  const itineraryInquiryToken = state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
 
   // Redux selectors
   const {
@@ -164,6 +159,21 @@ const ItineraryPage = () => {
     } catch (error) {
       console.error("Error updating prices:", error);
       throw error;
+    }
+  };
+
+  const handleModifyItinerary = async (modifiedData) => {
+    try {
+      setIsCreatingNewItinerary(true);
+      await dispatch(resetItineraryState());
+      await dispatch(createItinerary(itineraryInquiryToken)).unwrap();
+      setIsModificationModalOpen(false);
+    } catch (error) {
+      console.error('Error modifying itinerary:', error);
+      setModificationError(error.response?.data?.message || 'Error modifying itinerary');
+    } finally {
+      setIsCreatingNewItinerary(false);
+      setIsModifying(false);
     }
   };
 
@@ -284,23 +294,13 @@ const ItineraryPage = () => {
     };
 
     handleItinerary();
-  }, [
-    dispatch,
-    itineraryInquiryToken,
-    navigate,
-    isAuthenticated,
-    location.pathname,
-  ]);
+  }, [dispatch, itineraryInquiryToken, navigate, isAuthenticated, location.pathname]);
 
   if (loading || checkingExisting) {
     return (
       <div className="loading-container flex-center">
         <LoadingSpinner
-          message={
-            checkingExisting
-              ? "Checking your existing itinerary..."
-              : "Crafting your perfect journey..."
-          }
+          message={checkingExisting ? "Checking your existing itinerary..." : "Crafting your perfect journey..."}
           sx={{ color: theme.palette.text.base }}
         />
       </div>
@@ -316,7 +316,7 @@ const ItineraryPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
           >
-            <Alert
+            <MuiAlert
               severity="error"
               variant="filled"
               className="error-alert"
@@ -326,9 +326,9 @@ const ItineraryPage = () => {
                 },
               }}
             >
-              <AlertTitle>Unable to Load Itinerary</AlertTitle>
+              <MuiAlertTitle>Unable to Load Itinerary</MuiAlertTitle>
               {error}
-            </Alert>
+            </MuiAlert>
             <Button
               variant="contained"
               onClick={() => navigate("/")}
@@ -359,12 +359,8 @@ const ItineraryPage = () => {
       <div className="itinerary-page">
         <div className="background-blur" />
 
-        <Container
-          maxWidth="xl"
-          className="container"
-          sx={{ px: { xs: 0.5, sm: 1, md: 2 } }}
-        >
-          {/* Title Grid container */}
+        <Container maxWidth="xl" className="container" sx={{ px: { xs: 0.5, sm: 1, md: 2 } }}>
+          {/* Title */}
           <Grid container justifyContent="center" sx={{ mb: 4 }}>
             <Grid item xs={12}>
               <motion.div
@@ -387,8 +383,9 @@ const ItineraryPage = () => {
             </Grid>
           </Grid>
 
-          {/* Main content Grid container */}
+          {/* Main content */}
           <Grid container spacing={2}>
+            {/* Left Column - Cities */}
             <Grid item xs={12} md={8} sx={{ pr: { md: 1 } }}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -417,15 +414,6 @@ const ItineraryPage = () => {
 
             {/* Right Column - Price Summary and Actions */}
             <Grid item xs={12} md={4} sx={{ pl: { md: 1 } }}>
-
-            {/* <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="map-card"
-              >
-                {itinerary && <ItineraryMap itineraryData={itinerary} />}
-              </motion.div> */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -434,8 +422,6 @@ const ItineraryPage = () => {
               >
                 {itinerary && <PriceSummary itinerary={itinerary} />}
               </motion.div>
-
-              
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -458,6 +444,21 @@ const ItineraryPage = () => {
                 >
                   <Button
                     variant="outlined"
+                    startIcon={<Edit />}
+                    onClick={() => setIsModificationModalOpen(true)}
+                    disabled={isBooking || isModifying}
+                    className="button-outline"
+                    sx={{
+                      color: theme.palette.text.base,
+                      width: "100%",
+                      padding: "0.75rem",
+                    }}
+                  >
+                    {isModifying ? "Modifying..." : "Modify Itinerary"}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
                     startIcon={<PictureAsPdf sx={{ color: "white" }} />}
                     onClick={handleDownloadPDF}
                     disabled={isBooking}
@@ -470,6 +471,7 @@ const ItineraryPage = () => {
                   >
                     Download PDF
                   </Button>
+
                   <Button
                     variant="contained"
                     onClick={handleBookTrip}
@@ -491,6 +493,7 @@ const ItineraryPage = () => {
             </Grid>
           </Grid>
 
+          {/* Loading Overlay */}
           <AnimatePresence>
             {isBooking && (
               <motion.div
@@ -501,46 +504,75 @@ const ItineraryPage = () => {
               >
                 <div className="loading-content">
                   <div className="loading-spinner" />
-                  <p
-                    className="loading-text"
-                    style={{ color: theme.palette.text.base }}
-                  >
-                    Processing booking {bookingProgress.current} of{" "}
-                    {bookingProgress.total}
+                  <p className="loading-text" style={{ color: theme.palette.text.base }}>
+                    Processing booking {bookingProgress.current} of {bookingProgress.total}
                   </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
+          {/* Creating New Itinerary Alert */}
           <AnimatePresence>
-            {bookingError && (
+            {isCreatingNewItinerary && (
               <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 50 }}
-                className="error-toast"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
               >
-                <AlertTitle className="error-title">Booking Error</AlertTitle>
-                <p
-                  className="error-message"
-                  style={{ color: theme.palette.error.contrastText }}
-                >
-                  {bookingError}
-                </p>
-                <button
-                  onClick={() => setBookingError(null)}
-                  className="close-button"
-                  style={{ color: theme.palette.error.contrastText }}
-                >
-                  ×
-                </button>
+                <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+                  <Alert>
+                    <AlertTitle>Modifying Itinerary</AlertTitle>
+                    <AlertDescription>
+                      Please wait while we create your new itinerary with the modified details...
+                    </AlertDescription>
+                  </Alert>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </Container>
 
-        <ModalManager />
+          {/* Error Snackbar */}
+          <AnimatePresence>
+            {(bookingError || modificationError) && (
+              <Snackbar
+                open={Boolean(bookingError || modificationError)}
+                autoHideDuration={6000}
+                onClose={() => {
+                  setBookingError(null);
+                  setModificationError(null);
+                }}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+              >
+                <MuiAlert
+                  severity="error"
+                  onClose={() => {
+                    setBookingError(null);
+                    setModificationError(null);
+                  }}
+                  sx={{ width: '100%' }}
+                >
+                  <MuiAlertTitle>
+                    {bookingError ? "Booking Error" : "Modification Error"}
+                  </MuiAlertTitle>
+                  {bookingError || modificationError}
+                </MuiAlert>
+              </Snackbar>
+            )}
+          </AnimatePresence>
+
+          {/* Modification Modal */}
+          <ModificationModal
+            open={isModificationModalOpen}
+            onClose={() => !isModifying && setIsModificationModalOpen(false)}
+            itineraryInquiryToken={itineraryInquiryToken}
+            onModify={handleModifyItinerary}
+            isModifying={isModifying}
+          />
+
+          <ModalManager />
+        </Container>
       </div>
     </ErrorBoundary>
   );

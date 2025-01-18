@@ -51,3 +51,28 @@ exports.getItineraryInquiryByToken = async (req, res) => {
     res.status(500).json({ message: "Error retrieving itinerary inquiry", error });
   }
 };
+
+
+exports.updateItineraryInquiry = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const updateData = req.body;
+
+    const updatedInquiry = await ItineraryInquiry.findOneAndUpdate(
+      { itineraryInquiryToken: token },
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedInquiry) {
+      return res.status(404).json({message: "Inquiry not found"});
+    }
+
+    res.status(200).json(updatedInquiry);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating inquiry",
+      error: error.message
+    });
+  }
+};

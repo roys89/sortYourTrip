@@ -153,6 +153,8 @@
   background: linear-gradient(135deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
 }
 
+
+
 .loading-overlay {
   position: fixed;
   inset: 0;

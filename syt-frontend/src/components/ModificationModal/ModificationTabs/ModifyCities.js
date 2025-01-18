@@ -22,8 +22,6 @@ const removeDuplicates = (array) => {
 };
 
 const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
-    console.log('ModifyCities received props:', { selectedCities, departureCity });
-
     const [searchQuery, setSearchQuery] = useState('');
     const [destinations, setDestinations] = useState([]);
     const [availableCities, setAvailableCities] = useState([]);
@@ -32,21 +30,18 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
     const [currentDepartureCity, setCurrentDepartureCity] = useState(departureCity);
     const [departureCities, setDepartureCities] = useState([]);
 
-    // Update currentCities when selectedCities prop changes
     useEffect(() => {
         if (selectedCities) {
             setCurrentCities(selectedCities);
         }
     }, [selectedCities]);
 
-    // Update currentDepartureCity when departureCity prop changes
     useEffect(() => {
         if (departureCity) {
             setCurrentDepartureCity(departureCity);
         }
     }, [departureCity]);
 
-    // Fetch departure cities
     useEffect(() => {
         const fetchDepartureCities = async () => {
             try {
@@ -59,7 +54,6 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
         fetchDepartureCities();
     }, []);
 
-    // Search destinations with debounce
     useEffect(() => {
         const debounceSearch = setTimeout(() => {
             if (searchQuery) {
@@ -95,7 +89,6 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                 }
             });
             setAvailableCities(response.data);
-            console.log('Available cities fetched:', response.data);
         } catch (error) {
             console.error('Error fetching cities:', error);
             setAvailableCities([]);
@@ -127,7 +120,6 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
 
     return (
         <Box sx={{ width: '100%' }}>
-            {/* Departure City Selector */}
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
                     Departure City
@@ -143,12 +135,12 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                             label="Select Departure City" 
                             variant="outlined"
                             fullWidth
+                            size="medium"
                         />
                     )}
                 />
             </Box>
 
-            {/* Selected Cities - Horizontal Scroll */}
             {currentCities.length > 0 && (
                 <Box sx={{ mb: 4 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
@@ -156,34 +148,28 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                     </Typography>
                     <Box 
                         sx={{
-                            display: 'flex',
+                            display: 'grid',
+                            gridTemplateColumns: {
+                                xs: '1fr',
+                                sm: 'repeat(2, 1fr)',
+                                md: 'repeat(3, 1fr)'
+                            },
                             gap: 2,
-                            overflowX: 'auto',
-                            pb: 2, // Space for scrollbar
-                            '::-webkit-scrollbar': {
-                                height: '8px',
+                            maxHeight: {
+                                xs: '400px',
+                                sm: '500px'
                             },
-                            '::-webkit-scrollbar-track': {
-                                background: '#f1f1f1',
-                                borderRadius: '4px',
-                            },
-                            '::-webkit-scrollbar-thumb': {
-                                background: '#888',
-                                borderRadius: '4px',
-                                '&:hover': {
-                                    background: '#555'
-                                }
-                            }
+                            overflowY: 'auto',
+                            overflowX: 'hidden',
+                            p: 1
                         }}
                     >
                         {currentCities.map((city, index) => (
                             <Card
                                 key={city.destination_id || index}
                                 sx={{
-                                    minWidth: 280,
-                                    height: 200,
+                                    height: '200px',
                                     position: 'relative',
-                                    flexShrink: 0,
                                     backgroundImage: `url(${city.imageUrl})`,
                                     backgroundSize: 'cover',
                                     backgroundPosition: 'center',
@@ -236,10 +222,12 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                                                 backgroundColor: 'rgba(0,0,0,0.3)',
                                                 '&:hover': {
                                                     backgroundColor: 'rgba(0,0,0,0.5)'
-                                                }
+                                                },
+                                                p: { xs: 0.5, sm: 1 }
                                             }}
+                                            size="small"
                                         >
-                                            <CloseIcon />
+                                            <CloseIcon fontSize="small" />
                                         </IconButton>
                                     </Box>
                                 </Box>
@@ -249,7 +237,6 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                 </Box>
             )}
 
-            {/* Destination Search */}
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
                     Search Destination
@@ -267,12 +254,12 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                             label="Search Destination" 
                             variant="outlined"
                             fullWidth
+                            size="medium"
                         />
                     )}
                 />
             </Box>
 
-            {/* Available Cities Selection */}
             {availableCities.length > 0 && (
                 <Box sx={{ mb: 4 }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
@@ -288,6 +275,7 @@ const ModifyCities = ({ selectedCities, departureCity, onUpdate }) => {
                                 variant="outlined"
                                 label="Choose Cities"
                                 fullWidth
+                                size="medium"
                             />
                         )}
                         onChange={handleAddCity}

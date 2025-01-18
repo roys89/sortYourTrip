@@ -1,4 +1,12 @@
-import { Minus, Plus } from 'lucide-react';
+import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
+import {
+    Box,
+    Button,
+    Card,
+    IconButton,
+    TextField,
+    Typography
+} from '@mui/material';
 import React, { useEffect, useState } from 'react';
 
 const ModifyTravelers = ({ travelersDetails, onUpdate }) => {
@@ -16,10 +24,10 @@ const ModifyTravelers = ({ travelersDetails, onUpdate }) => {
     let newRooms = [];
     switch (newType) {
       case 'solo':
-        newRooms = [{ adults: [''] }]; // Solo: just one adult
+        newRooms = [{ adults: [''] }];
         break;
       case 'couple':
-        newRooms = [{ adults: ['', ''] }]; // Couple: two adults
+        newRooms = [{ adults: ['', ''] }];
         break;
       case 'family':
       case 'friends':
@@ -69,18 +77,11 @@ const ModifyTravelers = ({ travelersDetails, onUpdate }) => {
     }
   };
 
-  const handleRemoveAdult = (roomIndex, adultIndex) => {
+  const handleRemovePerson = (roomIndex, personType, personIndex) => {
     const newRooms = [...rooms];
-    newRooms[roomIndex].adults.splice(adultIndex, 1);
-    setRooms(newRooms);
-    onUpdate({ type, rooms: newRooms });
-  };
-
-  const handleRemoveChild = (roomIndex, childIndex) => {
-    const newRooms = [...rooms];
-    if (!newRooms[roomIndex].children) return;
+    if (personType === 'children' && !newRooms[roomIndex].children) return;
     
-    newRooms[roomIndex].children.splice(childIndex, 1);
+    newRooms[roomIndex][personType].splice(personIndex, 1);
     setRooms(newRooms);
     onUpdate({ type, rooms: newRooms });
   };
@@ -95,163 +96,223 @@ const ModifyTravelers = ({ travelersDetails, onUpdate }) => {
   };
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Traveler Type</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Traveler Type
+        </Typography>
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { 
+            xs: 'repeat(2, 1fr)', 
+            sm: 'repeat(4, 1fr)' 
+          },
+          gap: 2 
+        }}>
           {['solo', 'couple', 'family', 'friends'].map((travelType) => (
-            <button
+            <Button
               key={travelType}
+              variant={type === travelType ? 'contained' : 'outlined'}
               onClick={() => handleTypeChange(travelType)}
-              className={`px-4 py-3 rounded-lg border ${
-                type === travelType
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'border-gray-300 hover:border-blue-400'
-              } capitalize transition-colors`}
+              sx={{ 
+                height: '48px',
+                textTransform: 'capitalize'
+              }}
             >
               {travelType}
-            </button>
+            </Button>
           ))}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {(type === 'family' || type === 'friends') && (
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Rooms</h3>
-          <button
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 2
+        }}>
+          <Typography variant="h6">
+            Rooms
+          </Typography>
+          <Button
+            startIcon={<AddIcon />}
+            variant="outlined"
             onClick={handleAddRoom}
-            className="flex items-center gap-1 px-2 py-1 text-sm border border-gray-300 rounded-lg hover:border-blue-400"
+            size="small"
           >
-            <Plus className="h-4 w-4" />
             Add Room
-          </button>
-        </div>
+          </Button>
+        </Box>
       )}
 
-      <div className="space-y-6">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {rooms.map((room, roomIndex) => (
-          <div key={roomIndex} className="p-6 rounded-lg border border-gray-200 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Room {roomIndex + 1}</h3>
+          <Card key={roomIndex} sx={{ p: 3 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 2 
+            }}>
+              <Typography variant="h6">
+                Room {roomIndex + 1}
+              </Typography>
               {rooms.length > 1 && (type === 'family' || type === 'friends') && (
-                <button
+                <IconButton
                   onClick={() => handleRemoveRoom(roomIndex)}
-                  className="p-1 text-red-500 hover:text-red-600 rounded-full hover:bg-red-50"
+                  color="error"
+                  size="small"
                 >
-                  <Minus className="h-5 w-5" />
-                </button>
+                  <RemoveIcon />
+                </IconButton>
               )}
-            </div>
+            </Box>
 
-            <div className={`${type === 'couple' ? 'block' : 'grid md:grid-cols-2 gap-6'}`}>
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: 3
+            }}>
               {/* Adults Section */}
-              <div className="border border-gray-200 rounded-lg">
-                <div className="flex justify-between items-center p-4 pb-3">
-                  <h4 className="font-medium">Adults</h4>
-                  {(type === 'family' || type === 'friends') && room.adults.length < 3 && 
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  mb: 2 
+                }}>
+                  <Typography variant="subtitle1">Adults</Typography>
+                  {(type === 'family' || type === 'friends') && 
+                   room.adults.length < 3 && 
                    room.adults.length + (room.children?.length || 0) < 4 && (
-                    <button
-                      onClick={() => handleAddAdult(roomIndex)}
-                      className="flex items-center gap-1 px-2 py-1 text-sm border border-gray-300 rounded-lg hover:border-blue-400"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Adult
-                    </button>
+                    <>
+                      {/* Desktop Button */}
+                      <Button
+                        startIcon={<AddIcon />}
+                        variant="outlined"
+                        onClick={() => handleAddAdult(roomIndex)}
+                        size="small"
+                        sx={{ 
+                          display: { xs: 'none', sm: 'inline-flex' },
+                          minWidth: 'auto'
+                        }}
+                      >
+                        Add Adult
+                      </Button>
+                      {/* Mobile Square Button */}
+                      <IconButton
+                        onClick={() => handleAddAdult(roomIndex)}
+                        sx={{ 
+                          display: { xs: 'flex', sm: 'none' },
+                          border: '1px solid',
+                          borderColor: 'primary.main',
+                          borderRadius: 1,
+                          p: 0.5
+                        }}
+                        size="small"
+                      >
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                    </>
                   )}
-                </div>
-                <div className="px-4 pb-4">
-                  {type === 'solo' ? (
-                    // Solo: Single input
-                    <input
-                      type="number"
-                      value={room.adults[0]}
-                      onChange={(e) => handleAgeChange(roomIndex, 'adults', 0, e.target.value)}
-                      placeholder="Age"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : type === 'couple' ? (
-                    // Couple: Full width inputs with side by side labels
-                    <div className="grid grid-cols-2 gap-4">
-                      {room.adults.map((age, adultIndex) => (
-                        <div key={adultIndex}>
-                          <span className="text-sm text-gray-600 block mb-2">Adult {adultIndex + 1}</span>
-                          <input
-                            type="number"
-                            value={age}
-                            onChange={(e) => handleAgeChange(roomIndex, 'adults', adultIndex, e.target.value)}
-                            placeholder="Age"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    // Family/Friends: Adults with remove buttons
-                    <div className="space-y-2">
-                      {room.adults.map((age, adultIndex) => (
-                        <div key={adultIndex} className="flex gap-2">
-                          <input
-                            type="number"
-                            value={age}
-                            onChange={(e) => handleAgeChange(roomIndex, 'adults', adultIndex, e.target.value)}
-                            placeholder="Age"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button
-                            onClick={() => handleRemoveAdult(roomIndex, adultIndex)}
-                            className="p-2 text-red-500 hover:text-red-600 rounded-lg hover:bg-red-50"
-                          >
-                            <Minus className="h-5 w-5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {room.adults.map((age, adultIndex) => (
+                    <Box key={adultIndex} sx={{ display: 'flex', gap: 1 }}>
+                      <TextField
+                        type="number"
+                        value={age}
+                        onChange={(e) => handleAgeChange(roomIndex, 'adults', adultIndex, e.target.value)}
+                        placeholder="Age"
+                        fullWidth
+                        size="small"
+                      />
+                      {(type === 'family' || type === 'friends') && (
+                        <IconButton
+                          onClick={() => handleRemovePerson(roomIndex, 'adults', adultIndex)}
+                          color="error"
+                          size="small"
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              </Card>
 
-              {/* Children Section - Only for family/friends */}
+              {/* Children Section */}
               {(type === 'family' || type === 'friends') && room.children && (
-                <div className="border border-gray-200 rounded-lg">
-                  <div className="flex justify-between items-center p-4 pb-3">
-                    <h4 className="font-medium">Children</h4>
+                <Card variant="outlined" sx={{ p: 2 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    mb: 2 
+                  }}>
+                    <Typography variant="subtitle1">Children</Typography>
                     {room.children.length < 2 && 
                      room.adults.length + room.children.length < 4 && (
-                      <button
-                        onClick={() => handleAddChild(roomIndex)}
-                        className="flex items-center gap-1 px-2 py-1 text-sm border border-gray-300 rounded-lg hover:border-blue-400"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Child
-                      </button>
+                      <>
+                        {/* Desktop Button */}
+                        <Button
+                          startIcon={<AddIcon />}
+                          variant="outlined"
+                          onClick={() => handleAddChild(roomIndex)}
+                          size="small"
+                          sx={{ 
+                            display: { xs: 'none', sm: 'inline-flex' },
+                            minWidth: 'auto'
+                          }}
+                        >
+                          Add Child
+                        </Button>
+                        {/* Mobile Square Button */}
+                        <IconButton
+                          onClick={() => handleAddChild(roomIndex)}
+                          sx={{ 
+                            display: { xs: 'flex', sm: 'none' },
+                            border: '1px solid',
+                            borderColor: 'primary.main',
+                            borderRadius: 1,
+                            p: 0.5
+                          }}
+                          size="small"
+                        >
+                          <AddIcon fontSize="small" />
+                        </IconButton>
+                      </>
                     )}
-                  </div>
-                  <div className={`${room.children.length > 0 ? 'space-y-2 px-4 pb-4' : ''}`}>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {room.children.map((age, childIndex) => (
-                      <div key={childIndex} className="flex gap-2">
-                        <input
+                      <Box key={childIndex} sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
                           type="number"
                           value={age}
                           onChange={(e) => handleAgeChange(roomIndex, 'children', childIndex, e.target.value)}
                           placeholder="Age"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          fullWidth
+                          size="small"
                         />
-                        <button
-                          onClick={() => handleRemoveChild(roomIndex, childIndex)}
-                          className="p-2 text-red-500 hover:text-red-600 rounded-lg hover:bg-red-50"
+                        <IconButton
+                          onClick={() => handleRemovePerson(roomIndex, 'children', childIndex)}
+                          color="error"
+                          size="small"
                         >
-                          <Minus className="h-5 w-5" />
-                        </button>
-                      </div>
+                          <RemoveIcon />
+                        </IconButton>
+                      </Box>
                     ))}
-                  </div>
-                </div>
+                  </Box>
+                </Card>
               )}
-            </div>
-          </div>
+            </Box>
+          </Card>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

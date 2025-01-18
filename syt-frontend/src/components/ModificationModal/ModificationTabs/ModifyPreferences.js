@@ -62,14 +62,14 @@ const ModifyPreferences = ({ preferences, onUpdate }) => {
   };
 
   return (
-    <Box sx={{ width: '100%', typography: 'body1' }}>
+    <Box sx={{ width: '100%' }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Interests
         </Typography>
         <Grid container spacing={1}>
           {interestOptions.map((interest) => (
-            <Grid item xs={6} md={4} key={interest}>
+            <Grid item xs={12} sm={6} md={4} key={interest}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -90,7 +90,7 @@ const ModifyPreferences = ({ preferences, onUpdate }) => {
         </Typography>
         <Grid container spacing={2}>
           {budgetOptions.map((option) => (
-            <Grid item xs={12} md={4} key={option}>
+            <Grid item xs={12} sm={4} key={option}>
               <Button
                 fullWidth
                 variant={budget === option ? 'contained' : 'outlined'}

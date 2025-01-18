@@ -6,12 +6,10 @@ import {
     Modal,
     Tab,
     Tabs,
-    Typography,
-    useTheme
+    Typography, useMediaQuery, useTheme
 } from '@mui/material';
 import { AdapterLuxon } from "@mui/x-date-pickers/AdapterLuxon";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -41,6 +39,7 @@ const ModificationModal = ({
   isModifying 
 }) => {
   const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const [activeTab, setActiveTab] = useState(0);
   const [itineraryData, setItineraryData] = useState(null);
   const [modifiedData, setModifiedData] = useState(null);
@@ -53,7 +52,7 @@ const ModificationModal = ({
         try {
           setIsLoading(true);
           setError(null);
-          const response = await axios.get(
+          const response = await fetch(
             `http://localhost:5000/api/itineraryInquiry/${itineraryInquiryToken}`,
             {
               headers: {
@@ -62,11 +61,11 @@ const ModificationModal = ({
             }
           );
           
-          const data = response.data;
-          console.log('Fetched itinerary inquiry data:', data);
+          if (!response.ok) throw new Error('Failed to fetch itinerary data');
+          
+          const data = await response.json();
           setItineraryData(data);
           
-          // Initialize modifiedData with fetched data
           setModifiedData({
             selectedCities: data.selectedCities || [],
             departureCity: data.departureCity || null,
@@ -87,9 +86,7 @@ const ModificationModal = ({
             includeFerryTransport: data.includeFerryTransport || false,
             userInfo: data.userInfo || {}
           });
-
         } catch (error) {
-          console.error('Error fetching itinerary data:', error);
           setError('Failed to load itinerary data. Please try again.');
         } finally {
           setIsLoading(false);
@@ -105,7 +102,6 @@ const ModificationModal = ({
   };
 
   const updateModifiedData = (field, value) => {
-    console.log('Updating field:', field, 'with value:', value);
     setModifiedData(prev => {
       if (!prev) return prev;
 
@@ -147,190 +143,165 @@ const ModificationModal = ({
           newState[field] = value;
       }
 
-      console.log('Updated state:', newState);
       return newState;
     });
-  };
-
-  const handleModification = async () => {
-    if (!modifiedData || !itineraryData) {
-      console.error('No data available for modification');
-      return;
-    }
-
-    try {
-      // Create complete payload with all required data
-      const updatePayload = {
-        ...modifiedData,
-        itineraryInquiryToken,
-        userInfo: itineraryData.userInfo
-      };
-
-      console.log('Submitting modification payload:', updatePayload);
-
-      // 1. Update ItineraryInquiry
-      await axios.put(
-        `http://localhost:5000/api/itineraryInquiry/${itineraryInquiryToken}`,
-        updatePayload,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
-
-      // 2. Delete existing Itinerary
-      await axios.delete(
-        `http://localhost:5000/api/itinerary/${itineraryInquiryToken}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
-
-      // Close modal and trigger parent component's handler
-      onClose();
-      onModify(updatePayload);
-
-    } catch (error) {
-      console.error('Error in modification:', error);
-      setError(error.response?.data?.message || 'Error modifying itinerary. Please try again.');
-      throw error;
-    }
   };
 
   if (!open) return null;
 
   return (
     <LocalizationProvider dateAdapter={AdapterLuxon}>
-    <Modal 
-      open={open}
-      onClose={onClose}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 2
-      }}
-    >
-      <Box sx={{
-        bgcolor: 'background.paper',
-        borderRadius: 2,
-        boxShadow: 24,
-        maxWidth: 900,
-        width: '90%',
-        maxHeight: '90vh',
-        overflow: 'auto',
-        position: 'relative'
-      }}>
-        <IconButton
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            zIndex: 1
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+      <Modal 
+        open={open}
+        onClose={onClose}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: { xs: 1, sm: 2, md: 3 }
+        }}
+      >
+        <Box sx={{
+          bgcolor: 'background.paper',
+          borderRadius: 2,
+          boxShadow: 24,
+          width: '90%',
+          maxWidth: 900,
+          maxHeight: '90vh',
+          overflow: 'auto',
+          position: 'relative'
+        }}>
+          <IconButton
+            onClick={onClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              zIndex: 1
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
 
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Modify Itinerary
-          </Typography>
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Modify Itinerary
+            </Typography>
 
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <LoadingSpinner message="Loading itinerary details..." />
-            </Box>
-          ) : modifiedData ? (
-            <>
-              <Tabs 
-                value={activeTab} 
-                onChange={handleTabChange}
-                sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
-              >
-                <Tab label="Cities" />
-                <Tab label="Dates" />
-                <Tab label="Travelers" />
-                <Tab label="Preferences" />
-              </Tabs>
-
-              <TabPanel value={activeTab} index={0}>
-                <ModifyCities
-                  selectedCities={modifiedData.selectedCities}
-                  departureCity={modifiedData.departureCity}
-                  onUpdate={(cities, depCity) => {
-                    updateModifiedData('selectedCities', cities);
-                    updateModifiedData('departureCity', depCity);
-                  }}
-                />
-              </TabPanel>
-
-              <TabPanel value={activeTab} index={1}>
-                <ModifyDates
-                  departureDates={modifiedData.departureDates}
-                  onUpdate={(dates) => updateModifiedData('departureDates', dates)}
-                />
-              </TabPanel>
-
-              <TabPanel value={activeTab} index={2}>
-                <ModifyTravelers
-                  travelersDetails={modifiedData.travelersDetails}
-                  onUpdate={(details) => updateModifiedData('travelersDetails', details)}
-                />
-              </TabPanel>
-
-              <TabPanel value={activeTab} index={3}>
-                <ModifyPreferences
-                  preferences={modifiedData.preferences}
-                  includeInternational={modifiedData.includeInternational}
-                  includeGroundTransfer={modifiedData.includeGroundTransfer}
-                  includeFerryTransport={modifiedData.includeFerryTransport}
-                  onUpdate={(prefs) => updateModifiedData('preferences', prefs)}
-                />
-              </TabPanel>
-
-              <Box sx={{ 
-                mt: 3, 
-                pt: 2, 
-                borderTop: 1, 
-                borderColor: 'divider',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 2
-              }}>
-                <Button
-                  onClick={onClose}
-                  disabled={isModifying}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleModification}
-                  disabled={isModifying}
-                >
-                  {isModifying ? "Saving Changes..." : "Save Changes"}
-                </Button>
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <LoadingSpinner message="Loading itinerary details..." />
               </Box>
-            </>
-          ) : null}
+            ) : modifiedData ? (
+              <>
+                <Tabs 
+                  value={activeTab} 
+                  onChange={handleTabChange}
+                  variant={matches ? "fullWidth" : "scrollable"}
+                  scrollButtons={!matches}
+                  allowScrollButtonsMobile
+                  sx={{ 
+                    borderBottom: 1, 
+                    borderColor: 'divider',
+                    mb: 2,
+                    '& .MuiTabs-scrollButtons': {
+                      '&.Mui-disabled': {
+                        opacity: 0.3,
+                      },
+                    },
+                    '& .MuiTab-root': {
+                      fontSize: { xs: '0.875rem', sm: '1rem' },
+                      minHeight: { xs: 48, sm: 56 },
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                      '&.Mui-selected': {
+                        fontWeight: 600
+                      }
+                    }
+                  }}
+                >
+                  <Tab label="Cities" />
+                  <Tab label="Dates" />
+                  <Tab label="Travelers" />
+                  <Tab label="Preferences" />
+                </Tabs>
+
+                <TabPanel value={activeTab} index={0}>
+                  <ModifyCities
+                    selectedCities={modifiedData.selectedCities}
+                    departureCity={modifiedData.departureCity}
+                    onUpdate={(cities, depCity) => {
+                      updateModifiedData('selectedCities', cities);
+                      updateModifiedData('departureCity', depCity);
+                    }}
+                  />
+                </TabPanel>
+
+                <TabPanel value={activeTab} index={1}>
+                  <ModifyDates
+                    departureDates={modifiedData.departureDates}
+                    onUpdate={(dates) => updateModifiedData('departureDates', dates)}
+                  />
+                </TabPanel>
+
+                <TabPanel value={activeTab} index={2}>
+                  <ModifyTravelers
+                    travelersDetails={modifiedData.travelersDetails}
+                    onUpdate={(details) => updateModifiedData('travelersDetails', details)}
+                  />
+                </TabPanel>
+
+                <TabPanel value={activeTab} index={3}>
+                  <ModifyPreferences
+                    preferences={modifiedData.preferences}
+                    includeInternational={modifiedData.includeInternational}
+                    includeGroundTransfer={modifiedData.includeGroundTransfer}
+                    includeFerryTransport={modifiedData.includeFerryTransport}
+                    onUpdate={(prefs) => updateModifiedData('preferences', prefs)}
+                  />
+                </TabPanel>
+
+                <Box sx={{ 
+                  mt: 3, 
+                  pt: 2, 
+                  borderTop: 1, 
+                  borderColor: 'divider',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 2
+                }}>
+                  <Button
+                    variant="outlined"
+                    onClick={onClose}
+                    disabled={isModifying}
+                    sx={{ width: 140 }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => onModify(modifiedData)}
+                    disabled={isModifying}
+                    sx={{ width: 140 }}
+                  >
+                    {isModifying ? "Saving Changes..." : "Save Changes"}
+                  </Button>
+                </Box>
+              </>
+            ) : null}
+          </Box>
         </Box>
-      </Box>
-    </Modal>
+      </Modal>
     </LocalizationProvider>
   );
-  
 };
 
 export default ModificationModal;

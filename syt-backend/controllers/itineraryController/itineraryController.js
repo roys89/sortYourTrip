@@ -21,7 +21,7 @@ const getDifferenceInDays = (startDate, endDate) => {
   return difference;
 };
 
-// Helper function to making address of the hotel for transfers
+// Helper function for address formatting
 function formatAddressToSingleLine(addressObj) {
   if (!addressObj) return null;
 
@@ -50,11 +50,7 @@ const distributeDaysAcrossCities = (startDate, endDate, selectedCities) => {
     const cityEndDate = new Date(cityStartDate);
     cityEndDate.setDate(cityEndDate.getDate() + daysForThisCity - 1);
 
-    console.log(
-      `City: ${city.city}, Start Date: ${
-        cityStartDate.toISOString().split("T")[0]
-      }, End Date: ${cityEndDate.toISOString().split("T")[0]}`
-    );
+    console.log(`City: ${city.city}, Start Date: ${cityStartDate.toISOString().split("T")[0]}, End Date: ${cityEndDate.toISOString().split("T")[0]}`);
 
     cityDayDistribution.push({
       city,
@@ -98,7 +94,6 @@ const ensureDirectoryExistsAndSave = (filePath, data) => {
     );
   }
 };
-
 // Process activities for a specific day
 const processActivitiesForDay = async (
   city,
@@ -109,14 +104,14 @@ const processActivitiesForDay = async (
   cityActivitiesTracker
 ) => {
   try {
+    console.log(`\n=== Processing activities for ${city.city} on ${formattedDate} ===`);
+    
     const destinationData = await ActivityDestination.findOne({
       destination_id: city.destination_id,
     });
 
     if (!destinationData) {
-      console.error(
-        `Destination not found for destination_id: ${city.destination_id}`
-      );
+      console.error(`Destination not found for destination_id: ${city.destination_id}`);
       return {
         date: formattedDate,
         activities: [],
@@ -125,14 +120,21 @@ const processActivitiesForDay = async (
     }
 
     const destination_code = destinationData.destination_code;
+    console.log('Found destination code:', destination_code);
 
-    if (!cityActivitiesTracker[destination_code]) {
-      cityActivitiesTracker[destination_code] = new Set();
+    // Initialize tracker if not exists
+    if (!cityActivitiesTracker[city.destination_id]) {
+      console.log(`Initializing activity tracker for ${city.city}`);
+      cityActivitiesTracker[city.destination_id] = new Set();
     }
 
-    // Add isFirstDay calculation here
-    const isFirstDay =
-      new Date(formattedDate).getTime() === new Date(city.startDate).getTime();
+    // Calculate isFirstDay
+    const isFirstDay = new Date(formattedDate).getTime() === new Date(city.startDate).getTime();
+    console.log(`Is first day: ${isFirstDay}`);
+
+    // Get currently excluded activities
+    const excludedActivities = Array.from(cityActivitiesTracker[city.destination_id]);
+    console.log(`Currently excluded activities for ${city.city}:`, excludedActivities);
 
     const requestData = {
       body: {
@@ -149,18 +151,23 @@ const processActivitiesForDay = async (
         },
         travelers,
         inquiryToken,
-        excludedActivityCodes: Array.from(
-          cityActivitiesTracker[destination_code]
-        ),
+        excludedActivityCodes: excludedActivities,
         day: {
-          isFirstDay, // Pass only first day flag
+          isFirstDay,
         },
       },
     };
 
+    console.log('Requesting activities with parameters:', {
+      city: requestData.body.city.name,
+      date: formattedDate,
+      excludedCount: excludedActivities.length
+    });
+
     const activityResponse = await getCityActivities(requestData);
 
     if (!activityResponse || !Array.isArray(activityResponse)) {
+      console.log(`No activities available for ${city.city} on ${formattedDate}`);
       return {
         date: formattedDate,
         activities: [],
@@ -168,12 +175,22 @@ const processActivitiesForDay = async (
       };
     }
 
-    // Track selected activities
+    // Track newly selected activities
+    const newlySelectedActivities = [];
     activityResponse.forEach((activity) => {
       if (activity.activityCode) {
-        cityActivitiesTracker[destination_code].add(activity.activityCode);
+        if (!cityActivitiesTracker[city.destination_id].has(activity.activityCode)) {
+          console.log(`Adding new activity ${activity.activityCode} to excluded list for ${city.city}`);
+          cityActivitiesTracker[city.destination_id].add(activity.activityCode);
+          newlySelectedActivities.push(activity.activityCode);
+        }
       }
     });
+
+    console.log(`\nActivity selection summary for ${city.city} on ${formattedDate}:`);
+    console.log('Newly selected activities:', newlySelectedActivities);
+    console.log('Current excluded activities:', Array.from(cityActivitiesTracker[city.destination_id]));
+    console.log('=== Processing complete ===\n');
 
     return {
       date: formattedDate,
@@ -192,13 +209,9 @@ const processActivitiesForDay = async (
   }
 };
 
-
-
-// Helper function to process flights and hotels concurrently
-
+// Process flights and hotels concurrently
 const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) => {
   try {
-    // Get departure and return flights concurrently
     const [departureFlights, returnFlights] = await Promise.all([
       getFlights({
         inquiryToken: inquiry.itineraryInquiryToken,
@@ -226,7 +239,6 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) 
       })
     ]);
 
-    // Process hotels for all cities concurrently using same token
     const hotelPromises = cityDayDistribution.map(async ({ city, startDate, endDate }, index) => {
       const extendedCheckoutDate = new Date(endDate);
       extendedCheckoutDate.setDate(extendedCheckoutDate.getDate() + 1);
@@ -241,7 +253,7 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) 
         travelersDetails: inquiry.travelersDetails,
         preferences: inquiry.preferences,
         inquiryToken: inquiry.itineraryInquiryToken,
-        authToken // Pass the cached token
+        authToken
       });
 
       return hotelResponse;
@@ -259,170 +271,25 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) 
     throw error;
   }
 };
-
-
-// Main itinerary creation controller
-exports.createItinerary = async (req, res) => {
-  try {
-    const { inquiryToken } = req.params;
-    const inquiry = await ItineraryInquiry.findOne({
-      itineraryInquiryToken: inquiryToken,
-    });
-
-    if (!inquiry) {
-      return res.status(404).json({ message: "Itinerary inquiry not found" });
-    }
-
-    const itineraryToken = uuidv4();
-
-    // Get and cache auth token for the entire flow
-    const authToken = await HotelTokenManager.getOrSetToken(
-      inquiryToken,
-      async () => await HotelAuthService.getAuthToken(inquiryToken)
-    );
-
-    // Step 1: Distribute days across cities
-    const cityDayDistribution = distributeDaysAcrossCities(
-      inquiry.departureDates.startDate,
-      inquiry.departureDates.endDate,
-      inquiry.selectedCities
-    );
-
-    // Step 2: Get flights and hotels concurrently using same token
-    console.log("Getting flights and hotels concurrently...");
-    const { departureFlights, returnFlights, hotelResponses } = 
-      await processFlightsAndHotels(inquiry, cityDayDistribution, authToken);
-
-    // Step 3: Process and create initial structure
-    const itineraryDaysByCity = [];
-    const cityActivitiesTracker = {};
-
-    // Process activities for all cities
-    const processedCities = await Promise.all(cityDayDistribution.map(async (cityData, index) => {
-      const { city, startDate, endDate } = cityData;
-      const hotelResponse = hotelResponses[index];
-
-      const cityDetails = {
-        city: city.city,
-        cityCode: city.code,
-        country: city.country,
-        startDate,
-        endDate,
-        days: [],
-      };
-
-      const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
-
-      // Process all days for current city concurrently
-      const processedDays = await Promise.all(Array.from({ length: daysForThisCity }, async (_, dayOffset) => {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(currentDate.getDate() + dayOffset);
-        const formattedDate = currentDate.toISOString().split("T")[0];
-
-        const isFirstDay = dayOffset === 0;
-        const isLastDay = dayOffset === daysForThisCity - 1;
-
-        // Get activities for the day
-        const dayActivities = await processActivitiesForDay(
-          city,
-          inquiry,
-          formattedDate,
-          {
-            adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
-            childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat(),
-          },
-          inquiryToken,
-          cityActivitiesTracker
-        );
-
-        const dayObject = {
-          date: formattedDate,
-          flights: [],
-          hotels: isFirstDay ? [{
-            ...hotelResponse,
-            checkIn: startDate.toISOString().split("T")[0],
-            checkOut: new Date(endDate.getTime() + 24*60*60*1000).toISOString().split("T")[0],
-          }] : [],
-          activities: dayActivities.activities || [],
-          transfers: [],
-        };
-
-        // Add departure flight and transfer for first city's first day
-        if (index === 0 && isFirstDay && departureFlights[0]) {
-          dayObject.flights.push({ flightData: departureFlights[0] });
-        }
-
-        // Add return flight for last city's last day
-        if (index === cityDayDistribution.length - 1 && isLastDay && returnFlights[0]) {
-          dayObject.flights.push({ flightData: returnFlights[0] });
-        }
-
-        return dayObject;
-      }));
-
-      cityDetails.days = processedDays;
-      return cityDetails;
-    }));
-
-    itineraryDaysByCity.push(...processedCities);
-
-    // Step 4: Orchestrate Transfers for Entire Itinerary
-    const itineraryWithTransfers = await orchestrateTransfersForItinerary({
-      itineraryDaysByCity,
-      inquiry,
-      departureFlights,
-      returnFlights,
-      hotelResponses,
-      inquiryToken
-    });
-
-    // Step 5: Create and save the itinerary
-    const itinerary = new Itinerary({
-      itineraryToken,
-      inquiryToken: inquiry.itineraryInquiryToken,
-      userInfo: inquiry.userInfo,
-      travelersDetails: inquiry.travelersDetails,
-      cities: itineraryWithTransfers,
-    });
-
-    console.log("Saving itinerary...");
-    const savedItinerary = await itinerary.save();
-
-    const formattedResponse = {
-      itineraryToken: savedItinerary.itineraryToken,
-      inquiryToken: savedItinerary.inquiryToken,
-      userInfo: savedItinerary.userInfo,
-      cities: savedItinerary.cities,
-      travelersDetails: savedItinerary.travelersDetails,
-    };
-
-    // Save debug file
-    const debugFilePath = path.join(
-      __dirname,
-      "../../logs/itineraries",
-      `${itineraryToken}.json`
-    );
-    ensureDirectoryExistsAndSave(debugFilePath, formattedResponse);
-
-    res.status(201).json(formattedResponse);
-  } catch (error) {
-    console.error("Detailed error creating finalized itinerary:", error);
-    res.status(500).json({
-      message: "Error creating finalized itinerary",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-};
-
-
-// Main orchestration function
+// Main transfer orchestration function
 async function orchestrateTransfersForItinerary(params) {
   const { itineraryDaysByCity, inquiry, departureFlights, returnFlights, inquiryToken } = params;
+
+  // Validate input
+  if (!itineraryDaysByCity || !Array.isArray(itineraryDaysByCity) || itineraryDaysByCity.length === 0) {
+    console.error('Invalid or empty itineraryDaysByCity:', itineraryDaysByCity);
+    throw new Error('Invalid itinerary days data');
+  }
 
   // First city: Airport to first hotel transfer
   if (departureFlights[0] && itineraryDaysByCity[0]) {
     const firstCity = itineraryDaysByCity[0];
+    
+    if (!firstCity.days || !firstCity.days[0]) {
+      console.error('Invalid first city data:', firstCity);
+      throw new Error('Invalid first city data structure');
+    }
+
     const firstDayFirstCity = firstCity.days[0];
     
     const airportToHotelTransfer = await TransferOrchestrationService.processAirportToHotelTransfer({
@@ -444,10 +311,17 @@ async function orchestrateTransfersForItinerary(params) {
     const previousCity = itineraryDaysByCity[i];
     const currentCity = itineraryDaysByCity[i + 1];
     
+    // Validate city data
+    if (!previousCity?.days?.[0] || !currentCity?.days?.[0]) {
+      console.error('Invalid city data for transfer processing');
+      return;
+    }
+    
     const previousCityFirstDay = previousCity.days[0];
     const currentCityFirstDay = currentCity.days[0];
-    console.log('Previous City First Day Hotels:', (previousCityFirstDay.hotels, null, 2));
-    console.log('Current City First Day Hotels:', (currentCityFirstDay.hotels, null, 2));
+
+    console.log('Previous City First Day Hotels:', JSON.stringify(previousCityFirstDay.hotels, null, 2));
+    console.log('Current City First Day Hotels:', JSON.stringify(currentCityFirstDay.hotels, null, 2));
 
     const cityToCityTransfer = await TransferOrchestrationService.processCityToCityTransfer({
       originHotel: previousCityFirstDay.hotels[0],
@@ -487,10 +361,16 @@ async function orchestrateTransfersForItinerary(params) {
   }));
 
   // Last city: Last hotel to airport transfer
-  if (returnFlights[0]) {
+  if (returnFlights[0] && itineraryDaysByCity.length > 0) {
     const lastCity = itineraryDaysByCity[itineraryDaysByCity.length - 1];
+    
+    if (!lastCity?.days) {
+      console.error('Invalid last city data:', lastCity);
+      throw new Error('Invalid last city data structure');
+    }
+
     const lastDayLastCity = lastCity.days[lastCity.days.length - 1];
-    const firstDayLastCity = lastCity.days[0]; // Get hotel from first day
+    const firstDayLastCity = lastCity.days[0];
     
     const hotelToAirportTransfer = await TransferOrchestrationService.processHotelToAirportTransfer({
       flight: returnFlights[0],
@@ -513,10 +393,6 @@ async function orchestrateTransfersForItinerary(params) {
 // Helper function to create airport to hotel transfer
 async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken) {
   try {
-    console.log('Airport to Hotel Transfer - Debug');
-    // console.log('Flight Data:', (flight, null, 2));
-
-    // Add extensive null checks
     if (!flight || !hotel) {
       console.error('Missing flight or hotel data');
       return null;
@@ -524,8 +400,8 @@ async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken
 
     // Safely access nested hotel data
     const hotelDetails = hotel.data?.hotelDetails || 
-                         hotel.hotelDetails || 
-                         hotel.staticContent?.[0];
+                        hotel.hotelDetails || 
+                        hotel.staticContent?.[0];
 
     if (!hotelDetails) {
       console.error('Could not find hotel details');
@@ -539,9 +415,9 @@ async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken
         country: flight.arrivalAirport?.country,
         address: flight.arrivalAirport?.name,
         latitude: flight.arrivalAirport?.location?.latitude || 
-                  flight.destination_location?.latitude,
+                 flight.destination_location?.latitude,
         longitude: flight.arrivalAirport?.location?.longitude || 
-                   flight.destination_location?.longitude,
+                  flight.destination_location?.longitude,
       },
       destination: {
         type: "hotel",
@@ -549,18 +425,16 @@ async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken
         country: hotelDetails.address?.country?.name || hotelDetails.address?.country,
         address: formatAddressToSingleLine(hotelDetails.address),
         latitude: hotelDetails.geolocation?.lat || 
-                  hotelDetails.geoCode?.lat || 
-                  hotelDetails.geolocation?.latitude,
+                 hotelDetails.geoCode?.lat || 
+                 hotelDetails.geolocation?.latitude,
         longitude: hotelDetails.geolocation?.long || 
-                   hotelDetails.geoCode?.long || 
-                   hotelDetails.geolocation?.longitude,
+                  hotelDetails.geoCode?.long || 
+                  hotelDetails.geolocation?.longitude,
       },
       startDate: flight.landingTime,
       travelers: inquiry.travelersDetails,
       inquiryToken: inquiryToken
     };
-
-    console.log('Transfer Params:', JSON.stringify(transferParams, null, 2));
 
     const transfer = await getGroundTransfer(transferParams);
     
@@ -569,10 +443,6 @@ async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken
       : null;
   } catch (error) {
     console.error('Airport to hotel transfer error:', error);
-    console.error('Error Details:', {
-      flightData: flight,
-      hotelData: hotel
-    });
     return null;
   }
 }
@@ -580,17 +450,14 @@ async function createAirportToHotelTransfer(flight, hotel, inquiry, inquiryToken
 // Helper function to create hotel to airport transfer
 async function createHotelToAirportTransfer(flight, hotel, inquiry, inquiryToken) {
   try {
-    console.log('Hotel to Airport Transfer');
-    console.log('Flight:', (flight, null, 2));
-    
     if (!flight || !hotel) {
       console.error('Missing flight or hotel data');
       return null;
     }
 
-    // Get flight departure time, ensuring it's in ISO format
+    // Get flight departure time in ISO format
     let departureTime = flight.departureTime;
-    if (flight.departureDate) {  // If we have separate date and time
+    if (flight.departureDate) {
       const [hours, minutes, period] = flight.departureTime.match(/(\d+):(\d+)\s*(AM|PM)/).slice(1);
       let hour = parseInt(hours);
       if (period === 'PM' && hour !== 12) hour += 12;
@@ -619,15 +486,11 @@ async function createHotelToAirportTransfer(flight, hotel, inquiry, inquiryToken
       startDate: departureTime,
       travelers: inquiry.travelersDetails,
       inquiryToken: inquiryToken,
-      flightNumber: flight.flightCode // Add flight number
+      flightNumber: flight.flightCode
     };
-
-    console.log('Hotel to Airport Transfer Params:', JSON.stringify(transferParams, null, 2));
 
     const transfer = await getGroundTransfer(transferParams);
     
-    console.log('Hotel to Airport Transfer Result:', JSON.stringify(transfer, null, 2));
-
     return transfer.type !== "error" 
       ? { type: "hotel_to_airport", details: transfer } 
       : null;
@@ -636,8 +499,178 @@ async function createHotelToAirportTransfer(flight, hotel, inquiry, inquiryToken
     return null;
   }
 }
+// Main itinerary creation controller
+exports.createItinerary = async (req, res) => {
+  try {
+    const { inquiryToken } = req.params;
+    const inquiry = await ItineraryInquiry.findOne({
+      itineraryInquiryToken: inquiryToken,
+    });
 
+    if (!inquiry) {
+      return res.status(404).json({ message: "Itinerary inquiry not found" });
+    }
 
+    const itineraryToken = uuidv4();
+
+    // Initialize activity tracker for each city at the start
+    const cityActivitiesTracker = {};
+    inquiry.selectedCities.forEach(city => {
+      cityActivitiesTracker[city.destination_id] = new Set();
+    });
+
+    // Step 1: Distribute days across cities
+    const cityDayDistribution = distributeDaysAcrossCities(
+      inquiry.departureDates.startDate,
+      inquiry.departureDates.endDate,
+      inquiry.selectedCities
+    );
+
+    // Get and cache auth token for the entire flow
+    const authToken = await HotelTokenManager.getOrSetToken(
+      inquiryToken,
+      async () => await HotelAuthService.getAuthToken(inquiryToken)
+    );
+
+    // Step 2: Get flights and hotels concurrently
+    console.log("Getting flights and hotels concurrently...");
+    const { departureFlights, returnFlights, hotelResponses } = 
+      await processFlightsAndHotels(inquiry, cityDayDistribution, authToken);
+
+    // Step 3: Process cities sequentially
+    const processedCities = [];
+    const itineraryDaysByCity = []; // Initialize array for transfer orchestration
+
+    for (let cityIndex = 0; cityIndex < cityDayDistribution.length; cityIndex++) {
+      const { city, startDate, endDate } = cityDayDistribution[cityIndex];
+      const hotelResponse = hotelResponses[cityIndex];
+
+      console.log(`\n=== Processing city ${cityIndex + 1}/${cityDayDistribution.length}: ${city.city} ===`);
+
+      const cityDetails = {
+        city: city.city,
+        cityCode: city.code,
+        country: city.country,
+        startDate,
+        endDate,
+        days: [],
+      };
+
+      const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
+
+      // Process days sequentially for this city
+      for (let dayOffset = 0; dayOffset < daysForThisCity; dayOffset++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(currentDate.getDate() + dayOffset);
+        const formattedDate = currentDate.toISOString().split("T")[0];
+
+        const isFirstDay = dayOffset === 0;
+        const isLastDay = dayOffset === daysForThisCity - 1;
+
+        // Process activities for this day
+        const dayActivities = await processActivitiesForDay(
+          city,
+          inquiry,
+          formattedDate,
+          {
+            adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
+            childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat(),
+          },
+          inquiryToken,
+          cityActivitiesTracker
+        );
+
+        const dayObject = {
+          date: formattedDate,
+          flights: [],
+          hotels: isFirstDay ? [{
+            ...hotelResponse,
+            checkIn: startDate.toISOString().split("T")[0],
+            checkOut: new Date(endDate.getTime() + 24*60*60*1000).toISOString().split("T")[0],
+          }] : [],
+          activities: dayActivities.activities || [],
+          transfers: [],
+        };
+
+        // Handle flights
+        if (cityIndex === 0 && isFirstDay && departureFlights[0]) {
+          dayObject.flights.push({ flightData: departureFlights[0] });
+        }
+        if (cityIndex === cityDayDistribution.length - 1 && isLastDay && returnFlights[0]) {
+          dayObject.flights.push({ flightData: returnFlights[0] });
+        }
+
+        cityDetails.days.push(dayObject);
+        console.log(`Completed processing day ${dayOffset + 1}/${daysForThisCity} for ${city.city}`);
+      }
+
+      processedCities.push(cityDetails);
+      console.log(`=== Completed processing city: ${city.city} ===\n`);
+
+      // Log city activity summary
+      console.log(`Total unique activities used: ${cityActivitiesTracker[city.destination_id].size}`);
+      console.log(`Activity codes: ${Array.from(cityActivitiesTracker[city.destination_id]).join(", ")}\n`);
+    }
+
+    // Add processed cities to itineraryDaysByCity
+    itineraryDaysByCity.push(...processedCities);
+
+    // Step 4: Orchestrate Transfers
+    const itineraryWithTransfers = await orchestrateTransfersForItinerary({
+      itineraryDaysByCity,
+      inquiry,
+      departureFlights,
+      returnFlights,
+      hotelResponses,
+      inquiryToken
+    });
+
+    // Step 5: Create and save the itinerary
+    const itinerary = new Itinerary({
+      itineraryToken,
+      inquiryToken: inquiry.itineraryInquiryToken,
+      userInfo: inquiry.userInfo,
+      travelersDetails: inquiry.travelersDetails,
+      cities: itineraryWithTransfers,
+    });
+
+    console.log("Saving itinerary...");
+    const savedItinerary = await itinerary.save();
+
+    const formattedResponse = {
+      itineraryToken: savedItinerary.itineraryToken,
+      inquiryToken: savedItinerary.inquiryToken,
+      userInfo: savedItinerary.userInfo,
+      cities: savedItinerary.cities,
+      travelersDetails: savedItinerary.travelersDetails,
+    };
+
+    // Save debug file
+    const debugFilePath = path.join(
+      __dirname,
+      "../../logs/itineraries",
+      `${itineraryToken}.json`
+    );
+    ensureDirectoryExistsAndSave(debugFilePath, formattedResponse);
+
+    // Log final activity distribution
+    console.log("\nFinal activity distribution by city:");
+    Object.entries(cityActivitiesTracker).forEach(([cityId, activities]) => {
+      const cityName = inquiry.selectedCities.find(c => c.destination_id === cityId)?.city;
+      console.log(`${cityName}: ${Array.from(activities).length} unique activities used`);
+      console.log(`Activity codes: ${Array.from(activities)}`);
+    });
+
+    res.status(201).json(formattedResponse);
+  } catch (error) {
+    console.error("Detailed error creating finalized itinerary:", error);
+    res.status(500).json({
+      message: "Error creating finalized itinerary",
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+};
 // Get itinerary endpoint
 exports.getItinerary = async (req, res) => {
   try {
@@ -664,7 +697,7 @@ exports.getItinerary = async (req, res) => {
     const formattedResponse = {
       itineraryToken: itinerary.itineraryToken,
       inquiryToken: itinerary.inquiryToken,
-      userInfo: itinerary.userInfo, // Include userInfo in response
+      userInfo: itinerary.userInfo,
       cities: itinerary.cities,
       travelersDetails: itinerary.travelersDetails,
       priceTotals: itinerary.priceTotals || null,
@@ -680,7 +713,7 @@ exports.getItinerary = async (req, res) => {
   }
 };
 
-// Add this new function
+// Get itinerary by inquiry token
 exports.getItineraryByInquiryToken = async (req, res) => {
   try {
     const { inquiryToken } = req.params;
@@ -702,7 +735,7 @@ exports.getItineraryByInquiryToken = async (req, res) => {
     res.json({
       itineraryToken: itinerary.itineraryToken,
       inquiryToken: itinerary.inquiryToken,
-      userInfo: itinerary.userInfo, // Include userInfo in response
+      userInfo: itinerary.userInfo,
       cities: itinerary.cities,
       travelersDetails: itinerary.travelersDetails,
       priceTotals: itinerary.priceTotals || null,
@@ -716,16 +749,15 @@ exports.getItineraryByInquiryToken = async (req, res) => {
   }
 };
 
+// Update itinerary prices
 exports.updateItineraryPrices = async (req, res) => {
   try {
     const { itineraryToken } = req.params;
     const { priceTotals } = req.body;
 
-    // Log incoming request
     console.log("Updating prices for itinerary:", itineraryToken);
     console.log("Price totals:", priceTotals);
 
-    // Validate price totals
     if (!priceTotals || typeof priceTotals !== "object") {
       return res.status(400).json({
         message: "Invalid price totals format",
@@ -744,7 +776,6 @@ exports.updateItineraryPrices = async (req, res) => {
       grandTotal: Number(priceTotals.grandTotal || 0),
     };
 
-    // Update itinerary with validated price totals
     const updatedItinerary = await Itinerary.findOneAndUpdate(
       { itineraryToken },
       {
@@ -762,7 +793,6 @@ exports.updateItineraryPrices = async (req, res) => {
       });
     }
 
-    // Log the updated document
     console.log("Updated itinerary with prices:", {
       itineraryToken: updatedItinerary.itineraryToken,
       priceTotals: updatedItinerary.priceTotals,
@@ -778,13 +808,25 @@ exports.updateItineraryPrices = async (req, res) => {
   }
 };
 
-
+// Delete itinerary
 exports.deleteItinerary = async (req, res) => {
   try {
     const { inquiryToken } = req.params;
-    await Itinerary.deleteOne({ inquiryToken });
-    res.status(200).json({ message: "Itinerary deleted successfully" });
+    
+    const result = await Itinerary.deleteOne({ inquiryToken });
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        message: "Itinerary not found",
+      });
+    }
+    
+    res.status(200).json({ 
+      message: "Itinerary deleted successfully",
+      deletedCount: result.deletedCount
+    });
   } catch (error) {
+    console.error("Error deleting itinerary:", error);
     res.status(500).json({
       message: "Error deleting itinerary",
       error: error.message

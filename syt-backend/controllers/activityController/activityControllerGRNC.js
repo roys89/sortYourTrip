@@ -585,6 +585,7 @@ const getFilteredActivities = async (city, userPreferences, excludedActivityCode
           { city: city.name }
         ]
       },
+      // Ensure activityCode is not in the excluded list
       { activityCode: { $nin: excludedActivityCodes } }
     ]
   };
@@ -608,13 +609,16 @@ const getFilteredActivities = async (city, userPreferences, excludedActivityCode
     });
   }
 
+  console.log('Excluded activity codes:', excludedActivityCodes);
+  
   const activities = await Activity.find(baseQuery)
     .sort({ mandatory: -1, ranking: -1 })
     .lean();
 
-  console.log(`Found ${activities.length} activities for ${city.name}`);
+  console.log(`Found ${activities.length} activities for ${city.name} after excluding ${excludedActivityCodes.length} activities`);
   return activities;
 };
+
 // Main function to get city activities
 const getCityActivities = async (req) => {
   console.log(`Processing activities for city: ${req.body.city.name}`);
@@ -623,13 +627,13 @@ const getCityActivities = async (req) => {
     userPreferences, 
     itineraryDates, 
     travelers, 
-    inquiryToken, 
+    inquiryToken,
     excludedActivityCodes = [], 
     day = null 
   } = req.body;
 
   try {
-    // Get filtered activities
+    // Get filtered activities, excluding previously selected ones
     const activities = await getFilteredActivities(
       city, 
       userPreferences, 
@@ -681,7 +685,13 @@ const getCityActivities = async (req) => {
       })
     );
 
-    return enrichedActivities.filter(activity => activity !== null);
+    // Filter out null activities and return
+    const validActivities = enrichedActivities.filter(activity => activity !== null);
+
+    // Log the selected activity codes for debugging
+    console.log('Selected activity codes:', validActivities.map(a => a.activityCode));
+
+    return validActivities;
 
   } catch (error) {
     console.error('Detailed error in getCityActivities:', {

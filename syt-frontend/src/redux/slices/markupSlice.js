@@ -20,15 +20,15 @@ export const saveMarkupSettings = createAsyncThunk(
 
 const initialState = {
   markups: {
-    activities: 2,
-    hotels: 2,
-    flights: 2,
-    transfers: 2
+    activities: 0,
+    hotels: 0,
+    flights: 0,
+    transfers: 0
   },
   tcsRates: {
-    default: 15,
-    highValue: 20,
-    threshold: 700000
+    default: 0,
+    highValue: 0,
+    threshold: 0
   },
   loading: false,
   error: null,

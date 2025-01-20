@@ -320,8 +320,8 @@ async function orchestrateTransfersForItinerary(params) {
     const previousCityFirstDay = previousCity.days[0];
     const currentCityFirstDay = currentCity.days[0];
 
-    console.log('Previous City First Day Hotels:', JSON.stringify(previousCityFirstDay.hotels, null, 2));
-    console.log('Current City First Day Hotels:', JSON.stringify(currentCityFirstDay.hotels, null, 2));
+    // console.log('Previous City First Day Hotels:', JSON.stringify(previousCityFirstDay.hotels, null, 2));
+    // console.log('Current City First Day Hotels:', JSON.stringify(currentCityFirstDay.hotels, null, 2));
 
     const cityToCityTransfer = await TransferOrchestrationService.processCityToCityTransfer({
       originHotel: previousCityFirstDay.hotels[0],

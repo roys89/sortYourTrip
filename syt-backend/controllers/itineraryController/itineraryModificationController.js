@@ -394,51 +394,123 @@ exports.updateActivityWithBookingRef = async (req, res) => {
   const { cityName, date, activityCode, bookingReference } = req.body;
   const inquiryToken = req.headers['x-inquiry-token'];
 
+  // Comprehensive logging
+  console.log('Received Booking Reference Update:', {
+    itineraryToken,
+    cityName,
+    date,
+    activityCode,
+    bookingReference: JSON.stringify(bookingReference, null, 2)
+  });
+
   try {
+    // Find the itinerary
     const itinerary = await Itinerary.findOne({ 
       itineraryToken,
       inquiryToken 
     });
 
     if (!itinerary) {
+      console.error('Itinerary not found:', { itineraryToken, inquiryToken });
       return res.status(404).json({ message: 'Itinerary not found' });
     }
 
+    // Find the city
     const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
     if (cityIndex === -1) {
+      console.error('City not found:', { 
+        cityName, 
+        availableCities: itinerary.cities.map(c => c.city) 
+      });
       return res.status(404).json({ message: 'City not found in itinerary' });
     }
 
+    // Find the day
     const dayIndex = itinerary.cities[cityIndex].days.findIndex(
       day => day.date === date
     );
     if (dayIndex === -1) {
+      console.error('Day not found:', { 
+        date, 
+        availableDates: itinerary.cities[cityIndex].days.map(d => d.date) 
+      });
       return res.status(404).json({ message: 'Day not found in itinerary' });
     }
 
-    const activityIndex = itinerary.cities[cityIndex].days[dayIndex].activities
-      .findIndex(activity => activity.activityCode === activityCode);
+    // Find the activity
+    const activities = itinerary.cities[cityIndex].days[dayIndex].activities;
+    const activityIndex = activities.findIndex(
+      activity => activity.activityCode === activityCode
+    );
 
     if (activityIndex === -1) {
+      console.error('Activity not found:', { 
+        activityCode, 
+        availableActivityCodes: activities.map(a => a.activityCode) 
+      });
       return res.status(404).json({ message: 'Activity not found' });
     }
 
-    // Update activity with booking reference
-    itinerary.cities[cityIndex].days[dayIndex].activities[activityIndex].bookingReference = {
-      bookingRef: bookingReference.bookingRef,
-      priceValidUntil: bookingReference.priceValidUntil,
-      timeElapsed: bookingReference.timeElapsed,
-      supplierPrice: bookingReference.supplierPrice,
-      price: bookingReference.price,
-      availabilityValidUntil: bookingReference.availabilityValidUntil
+    // Prepare booking reference with robust parsing
+    const processedBookingRef = {
+      bookingRef: bookingReference.bookingRef || '',
+      priceValidUntil: bookingReference.priceValidUntil 
+        ? new Date(bookingReference.priceValidUntil) 
+        : null,
+      timeElapsed: bookingReference.timeElapsed || '',
+      supplierPrice: bookingReference.supplierPrice || null,
+      price: bookingReference.price || null,
+      availabilityValidUntil: bookingReference.availabilityValidUntil && 
+        bookingReference.availabilityValidUntil.trim()
+        ? new Date(bookingReference.availabilityValidUntil)
+        : null
     };
 
-    await itinerary.save();
-    res.json(itinerary);
+    // Log processed booking reference
+    console.log('Processed Booking Reference:', JSON.stringify(processedBookingRef, null, 2));
+
+    // Update the activity with booking reference
+    itinerary.cities[cityIndex].days[dayIndex].activities[activityIndex].bookingReference = processedBookingRef;
+
+    // Attempt to save the itinerary
+    try {
+      const updatedItinerary = await itinerary.save();
+
+      // Log successful save
+      console.log('Itinerary Updated Successfully', {
+        updatedActivityBookingRef: JSON.stringify(
+          updatedItinerary.cities[cityIndex].days[dayIndex].activities[activityIndex].bookingReference, 
+          null, 
+          2
+        )
+      });
+
+      // Respond with the updated itinerary
+      res.json(updatedItinerary);
+    } catch (saveError) {
+      // Detailed error logging
+      console.error('Save Error Details:', {
+        message: saveError.message,
+        name: saveError.name,
+        errors: saveError.errors,
+        stack: saveError.stack
+      });
+
+      // Respond with error details
+      res.status(500).json({ 
+        message: 'Error saving itinerary', 
+        error: saveError.message,
+        details: saveError.errors
+      });
+    }
 
   } catch (error) {
-    console.error('Error updating activity with booking reference:', error);
-    res.status(500).json({ error: error.message });
+    // Catch-all error handling
+    console.error('Unexpected Error in updateActivityWithBookingRef:', error);
+    res.status(500).json({ 
+      message: 'Unexpected error updating activity booking reference',
+      error: error.message 
+    });
   }
 };
 

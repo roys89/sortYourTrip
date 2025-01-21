@@ -1,12 +1,12 @@
 // pages/BookingConfirmation/BookingConfirmation.js
 import { ArrowBack, Check } from '@mui/icons-material';
 import {
-    Box,
-    Button,
-    Container,
-    Grid,
-    Paper,
-    Typography
+  Box,
+  Button,
+  Container,
+  Grid,
+  Paper,
+  Typography
 } from '@mui/material';
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';

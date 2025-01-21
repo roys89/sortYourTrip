@@ -114,6 +114,31 @@ const CancellationSchema = new Schema({
   dayRangeMax: Number
 }, { _id: false });
 
+const BookingReferenceSchema = new Schema({
+  bookingRef: { 
+    type: String, 
+    trim: true 
+  },
+  priceValidUntil: { 
+    type: Date, 
+    default: null 
+  },
+  timeElapsed: { 
+    type: String, 
+    trim: true 
+  },
+  supplierPrice: { 
+    type: Number 
+  },
+  price: { 
+    type: Number 
+  },
+  availabilityValidUntil: { 
+    type: Date, 
+    default: null 
+  }
+}, { _id: false });
+
 // Updated Activity Schema to match activityController return
 const ActivitySchema = new Schema({
   searchId: String,
@@ -177,7 +202,10 @@ const ActivitySchema = new Schema({
   
   // Pickup and availability
   pickupHotellist: Schema.Types.Mixed,
-  availabilityDetails: Schema.Types.Mixed
+  availabilityDetails: Schema.Types.Mixed,
+
+  bookingReference: BookingReferenceSchema,
+
 }, { _id: false });
 
 // Transfer, Flight, and Hotel Schemas remain unchanged

@@ -42,7 +42,7 @@ app.use('/api/cities-with-airports', cityAirportRoutes);
 app.use("/api/itineraryInquiry", itineraryInquiryRoutes);
 app.use("/api/itinerary", itineraryRoutes); 
 app.use("/api/markup", markupRoutes); 
-app.use("/api/bookings", itineraryBookingRoutes); 
+app.use("/api/booking/itinerary", itineraryBookingRoutes); 
 app.use('/api/activities', activityRoutes);
 // 404 route handler
 app.use((req, res, next) => {

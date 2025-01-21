@@ -1,29 +1,26 @@
 // routes/itineraryRoutes/itineraryBookingRoutes.js
+
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../../middlewares/authMiddleware');
-const ItineraryBookingController = require('../../controllers/itineraryController/itineraryBookingController');
 const { validateBookingSchema } = require('../../middlewares/validationMiddleware');
+const { catchAsync } = require('../../utils/errorHandling');
+const ItineraryBookingController = require('../../controllers/itineraryController/itineraryBookingController');
+const authMiddleware = require('../../middlewares/authMiddleware');
 
 // Protect all routes
 router.use(authMiddleware);
 
-// Create booking
-router.post('/', validateBookingSchema, ItineraryBookingController.createBooking);
+// Booking routes
+router.post('/', validateBookingSchema, catchAsync(ItineraryBookingController.createBooking));
+router.get('/', catchAsync(ItineraryBookingController.getBookings));
+router.get('/stats', catchAsync(ItineraryBookingController.getBookingStats));
+router.get('/:bookingId', catchAsync(ItineraryBookingController.getBookingByBookingId));
+router.patch('/:bookingId/status', catchAsync(ItineraryBookingController.updateBookingStatus));
+router.post('/:bookingId/cancel', catchAsync(ItineraryBookingController.cancelBooking));
 
-// Get all bookings with pagination and filters
-router.get('/', ItineraryBookingController.getBookings);
-
-// Get specific booking
-router.get('/:id', ItineraryBookingController.getBooking);
-
-// Update booking status
-router.patch('/:id/status', ItineraryBookingController.updateBookingStatus);
-
-// Cancel booking
-router.post('/:id/cancel', ItineraryBookingController.cancelBooking);
-
-// Get booking statistics
-router.get('/stats', ItineraryBookingController.getBookingStats);
+// Error handling for invalid routes
+router.all('*', (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
 
 module.exports = router;

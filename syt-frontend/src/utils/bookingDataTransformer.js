@@ -1,324 +1,466 @@
-// src/utils/bookingDataTransformer.js
+// utils/bookingDataTransformer.js
 
-// Utility function to generate unique IDs
+// Utility functions
 export const generateUniqueId = () => {
-    return Math.random().toString(36).substr(2, 9);
-  };
+  return Math.random().toString(36).substr(2, 9);
+};
+
+export const generateAgentReference = () => {
+  return Math.floor(100000000 + Math.random() * 900000000).toString();
+};
+
+const calculateAge = (dateOfBirth) => {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
   
-  // Generate agent reference number
-  export const generateAgentReference = () => {
-    return Math.floor(100000000 + Math.random() * 900000000).toString();
-  };
-  
-  // Calculate age from date of birth
-  const calculateAge = (dateOfBirth) => {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+// Generate question answers for activities
+const generateQuestionAnswers = (travelers, specialRequirements = '') => {
+  const answers = travelers.flatMap((traveler, index) => [
+    {
+      question: "AGEBAND",
+      answer: calculateAge(traveler.dateOfBirth) >= 12 ? "ADULT" : "CHILD",
+      travelerNum: (index + 1).toString()
+    },
+    {
+      question: "DATE_OF_BIRTH",
+      answer: traveler.dateOfBirth,
+      travelerNum: (index + 1).toString()
+    },
+    {
+      question: "FULL_NAMES_FIRST",
+      answer: traveler.firstName,
+      travelerNum: (index + 1).toString()
+    },
+    {
+      question: "FULL_NAMES_LAST",
+      answer: traveler.lastName,
+      travelerNum: (index + 1).toString()
+    },
+    {
+      question: "WEIGHT",
+      answer: traveler.weight,
+      unit: "kg",
+      travelerNum: (index + 1).toString()
+    },
+    {
+      question: "HEIGHT",
+      answer: traveler.height,
+      unit: "cm",
+      travelerNum: (index + 1).toString()
     }
-    return age;
-  };
-  
-  // Generate question answers for travelers
-  export const generateQuestionAnswers = (travelers, specialRequirements = '') => {
-    const answers = travelers.flatMap((traveler, index) => [
-      {
-        question: "AGEBAND",
-        answer: calculateAge(traveler.dateOfBirth) >= 12 ? "ADULT" : "CHILD",
-        travelerNum: (index + 1).toString()
-      },
-      {
-        question: "DATE_OF_BIRTH",
-        answer: traveler.dateOfBirth,
-        travelerNum: (index + 1).toString()
-      },
-      {
-        question: "FULL_NAMES_FIRST",
-        answer: traveler.firstName,
-        travelerNum: (index + 1).toString()
-      },
-      {
-        question: "FULL_NAMES_LAST",
-        answer: traveler.lastName,
-        travelerNum: (index + 1).toString()
-      },
-      {
-        question: "WEIGHT",
-        answer: traveler.weight,
-        unit: "kg",
-        travelerNum: (index + 1).toString()
-      },
-      {
-        question: "HEIGHT",
-        answer: traveler.height,
-        unit: "cm",
-        travelerNum: (index + 1).toString()
-      }
-    ]);
-  
-    // Add special requirement if exists
-    if (specialRequirements) {
-      answers.push({
-        question: "SPECIAL_REQUIREMENTS",
-        answer: specialRequirements
-      });
-    }
-  
-    // Add default pickup and transfer mode
-    answers.push(
-      {
-        question: "PICKUP_POINT",
-        answer: "CONTACT_SUPPLIER_LATER"
-      },
-      {
-        question: "TRANSFER_ARRIVAL_MODE",
-        answer: "OTHER"
-      }
-    );
-  
-    return answers;
-  };
-  
-  // Transform travelers data
-  export const transformTravelers = (travelers) => {
-    return travelers.map(traveler => ({
-      ...traveler,
-      type: parseInt(traveler.age) >= 12 ? 'AD' : 'CH'
-    }));
-  };
-  
-  // Transform activity bookings
-  export const transformActivityBookings = (bookingItinerary, travelers, specialRequirements) => {
-    return (bookingItinerary.cities || []).flatMap(city => 
-      (city.days || []).flatMap(day => 
-        (day.activities || [])
-          .filter(activity => activity.activityType === 'online')
-          .map(activity => {
-            const bookingRef = activity.bookingReference?.bookingRef || null;
-            const activityCode = activity.activityCode || null;
-            
-            return {
-              searchId: activity.searchId || null,
-              bookingRef,
-              activityCode,
-              bookingStatus: 'pending',
-              lead: {
-                title: travelers[0].title,
-                name: travelers[0].firstName,
-                surname: travelers[0].lastName,
-                clientNationality: travelers[0].nationality,
-                age: parseInt(travelers[0].age)
-              },
-              agentRef: generateAgentReference(),
-              rateKey: activity.packageDetails?.ratekey && bookingRef
-              ? `${activity.packageDetails.ratekey}|${bookingRef}`
-              : null,
-              fromDate: day.date,
-              toDate: day.date,
-              groupCode: activity.groupCode,
-              hotelId: null,
-              languageGuide: {
-                type: "GUIDE",
-                language: "en",
-                legacyGuide: "en/SERVICE_GUIDE"
-              },
-              QuestionAnswers: generateQuestionAnswers(travelers, specialRequirements),
-              travellers: travelers.map(traveler => ({
-                title: traveler.title,
-                name: traveler.firstName,
-                surname: traveler.lastName,
-                type: parseInt(traveler.age) >= 12 ? 'AD' : 'CH',
-                age: traveler.age
-              })),
-              amount: activity.packageDetails?.amount || 0
-            };
-          })
-      )
-    );
-  };
-  
-  // Transform hotel bookings
-  const transformHotelBookings = (bookingItinerary, roomsData) => {
-    const allHotels = bookingItinerary.cities?.flatMap(city => 
-      city.days?.flatMap(day => day.hotels || [])
-    ) || [];
-    
-    if (!allHotels.length) return [];
-  
-    return allHotels.map(hotel => {
-      // Transform each room's travelers into paxes
-      const rooms = roomsData.map(roomData => ({
-        paxes: roomData.travelers.map(traveler => ({
-          title: traveler.title,
-          name: traveler.firstName,
-          surname: traveler.lastName,
-          type: parseInt(traveler.age) >= 12 ? 'AD' : 'CH',
-          age: traveler.age
-        })),
-        room_reference: hotel.rate.rooms[0].room_reference || null,
-      }));
-  
-      return {
-        searchId: hotel.search_id || null,
-        hotelCode: hotel.hotelCode,
-        cityCode: hotel.cityCode || null,
-        groupCode: hotel.rate?.group_code || null,
-        checkin: hotel.checkIn || null,
-        checkout: hotel.checkOut || null,
-        bookingStatus: 'pending',
-        amount: hotel.rate?.price || 0,
-        holder: {
-          title: roomsData[0].travelers[0].title,
-          name: roomsData[0].travelers[0].firstName,
-          surname: roomsData[0].travelers[0].lastName,
-          email: roomsData[0].travelers[0].email,
-          phone_number: roomsData[0].travelers[0].phone,
-          client_nationality: roomsData[0].travelers[0].nationality?.toLowerCase() || '',
-        },
-        booking_comments: "Booking created via web",
-        payment_type: "Pending",
-        agent_reference: generateAgentReference(),
-        booking_items: [{
-          rate_key: hotel.rate?.rate_key || null,
-          room_code: hotel.rate?.room_code || null,
-          rooms: rooms
-        }]
-      };
+  ]);
+
+  if (specialRequirements) {
+    answers.push({
+      question: "SPECIAL_REQUIREMENTS",
+      answer: specialRequirements
     });
-  };
+  }
 
-// Transform transfer bookings  
-const transformTransferBookings = (bookingItinerary, travelers) => {
-  const allTransfers = bookingItinerary.cities?.flatMap(city => 
-    city.days?.flatMap(day => day.transfers || [])
+  answers.push(
+    {
+      question: "PICKUP_POINT",
+      answer: "CONTACT_SUPPLIER_LATER"
+    },
+    {
+      question: "TRANSFER_ARRIVAL_MODE",
+      answer: "OTHER"
+    }
+  );
+
+  return answers;
+};
+
+// Transform travelers data
+export const transformTravelers = (travelers) => {
+  return travelers.map(traveler => ({
+    ...traveler,
+    type: parseInt(traveler.age) >= 12 ? 'adult' : 'child'
+  }));
+};
+
+// Transform activity bookings
+const transformActivityBookings = (bookingItinerary, travelers, specialRequirements) => {
+  return bookingItinerary.cities?.flatMap(city => 
+    city.days?.flatMap(day => 
+      (day.activities || [])
+        .filter(activity => activity.activityType === 'online')
+        .map(activity => ({
+          searchId: activity.searchId,
+          bookingRef: activity.bookingReference?.bookingRef || null,
+          activityCode: activity.activityCode,
+          bookingStatus: 'pending',
+          lead: {
+            title: travelers[0].title,
+            name: travelers[0].firstName,
+            surname: travelers[0].lastName,
+            clientNationality: travelers[0].nationality,
+            age: parseInt(travelers[0].age)
+          },
+          agentRef: generateAgentReference(),
+          rateKey: activity.packageDetails?.ratekey || null,
+          fromDate: day.date,
+          toDate: day.date,
+          groupCode: activity.groupCode,
+          hotelId: null,
+          languageGuide: activity.tourGrade?.langServices?.[0] || {
+            type: "GUIDE",
+            language: "en",
+            legacyGuide: "en/SERVICE_GUIDE"
+          },
+          QuestionAnswers: generateQuestionAnswers(travelers, specialRequirements),
+          travellers: travelers.map(traveler => ({
+            title: traveler.title,
+            name: traveler.firstName,
+            surname: traveler.lastName,
+            type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
+            age: traveler.age
+          })),
+          amount: activity.packageDetails?.amount || 0,
+          packageDetails: {
+            title: activity.packageDetails?.title,
+            description: activity.packageDetails?.description,
+            departureTime: activity.packageDetails?.departureTime,
+            duration: activity.duration,
+            inclusions: activity.inclusions?.map(inc => inc.otherDescription || inc.typeDescription),
+            exclusions: activity.exclusions?.map(exc => exc.otherDescription || exc.typeDescription)
+          },
+          cancellationPolicies: activity.cancellationFromTourDate
+        }))
+    )
   ) || [];
-  
-  if (!allTransfers.length) return [];
+};
 
-  return allTransfers.map(transfer => {
-    const dayInfo = bookingItinerary.cities.find(city => 
-      city.days.some(day => day.transfers?.includes(transfer))
-    )?.days.find(day => day.transfers?.includes(transfer));
+// Transform hotel bookings
+const transformHotelBookings = (bookingItinerary, roomsData) => {
+  return bookingItinerary.cities?.flatMap(city => 
+    city.days?.flatMap(day => 
+      (day.hotels || [])
+        .filter(hotel => hotel.success && hotel.data)
+        .map(hotel => {
+          const firstTraveler = roomsData[0].travelers[0]; // Lead guest
 
-    return {
-      quotationId: transfer.details?.quotation_id || null,
-      bookingDate: dayInfo?.date || bookingItinerary.startDate, // Add required booking date
-      bookingTime: transfer.details?.selectedQuote?.time || "12:00",
-      returnDate: bookingItinerary.endDate,
-      returnTime: transfer.details?.returnTime || "12:00",
-      totalPassenger: travelers.length,
-      bookingStatus: 'pending',
-      amount: transfer.details?.selectedQuote?.fare || 0,
-      quotationChildId: transfer.details?.quotation_child_id,
-      comments: transfer.details?.comments || "Transfer booking",
-      flightNumber: transfer.details?.flight_number,
-      // Add transfer details
-      origin: {
-        address: transfer.details?.origin?.display_address,
-        city: transfer.details?.origin?.city
-      },
-      destination: {
-        address: transfer.details?.destination?.display_address,
-        city: transfer.details?.destination?.city
-      }
-    };
-  });
+          return {
+            hotelId: hotel.data.staticContent[0].id,
+            traceId: hotel.data.traceId,
+            roomsAllocations: roomsData.map((room, roomIndex) => ({
+              rateId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.rate.id,
+              roomId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.room.id,
+              guests: room.travelers.map(traveler => ({
+                title: traveler.title,
+                firstName: traveler.firstName,
+                lastName: traveler.lastName,
+                isLeadGuest: traveler === firstTraveler,
+                type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
+                email: traveler.email,
+                isdCode: traveler.phone.split('-')[0] || '91',
+                contactNumber: traveler.phone.split('-')[1] || traveler.phone,
+                panCardNumber: null,
+                passportNumber: traveler.passportNumber,
+                passportExpiry: traveler.passportExpiryDate
+              }))
+            })),
+            specialRequests: null,
+            itineraryCode: hotel.data.code,
+            totalAmount: hotel.data.totalAmount,
+            cityCode: hotel.data.hotelDetails?.address?.city?.name,
+            checkin: day.date,
+            checkout: hotel.checkOut,
+            bookingStatus: 'pending',
+            cancellationPolicies: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.cancellationPolicies,
+            boardBasis: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.boardBasis,
+            hotelDetails: {
+              name: hotel.data.hotelDetails?.name,
+              category: hotel.data.hotelDetails?.starRating,
+              address: {
+                line1: hotel.data.hotelDetails?.address?.line1,
+                city: hotel.data.hotelDetails?.address?.city?.name,
+                country: hotel.data.hotelDetails?.address?.country?.name
+              },
+              geolocation: {
+                lat: hotel.data.hotelDetails?.geolocation?.lat,
+                long: hotel.data.hotelDetails?.geolocation?.long
+              }
+            },
+            includes: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.includes || [],
+            additionalCharges: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.additionalCharges?.map(charge => ({
+              type: charge.charge?.type,
+              description: charge.charge?.description,
+              amount: charge.charge?.amount
+            })) || []
+          };
+        })
+    )
+  ) || [];
+};
+
+// Transform transfer bookings
+const transformTransferBookings = (bookingItinerary, travelers) => {
+  return bookingItinerary.cities?.flatMap(city => 
+    city.days?.flatMap(day => 
+      (day.transfers || []).map(transfer => {
+        const leadTraveler = travelers[0];
+        const quote = transfer.details?.selectedQuote;
+        
+        return {
+          type: transfer.type,
+          booking_date: day.date,
+          booking_time: quote?.routeDetails?.pickup_date?.split(' ')[1] || "00:00",
+          return_date: quote?.routeDetails?.return_date?.split(' ')[0] || null,
+          return_time: quote?.routeDetails?.return_date?.split(' ')[1] || null,
+          guest_details: {
+            first_name: leadTraveler.firstName,
+            last_name: leadTraveler.lastName,
+            email: leadTraveler.email,
+            phone: leadTraveler.phone
+          },
+          quotation_id: transfer.details.quotation_id,
+          quotation_child_id: transfer.details.quotation_child_id || null,
+          comments: transfer.details.comments || null,
+          total_passenger: travelers.length,
+          flight_number: transfer.details.flightNumber || null,
+          bookingStatus: 'pending',
+          amount: quote?.quote?.fare || 0,
+          vehicleDetails: {
+            class: quote?.quote?.vehicle?.ve_class,
+            capacity: quote?.quote?.vehicle?.ve_max_capacity,
+            type: quote?.quote?.vehicle?.ve_similar_types,
+            luggage_capacity: quote?.quote?.vehicle?.ve_luggage_capacity,
+            tags: quote?.quote?.vehicle?.ve_tags,
+            vehicle_image: quote?.quote?.vehicle?.vehicleImages?.ve_im_url
+          },
+          routeDetails: {
+            distance: transfer.details.distance,
+            duration: transfer.details.duration,
+            pickup_location: {
+              address: transfer.details.origin.display_address,
+              coordinates: {
+                lat: parseFloat(transfer.details.origin.lat),
+                long: parseFloat(transfer.details.origin.long)
+              }
+            },
+            dropoff_location: {
+              address: transfer.details.destination.display_address,
+              coordinates: {
+                lat: parseFloat(transfer.details.destination.lat),
+                long: parseFloat(transfer.details.destination.long)
+              }
+            }
+          },
+          fareDetails: {
+            baseFare: quote?.quote?.fare || 0,
+            taxes: 0,
+            fees: 0
+          }
+        };
+      })
+    )
+  ) || [];
 };
 
 // Transform flight bookings
 const transformFlightBookings = (bookingItinerary, travelers) => {
-  const allFlights = bookingItinerary.cities?.flatMap(city => 
-    city.days?.flatMap(day => day.flights || [])
+  return bookingItinerary.cities?.flatMap(city => 
+    city.days?.flatMap(day => 
+      (day.flights || []).map(flight => ({
+        flightCode: flight.flightData?.flightCode || `FL-${generateUniqueId()}`,
+        origin: flight.flightData?.origin,
+        destination: flight.flightData?.destination,
+        departureDate: flight.flightData?.departureDate,
+        departureTime: flight.flightData?.departureTime,
+        returnFlightCode: flight.flightData?.returnFlightCode,
+        returnDepartureDate: flight.flightData?.returnDepartureDate,
+        returnDepartureTime: flight.flightData?.returnDepartureTime,
+        bookingStatus: 'pending',
+        amount: flight.flightData?.price || 0,
+        passengers: travelers.map(traveler => ({
+          firstName: traveler.firstName,
+          lastName: traveler.lastName,
+          dateOfBirth: traveler.dateOfBirth,
+          passportNumber: traveler.passportNumber,
+          nationality: traveler.nationality,
+          type: parseInt(traveler.age) >= 12 ? 'ADULT' : 'CHILD'
+        })),
+        fareDetails: {
+          baseFare: flight.flightData?.fareDetails?.baseFare || 0,
+          taxAndSurcharge: flight.flightData?.fareDetails?.taxAndSurcharge || 0,
+          serviceFee: flight.flightData?.fareDetails?.serviceFee || 0,
+          isRefundable: flight.flightData?.fareDetails?.isRefundable || false
+        },
+        baggage: {
+          checkedBaggage: flight.flightData?.segments?.[0]?.baggage || '',
+          cabinBaggage: flight.flightData?.segments?.[0]?.cabinBaggage || ''
+        },
+        segmentDetails: flight.flightData?.segments?.map(segment => ({
+          flightNumber: segment.flightNumber,
+          airline: {
+            code: segment.airline?.code,
+            name: segment.airline?.name
+          },
+          departureTime: segment.departureTime,
+          arrivalTime: segment.arrivalTime,
+          duration: segment.duration
+        })) || []
+      }))
+    )
   ) || [];
-  
-  if (!allFlights.length) return [];
-
-  // Map over allFlights instead of bookingItinerary.flights
-  return allFlights.map(flight => ({
-    flightCode: flight.flightData?.flightCode || `FL-${generateUniqueId()}`,
-    origin: flight.flightData?.origin,
-    destination: flight.flightData?.destination,
-    departureDate: flight.flightData?.departureDate,
-    departureTime: flight.flightData?.departureTime,
-    returnFlightCode: flight.flightData?.returnFlightCode,
-    returnDepartureDate: flight.flightData?.returnDepartureDate,
-    returnDepartureTime: flight.flightData?.returnDepartureTime,
-    bookingStatus: 'pending',
-    amount: flight.flightData?.price || 0,
-    passengers: travelers.map(traveler => ({
-      firstName: traveler.firstName,
-      lastName: traveler.lastName,
-      dateOfBirth: traveler.dateOfBirth,
-      passportNumber: traveler.passportNumber,
-      nationality: traveler.nationality,
-      type: parseInt(traveler.age) >= 12 ? 'ADULT' : 'CHILD'
-    }))
-  }));
 };
-  
-  // Calculate prices
-  export const calculatePrices = (bookingItinerary, activityBookings) => {
-    const activityTotal = activityBookings.reduce((total, activity) => 
-      total + (activity.amount || 0), 0
-    );
-  
-    const hotelTotal = bookingItinerary.priceTotals?.hotels || 0;
-    const flightTotal = bookingItinerary.priceTotals?.flights || 0;
-    const transferTotal = bookingItinerary.priceTotals?.transfers || 0;
-    
-    const subtotal = activityTotal + hotelTotal + flightTotal + transferTotal;
-    const tcsRate = bookingItinerary.priceTotals?.tcsRate || 0;
-    const tcsAmount = (subtotal * tcsRate) / 100;
-    
+
+// Calculate prices with safeguards
+const calculatePrices = (bookingItinerary) => {
+  if (!bookingItinerary?.priceTotals) {
     return {
-      activities: activityTotal,
-      hotels: hotelTotal,
-      flights: flightTotal,
-      transfers: transferTotal,
-      subtotal: subtotal,
-      tcsRate: tcsRate,
-      tcsAmount: tcsAmount,
-      grandTotal: subtotal + tcsAmount
+      activities: 0,
+      hotels: 0,
+      flights: 0,
+      transfers: 0,
+      subtotal: 0,
+      tcsRate: 0,
+      tcsAmount: 0,
+      grandTotal: 0
     };
+  }
+
+  const {
+    activities = 0,
+    hotels = 0,
+    flights = 0,
+    transfers = 0,
+    subtotal = 0,
+    tcsRate = 0,
+    tcsAmount = 0,
+    grandTotal = 0
+  } = bookingItinerary.priceTotals;
+
+  return {
+    activities: Number(activities),
+    hotels: Number(hotels),
+    flights: Number(flights),
+    transfers: Number(transfers),
+    subtotal: Number(subtotal),
+    tcsRate: Number(tcsRate),
+    tcsAmount: Number(tcsAmount),
+    grandTotal: Number(grandTotal)
   };
-  
-  // Main transformation function
-  export const transformBookingData = (bookingItinerary, formData) => {
-    if (!bookingItinerary || !formData.rooms) {
-      throw new Error('Invalid booking data');
-    }
-  
-    // Flatten travelers from rooms and transform them
+};
+
+// Main transformation function
+export const transformBookingData = (bookingItinerary, formData) => {
+  if (!bookingItinerary || !formData.rooms) {
+    throw new Error('Invalid booking data');
+  }
+
+  try {
     const allTravelers = formData.rooms.flatMap(room => room.travelers);
     const transformedTravelers = transformTravelers(allTravelers);
-  
-    // Transform all bookings with room-aware structure
-    const activityBookings = transformActivityBookings(
-      bookingItinerary, 
-      transformedTravelers, 
-      formData.specialRequirements
-    );
-  
+
     const hotelBookings = transformHotelBookings(bookingItinerary, formData.rooms);
     const transferBookings = transformTransferBookings(bookingItinerary, transformedTravelers);
+    const activityBookings = transformActivityBookings(bookingItinerary, transformedTravelers, formData.specialRequirements);
     const flightBookings = transformFlightBookings(bookingItinerary, transformedTravelers);
-  
-    // Calculate final prices
-    const prices = calculatePrices(bookingItinerary, activityBookings);
-  
+
+    // Basic booking info
     return {
       itineraryToken: bookingItinerary.itineraryToken,
       inquiryToken: bookingItinerary.inquiryToken,
-      travelers: transformedTravelers,
-      activityBookings,
-      hotelBookings,
-      transferBookings,
-      flightBookings,
-      prices,
-      specialRequirements: formData.specialRequirements || ''
+      status: 'pending',
+      bookingDate: new Date().toISOString(),
+
+      // Transformed travelers
+      travelers: transformedTravelers.map(traveler => ({
+        title: traveler.title,
+        firstName: traveler.firstName,
+        lastName: traveler.lastName,
+        email: traveler.email,
+        phone: traveler.phone,
+        dateOfBirth: traveler.dateOfBirth,
+        age: traveler.age,
+        passportNumber: traveler.passportNumber,
+        passportIssueDate: traveler.passportIssueDate,
+        passportExpiryDate: traveler.passportExpiryDate,
+        nationality: traveler.nationality,
+        weight: traveler.weight,
+        height: traveler.height,
+        preferredLanguage: traveler.preferredLanguage,
+        foodPreference: traveler.foodPreference,
+        type: traveler.type
+      })),
+
+      // Bookings
+      hotelBookings: hotelBookings.map(hotel => ({
+        ...hotel,
+        bookingStatus: 'pending'
+      })),
+
+      transferBookings: transferBookings.map(transfer => ({
+        ...transfer,
+        bookingStatus: 'pending'
+      })),
+
+      activityBookings: activityBookings.map(activity => ({
+        ...activity,
+        bookingStatus: 'pending'
+      })),
+
+      flightBookings: flightBookings.map(flight => ({
+        ...flight,
+        bookingStatus: 'pending'
+      })),
+
+      // Price information
+      prices: {
+        activities: Number(bookingItinerary.priceTotals?.activities || 0),
+        hotels: Number(bookingItinerary.priceTotals?.hotels || 0),
+        flights: Number(bookingItinerary.priceTotals?.flights || 0),
+        transfers: Number(bookingItinerary.priceTotals?.transfers || 0),
+        subtotal: Number(bookingItinerary.priceTotals?.subtotal || 0),
+        tcsRate: Number(bookingItinerary.priceTotals?.tcsRate || 0),
+        tcsAmount: Number(bookingItinerary.priceTotals?.tcsAmount || 0),
+        grandTotal: Number(bookingItinerary.priceTotals?.grandTotal || 0)
+      },
+
+      // Additional information
+      specialRequirements: formData.specialRequirements || '',
+      
+      // Traveler room info from itinerary
+      travelersDetails: {
+        type: bookingItinerary.travelersDetails?.type || 'family',
+        rooms: formData.rooms.map(room => ({
+          adults: room.travelers
+            .filter(t => parseInt(t.age) >= 12)
+            .map(t => t.age),
+          children: room.travelers
+            .filter(t => parseInt(t.age) < 12)
+            .map(t => t.age)
+        }))
+      },
+      userInfo: {
+        userId: bookingItinerary.userInfo?.userId || null,
+        firstName: bookingItinerary.userInfo?.firstName || null,
+        lastName: bookingItinerary.userInfo?.lastName || null,
+        email: bookingItinerary.userInfo?.email || null,
+        phoneNumber: bookingItinerary.userInfo?.phoneNumber || null
+      }
+
     };
-  };
+  } catch (error) {
+    console.error('Error transforming booking data:', error);
+    throw new Error(`Failed to transform booking data: ${error.message}`);
+  }
+};
+
+// Export all necessary functions
+export {
+  calculatePrices
+};
+
+// Default export
+export default transformBookingData;

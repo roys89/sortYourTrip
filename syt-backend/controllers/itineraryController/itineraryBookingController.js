@@ -1,7 +1,39 @@
 const mongoose = require("mongoose");
 const ItineraryBooking = require("../../models/ItineraryBooking");
+const { AppError } = require("../../utils/errorHandling");
 
 class ItineraryBookingController {
+  constructor() {
+    // Bind methods to ensure correct 'this' context
+    this.calculateOverallStatus = this.calculateOverallStatus.bind(this);
+    this.createBooking = this.createBooking.bind(this);
+    this.getBookings = this.getBookings.bind(this);
+    this.getBookingByBookingId = this.getBookingByBookingId.bind(this);
+    this.updateBookingStatus = this.updateBookingStatus.bind(this);
+    this.cancelBooking = this.cancelBooking.bind(this);
+    this.getBookingStats = this.getBookingStats.bind(this);
+  }
+
+  calculateOverallStatus(bookingData) {
+    // Collect all component statuses
+    const statuses = [
+      ...(bookingData.hotelBookings || []).map(h => h.bookingStatus || 'pending'),
+      ...(bookingData.transferBookings || []).map(t => t.bookingStatus || 'pending'),
+      ...(bookingData.activityBookings || []).map(a => a.bookingStatus || 'pending'),
+      ...(bookingData.flightBookings || []).map(f => f.bookingStatus || 'pending')
+    ];
+
+    if (!statuses.length) return "pending";
+    
+    // Detailed status calculation logic
+    if (statuses.includes("failed")) return "failed";
+    if (statuses.every(s => s === "confirmed")) return "confirmed";
+    if (statuses.includes("cancelled")) return "cancelled";
+    if (statuses.some(s => s === "pending") && statuses.some(s => s === "confirmed")) return "processing";
+    
+    return "pending";
+  }
+
   async createBooking(req, res) {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -9,26 +41,44 @@ class ItineraryBookingController {
     try {
       const bookingData = req.body;
 
-      // Validate required fields
-      if (!bookingData.itineraryToken || !bookingData.inquiryToken) {
-        throw new Error("Missing required booking tokens");
+      // Validate required tokens and bookingId
+      if (!bookingData.itineraryToken || !bookingData.inquiryToken || !bookingData.bookingId) {
+        throw new AppError("Missing required booking information", 400);
       }
 
-      // Check for existing booking
+      // Check for existing booking by bookingId
       const existingBooking = await ItineraryBooking.findOne({
-        itineraryToken: bookingData.itineraryToken,
-        userId: req.user._id,
+        bookingId: bookingData.bookingId
       });
 
       if (existingBooking) {
-        throw new Error("Booking already exists for this itinerary");
+        throw new AppError("Booking ID already exists", 400);
       }
 
-      // Create booking with user ID
+      // Validate required travelers data
+      if (!bookingData.travelers || !bookingData.travelers.length) {
+        throw new AppError("Missing travelers information", 400);
+      }
+
+      // Validate at least one booking type exists
+      if (
+        !bookingData.hotelBookings?.length &&
+        !bookingData.transferBookings?.length &&
+        !bookingData.activityBookings?.length &&
+        !bookingData.flightBookings?.length
+      ) {
+        throw new AppError("No booking items found", 400);
+      }
+
+      // Calculate overall booking status
+      const status = this.calculateOverallStatus(bookingData);
+
+      // Create booking with user ID and calculated status
       const booking = new ItineraryBooking({
         ...bookingData,
         userId: req.user._id,
-        status: "pending",
+        status: status,
+        bookingDate: new Date()
       });
 
       // Save booking
@@ -40,15 +90,24 @@ class ItineraryBookingController {
       res.status(201).json({
         success: true,
         message: "Booking created successfully",
-        data: booking,
+        data: booking
       });
     } catch (error) {
       await session.abortTransaction();
-
-      res.status(error.status || 500).json({
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          message: error.message
+        });
+      }
+      
+      console.error('Booking creation error:', error);
+      
+      res.status(500).json({
         success: false,
-        message: error.message || "Failed to create booking",
-        error: error.stack,
+        message: "Failed to create booking",
+        error: error.message
       });
     } finally {
       session.endSession();
@@ -57,11 +116,7 @@ class ItineraryBookingController {
 
   async getBookings(req, res) {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const status = req.query.status;
-      const startDate = req.query.startDate;
-      const endDate = req.query.endDate;
+      const { page = 1, limit = 10, status, startDate, endDate } = req.query;
 
       // Build query
       const query = { userId: req.user._id };
@@ -69,7 +124,7 @@ class ItineraryBookingController {
       if (startDate && endDate) {
         query.bookingDate = {
           $gte: new Date(startDate),
-          $lte: new Date(endDate),
+          $lte: new Date(endDate)
         };
       }
 
@@ -87,44 +142,50 @@ class ItineraryBookingController {
         success: true,
         data: bookings,
         pagination: {
-          page,
-          limit,
+          page: parseInt(page),
+          limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit),
-        },
+          pages: Math.ceil(total / limit)
+        }
       });
     } catch (error) {
       res.status(500).json({
         success: false,
         message: "Failed to retrieve bookings",
-        error: error.message,
+        error: error.message
       });
     }
   }
 
-  async getBooking(req, res) {
+  async getBookingByBookingId(req, res) {
     try {
+      const { bookingId } = req.params;
+      
       const booking = await ItineraryBooking.findOne({
-        _id: req.params.id,
-        userId: req.user._id,
+        bookingId,
+        userId: req.user._id
       });
 
       if (!booking) {
-        return res.status(404).json({
-          success: false,
-          message: "Booking not found",
-        });
+        throw new AppError("Booking not found", 404);
       }
 
       res.status(200).json({
         success: true,
-        data: booking,
+        data: booking
       });
     } catch (error) {
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          message: error.message
+        });
+      }
+
       res.status(500).json({
         success: false,
         message: "Failed to retrieve booking",
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -134,51 +195,43 @@ class ItineraryBookingController {
     session.startTransaction();
 
     try {
-      const { id } = req.params;
+      const { bookingId } = req.params;
       const { status, component, componentId } = req.body;
 
       const booking = await ItineraryBooking.findOne({
-        _id: id,
-        userId: req.user._id,
+        bookingId,
+        userId: req.user._id
       });
 
       if (!booking) {
-        throw new Error("Booking not found");
+        throw new AppError("Booking not found", 404);
       }
 
-      // Update specific component status if provided
+      // Update specific component status
       if (component && componentId) {
-        const validComponents = ["activity", "hotel", "transfer", "flight"];
-        if (!validComponents.includes(component)) {
-          throw new Error("Invalid booking component");
-        }
-
-        // Find and update the specific component
         switch (component) {
-          case "activity":
-            const activity = booking.activityBookings.find(
-              (a) => a.bookingRef === componentId
-            );
-            if (activity) activity.bookingStatus = status;
-            break;
           case "hotel":
-            const hotel = booking.hotelBookings.find(
-              (h) => h.hotelCode === componentId
-            );
+            const hotel = booking.hotelBookings.find(h => h.traceId === componentId);
             if (hotel) hotel.bookingStatus = status;
             break;
+
           case "transfer":
-            const transfer = booking.transferBookings.find(
-              (t) => t.quotationId === componentId
-            );
+            const transfer = booking.transferBookings.find(t => t.quotation_id === componentId);
             if (transfer) transfer.bookingStatus = status;
             break;
+
+          case "activity":
+            const activity = booking.activityBookings.find(a => a.bookingRef === componentId);
+            if (activity) activity.bookingStatus = status;
+            break;
+
           case "flight":
-            const flight = booking.flightBookings.find(
-              (f) => f.flightCode === componentId
-            );
+            const flight = booking.flightBookings.find(f => f.flightCode === componentId);
             if (flight) flight.bookingStatus = status;
             break;
+
+          default:
+            throw new AppError("Invalid booking component", 400);
         }
       }
 
@@ -192,47 +245,26 @@ class ItineraryBookingController {
       res.status(200).json({
         success: true,
         message: "Booking status updated successfully",
-        data: booking,
+        data: booking
       });
     } catch (error) {
       await session.abortTransaction();
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          message: error.message
+        });
+      }
 
-      res.status(error.status || 500).json({
+      res.status(500).json({
         success: false,
-        message: error.message || "Failed to update booking status",
-        error: error.stack,
+        message: "Failed to update booking status",
+        error: error.message
       });
     } finally {
       session.endSession();
     }
-  }
-
-  calculateOverallStatus(booking) {
-    // Get all component statuses
-    const statuses = [
-      ...booking.activityBookings.map((a) => a.bookingStatus),
-      ...booking.hotelBookings.map((h) => h.bookingStatus),
-      ...booking.transferBookings.map((t) => t.bookingStatus),
-      ...booking.flightBookings.map((f) => f.bookingStatus),
-    ];
-
-    if (statuses.length === 0) return "pending";
-
-    // If any component failed, mark as failed
-    if (statuses.includes("failed")) return "failed";
-
-    // If all confirmed, mark as confirmed
-    if (statuses.every((s) => s === "confirmed")) return "confirmed";
-
-    // If any cancelled, mark as cancelled
-    if (statuses.includes("cancelled")) return "cancelled";
-
-    // If some pending and some confirmed, mark as processing
-    if (statuses.includes("pending") && statuses.includes("confirmed"))
-      return "processing";
-
-    // Default to pending
-    return "pending";
   }
 
   async cancelBooking(req, res) {
@@ -240,25 +272,27 @@ class ItineraryBookingController {
     session.startTransaction();
 
     try {
+      const { bookingId } = req.params;
+
       const booking = await ItineraryBooking.findOne({
-        _id: req.params.id,
-        userId: req.user._id,
+        bookingId,
+        userId: req.user._id
       });
 
       if (!booking) {
-        throw new Error("Booking not found");
+        throw new AppError("Booking not found", 404);
       }
 
       // Check if booking can be cancelled
       if (["confirmed", "cancelled", "failed"].includes(booking.status)) {
-        throw new Error(`Cannot cancel booking in ${booking.status} status`);
+        throw new AppError(`Cannot cancel booking in ${booking.status} status`, 400);
       }
 
       // Update all component statuses to cancelled
-      booking.activityBookings.forEach((a) => (a.bookingStatus = "cancelled"));
-      booking.hotelBookings.forEach((h) => (h.bookingStatus = "cancelled"));
-      booking.transferBookings.forEach((t) => (t.bookingStatus = "cancelled"));
-      booking.flightBookings.forEach((f) => (f.bookingStatus = "cancelled"));
+      booking.hotelBookings?.forEach(h => h.bookingStatus = "cancelled");
+      booking.transferBookings?.forEach(t => t.bookingStatus = "cancelled");
+      booking.activityBookings?.forEach(a => a.bookingStatus = "cancelled");
+      booking.flightBookings?.forEach(f => f.bookingStatus = "cancelled");
 
       // Update overall status
       booking.status = "cancelled";
@@ -269,15 +303,22 @@ class ItineraryBookingController {
       res.status(200).json({
         success: true,
         message: "Booking cancelled successfully",
-        data: booking,
+        data: booking
       });
     } catch (error) {
       await session.abortTransaction();
+      
+      if (error instanceof AppError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          message: error.message
+        });
+      }
 
-      res.status(error.status || 500).json({
+      res.status(500).json({
         success: false,
-        message: error.message || "Failed to cancel booking",
-        error: error.stack,
+        message: "Failed to cancel booking",
+        error: error.message
       });
     } finally {
       session.endSession();
@@ -287,33 +328,37 @@ class ItineraryBookingController {
   async getBookingStats(req, res) {
     try {
       const stats = await ItineraryBooking.aggregate([
-        { $match: { userId: mongoose.Types.ObjectId(req.user._id) } },
+        { 
+          $match: { 
+            userId: mongoose.Types.ObjectId(req.user._id) 
+          } 
+        },
         {
           $group: {
             _id: "$status",
             count: { $sum: 1 },
-            totalAmount: { $sum: "$prices.grandTotal" },
-          },
+            totalAmount: { $sum: "$prices.grandTotal" }
+          }
         },
         {
           $project: {
             status: "$_id",
             count: 1,
             totalAmount: { $round: ["$totalAmount", 2] },
-            _id: 0,
-          },
-        },
+            _id: 0
+          }
+        }
       ]);
 
       res.status(200).json({
         success: true,
-        data: stats,
+        data: stats
       });
     } catch (error) {
       res.status(500).json({
         success: false,
         message: "Failed to retrieve booking statistics",
-        error: error.message,
+        error: error.message
       });
     }
   }

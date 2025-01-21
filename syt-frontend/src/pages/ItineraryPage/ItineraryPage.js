@@ -89,7 +89,7 @@ const ItineraryPage = () => {
   };
 
   const processActivity = async (activity, cityName, date) => {
-    if (activity.bookingReference && activity.bookingReference._id) {
+    if (activity.bookingReference && activity.bookingReference.bookingRef) {
       console.log(
         `Booking reference already exists for activity ${activity.activityName}`
       );

@@ -55,6 +55,10 @@ const BookingForm = () => {
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     travelers: [],
+    rooms: [{
+      roomNumber: 1,
+      travelers: []
+    }],
     specialRequirements: ''
   });
 
@@ -299,12 +303,10 @@ const BookingForm = () => {
 
 const handleTravelerChange = (roomIndex, travelerIndex, field, value) => {
   setFormData(prev => {
-    // Create a copy of the rooms array
     const updatedRooms = [...prev.rooms];
-    
-    // Get the specific room and update the specific traveler
     const room = updatedRooms[roomIndex];
     const updatedTravelers = [...room.travelers];
+    
     updatedTravelers[travelerIndex] = {
       ...updatedTravelers[travelerIndex],
       [field]: value
@@ -313,15 +315,15 @@ const handleTravelerChange = (roomIndex, travelerIndex, field, value) => {
     // If the field is dateOfBirth, update the age
     if (field === 'dateOfBirth' && value) {
       updatedTravelers[travelerIndex].age = calculateAge(value).toString();
+      updatedTravelers[travelerIndex].type = 
+        calculateAge(value) >= 12 ? 'adult' : 'child';
     }
 
-    // Update the room's travelers
     updatedRooms[roomIndex] = {
       ...room,
       travelers: updatedTravelers
     };
 
-    // Return the updated form data
     return {
       ...prev,
       rooms: updatedRooms
@@ -329,95 +331,94 @@ const handleTravelerChange = (roomIndex, travelerIndex, field, value) => {
   });
 };
 
-  const validateForm = () => {
-    const isAllRoomsValid = formData.rooms?.every(room =>
-      room.travelers.every(traveler => 
-        traveler.firstName &&
-        traveler.lastName &&
-        traveler.email &&
-        traveler.phone &&
-        traveler.dateOfBirth &&
-        traveler.passportNumber &&
-        traveler.passportIssueDate &&
-        traveler.passportExpiryDate &&
-        traveler.nationality &&
-        traveler.weight &&
-        traveler.height &&
-        traveler.preferredLanguage &&
-        traveler.foodPreference
-      )
+const validateForm = () => {
+  const isAllRoomsValid = formData.rooms?.every(room =>
+    room.travelers.every(traveler => (
+      traveler.firstName &&
+      traveler.lastName &&
+      traveler.email &&
+      traveler.phone &&
+      traveler.dateOfBirth &&
+      traveler.passportNumber &&
+      traveler.passportIssueDate &&
+      traveler.passportExpiryDate &&
+      traveler.nationality &&
+      traveler.weight &&
+      traveler.height &&
+      traveler.preferredLanguage &&
+      traveler.foodPreference
+    ))
+  );
+
+  if (!isAllRoomsValid) {
+    setError('Please fill in all required fields for all travelers in all rooms');
+    return false;
+  }
+
+  return true;
+};
+
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!validateForm()) {
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const transformedTravelersDetails = {
+      type: itinerary.travelersDetails.type,
+      rooms: formData.rooms.map(room => {
+        const adults = room.travelers
+          .filter(t => t.type === 'adult')
+          .map(t => t.age);
+        
+        const children = room.travelers
+          .filter(t => t.type === 'child')
+          .map(t => t.age);
+
+        return {
+          adults,
+          children
+        };
+      })
+    };
+
+    const bookingData = transformBookingData(
+      itinerary,
+      {
+        travelers: formData.rooms.flatMap(room => room.travelers),
+        rooms: formData.rooms,
+        specialRequirements: formData.specialRequirements,
+        travelersDetails: transformedTravelersDetails
+      }
     );
-  
-    if (!isAllRoomsValid) {
-      setError('Please fill in all required fields for all travelers in all rooms');
-      return false;
-    }
-  
-    return true;
-  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const result = await dispatch(createBooking(bookingData)).unwrap();
     
-    if (!validateForm()) {
-      return;
-    }
-  
-    setLoading(true);
-    setError(null);
-  
-    try {
-      // Transform the form data to match the API structure
-      const transformedTravelersDetails = {
-        type: itinerary.travelersDetails.type,
-        rooms: formData.rooms.map(room => {
-          const adults = room.travelers
-            .filter(t => t.type === 'adult')
-            .map(t => t.age);
-          
-          const children = room.travelers
-            .filter(t => t.type === 'child')
-            .map(t => t.age);
-
-          return {
-            adults,
-            children
-          };
-        })
-      };
-
-      const bookingData = transformBookingData(
-        itinerary,
-        {
-          travelers: formData.rooms.flatMap(room => room.travelers),
-          rooms: formData.rooms,
-          specialRequirements: formData.specialRequirements,
-          travelersDetails: transformedTravelersDetails
+    setSuccess(true);
+    
+    setTimeout(() => {
+      navigate('/booking-confirmation', {
+        state: { 
+          bookingId: result.data.bookingId,  // Now using bookingId
+          bookingData: result.data,
+          itinerary: itinerary
         }
-      );
-  
-      bookingData.inquiryToken = tokens.inquiry;
-      bookingData.itineraryToken = tokens.itinerary;
-  
-      const result = await dispatch(createBooking(bookingData)).unwrap();
-      
-      setSuccess(true);
-      
-      setTimeout(() => {
-        navigate('/booking-confirmation', {
-          state: { 
-            bookingData: result,
-            itinerary: itinerary
-          }
-        });
-      }, 1500);
-    } catch (error) {
-      console.error('Booking failed:', error);
-      setError(error.message || 'Failed to create booking. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+      });
+    }, 1500);
+  } catch (error) {
+    console.error('Booking failed:', error);
+    setError(error.message || 'Failed to create booking. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
   // Show loading state for auth or data fetching

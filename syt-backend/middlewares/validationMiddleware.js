@@ -1,10 +1,21 @@
-// middlewares/validationMiddleware.js
 const Joi = require('joi');
 
 const validateBookingSchema = (req, res, next) => {
   const schema = Joi.object({
+    bookingId: Joi.string().required(), 
     itineraryToken: Joi.string().required(),
     inquiryToken: Joi.string().required(),
+    status: Joi.string().valid('pending', 'processing', 'confirmed', 'cancelled', 'failed').default('pending'),
+    bookingDate: Joi.date().iso().required(),
+
+    userInfo: Joi.object({
+      userId: Joi.string().allow(null),
+      firstName: Joi.string().allow(null),
+      lastName: Joi.string().allow(null),
+      email: Joi.string().email().allow(null),
+      phoneNumber: Joi.string().allow(null)
+    }).optional(),
+
     travelers: Joi.array().items(Joi.object({
       title: Joi.string().required(),
       firstName: Joi.string().required(),
@@ -21,12 +32,135 @@ const validateBookingSchema = (req, res, next) => {
       height: Joi.string().required(),
       preferredLanguage: Joi.string().required(),
       foodPreference: Joi.string().required(),
-      type: Joi.string().required()
+      type: Joi.string().valid('adult', 'child').required()
     })).min(1).required(),
+
+    hotelBookings: Joi.array().items(Joi.object({
+      hotelId: Joi.string().required(),
+      traceId: Joi.string().required(),
+      roomsAllocations: Joi.array().items(Joi.object({
+        rateId: Joi.string().required(),
+        roomId: Joi.string().required(),
+        guests: Joi.array().items(Joi.object({
+          title: Joi.string().required(),
+          firstName: Joi.string().required(),
+          lastName: Joi.string().required(),
+          isLeadGuest: Joi.boolean().required(),
+          type: Joi.string().valid('adult', 'child').required(),
+          email: Joi.string().email().required(),
+          isdCode: Joi.string().required(),
+          contactNumber: Joi.string().required(),
+          panCardNumber: Joi.string().allow(null),
+          passportNumber: Joi.string().required(),
+          passportExpiry: Joi.string().required()
+        })).min(1).required()
+      })).min(1).required(),
+      
+      specialRequests: Joi.string().allow(null, ''),
+      itineraryCode: Joi.string().required(),
+      totalAmount: Joi.number().required(),
+      cityCode: Joi.string().required(),
+      checkin: Joi.string().required(),
+      checkout: Joi.string().required(),
+      bookingStatus: Joi.string().valid('pending', 'confirmed', 'cancelled', 'failed').default('pending'),
+      
+      cancellationPolicies: Joi.array().items(Joi.object({
+        text: Joi.string().optional(),
+        rules: Joi.array().items(Joi.object({
+          value: Joi.alternatives().try(Joi.number(), Joi.string()),
+          valueType: Joi.string(),
+          estimatedValue: Joi.alternatives().try(Joi.number(), Joi.string()),
+          start: Joi.string(),
+          end: Joi.string()
+        })).optional()
+      })).optional(),
+      
+      boardBasis: Joi.object({
+        description: Joi.string().allow('', null).optional(),
+        type: Joi.string().optional()
+      }).optional(),
+      
+      includes: Joi.array().items(Joi.string().allow(null)).optional(),
+      
+      additionalCharges: Joi.array().items(Joi.object({
+        type: Joi.string().allow(null, ''),
+        description: Joi.string().allow(null, ''),
+        amount: Joi.number().allow(null)
+      })).optional(),
+      
+      hotelDetails: Joi.object({
+        name: Joi.string().required(),
+        category: Joi.string().required(),
+        address: Joi.object({
+          line1: Joi.string().required(),
+          city: Joi.string().required(),
+          country: Joi.string().required()
+        }).required(),
+        geolocation: Joi.object({
+          lat: Joi.string().required(),
+          long: Joi.string().required()
+        }).optional()
+      }).optional()
+    })).optional(),
+
+    transferBookings: Joi.array().items(Joi.object({
+      type: Joi.string().required(),
+      booking_date: Joi.string().required(),
+      booking_time: Joi.string().required(),
+      return_date: Joi.string().allow(null, ''),
+      return_time: Joi.string().allow(null, ''),
+      guest_details: Joi.object({
+        first_name: Joi.string().required(),
+        last_name: Joi.string().required(),
+        email: Joi.string().email().required(),
+        phone: Joi.string().required()
+      }).required(),
+      quotation_id: Joi.string().required(),
+      quotation_child_id: Joi.string().allow(null, ''),
+      comments: Joi.string().allow(null, ''),
+      total_passenger: Joi.number().required(),
+      flight_number: Joi.string().allow(null, ''),
+      bookingStatus: Joi.string().valid('pending', 'confirmed', 'cancelled', 'failed').default('pending'),
+      amount: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
+      
+      vehicleDetails: Joi.object({
+        class: Joi.string().required(),
+        capacity: Joi.string().required(),
+        type: Joi.string().required(),
+        luggage_capacity: Joi.string().optional(),
+        tags: Joi.array().items(Joi.string()).optional(),
+        vehicle_image: Joi.string().optional()
+      }).optional(),
+      
+      routeDetails: Joi.object({
+        distance: Joi.string().required(),
+        duration: Joi.number().required(),
+        pickup_location: Joi.object({
+          address: Joi.string().required(),
+          coordinates: Joi.object({
+            lat: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
+            long: Joi.alternatives().try(Joi.number(), Joi.string()).required()
+          }).required()
+        }).required(),
+        dropoff_location: Joi.object({
+          address: Joi.string().required(),
+          coordinates: Joi.object({
+            lat: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
+            long: Joi.alternatives().try(Joi.number(), Joi.string()).required()
+          }).required()
+        }).required()
+      }).required(),
+      
+      fareDetails: Joi.object({
+        baseFare: Joi.alternatives().try(Joi.number(), Joi.string(), Joi.allow(null)),
+        taxes: Joi.number().allow(null),
+        fees: Joi.number().allow(null)
+      }).optional()
+    })).optional(),
 
     activityBookings: Joi.array().items(Joi.object({
       searchId: Joi.string().required(),
-      bookingRef: Joi.string().required(),
+      bookingRef: Joi.string().allow(null, ''),
       activityCode: Joi.string().required(),
       bookingStatus: Joi.string().valid('pending', 'confirmed', 'cancelled', 'failed').default('pending'),
       lead: Joi.object({
@@ -37,78 +171,50 @@ const validateBookingSchema = (req, res, next) => {
         age: Joi.number().required()
       }).required(),
       agentRef: Joi.string().required(),
-      rateKey: Joi.string().required(),
+      rateKey: Joi.string().allow(null, ''),
       fromDate: Joi.string().required(),
       toDate: Joi.string().required(),
       groupCode: Joi.string().required(),
-      hotelId: Joi.string().allow(null),
+      hotelId: Joi.string().allow(null, ''),
       languageGuide: Joi.object({
         type: Joi.string().required(),
         language: Joi.string().required(),
         legacyGuide: Joi.string().required()
       }).required(),
-      QuestionAnswers: Joi.array().required(),
-      travellers: Joi.array().required(),
-      amount: Joi.number().required()
-    })),
-
-    hotelBookings: Joi.array().items(Joi.object({
-      searchId: Joi.string().required(),
-      hotelCode: Joi.string().required(),
-      cityCode: Joi.string().required(),
-      groupCode: Joi.string().required(),
-      checkin: Joi.string().required(),
-      checkout: Joi.string().required(),
-      bookingStatus: Joi.string().valid('pending', 'confirmed', 'cancelled', 'failed').default('pending'),
-      amount: Joi.number().required(),
-      holder: Joi.object({
+      QuestionAnswers: Joi.array().items(Joi.object({
+        question: Joi.string().required(),
+        answer: Joi.string().required(),
+        unit: Joi.string().optional(),
+        travelerNum: Joi.string().optional()
+      })).required(),
+      travellers: Joi.array().items(Joi.object({
         title: Joi.string().required(),
         name: Joi.string().required(),
         surname: Joi.string().required(),
-        email: Joi.string().email().required(),
-        phone_number: Joi.string().required(),
-        client_nationality: Joi.string().required()
-      }).required(),
-      booking_comments: Joi.string().allow(''),
-      payment_type: Joi.string().allow(''),
-      agent_reference: Joi.string().allow(''),
-      booking_items: Joi.array().items(Joi.object({
-        rate_key: Joi.string().required(),
-        room_code: Joi.string().required(),
-        rooms: Joi.array().items(Joi.object({
-          paxes: Joi.array().items(Joi.object({
-            title: Joi.string().required(),
-            name: Joi.string().required(),
-            surname: Joi.string().required(),
-            type: Joi.string().required(),
-            age: Joi.string().required()
-          })).required(),
-          room_reference: Joi.string().allow(null).required()
-        })).required()
-      })).required()
-    })),
-
-    transferBookings: Joi.array().items(Joi.object({
-      quotationId: Joi.string().required(),
-      bookingDate: Joi.string().required(),
-      bookingTime: Joi.string().required(),
-      returnDate: Joi.string().allow(null),
-      returnTime: Joi.string().allow(null),
-      totalPassenger: Joi.number().required(),
-      bookingStatus: Joi.string().valid('pending', 'confirmed', 'cancelled', 'failed').default('pending'),
-      amount: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
-      comments: Joi.string().allow(''),
-      quotationChildId: Joi.string().allow(null),
-      flightNumber: Joi.string().allow(null),
-      origin: Joi.object({
-        address: Joi.string().required(),
-        city: Joi.string().required()
-      }).required(),
-      destination: Joi.object({
-        address: Joi.string().required(),
-        city: Joi.string().required()
-      }).required()
-    })),
+        type: Joi.string().valid('adult', 'child').required(),
+        age: Joi.string().required()
+      })).required(),
+      amount: Joi.number().required(),
+      
+      packageDetails: Joi.object({
+        title: Joi.string().allow('', null).optional(),
+        description: Joi.string().allow('', null).optional(),
+        departureTime: Joi.alternatives().try(
+          Joi.string(), 
+          Joi.number().allow(null),
+          Joi.allow(null)
+        ).optional(),
+        duration: Joi.number().optional(),
+        inclusions: Joi.array().items(Joi.string().allow(null)).optional(),
+        exclusions: Joi.array().items(Joi.string().allow(null)).optional()
+      }).optional(),
+      
+      cancellationPolicies: Joi.array().items(Joi.object({
+        dayRangeMin: Joi.number(),
+        dayRangeMax: Joi.number().allow(null),
+        percentageRefundable: Joi.number()
+      })).optional()
+    })).optional(),
 
     flightBookings: Joi.array().items(Joi.object({
       flightCode: Joi.string().required(),
@@ -116,9 +222,9 @@ const validateBookingSchema = (req, res, next) => {
       destination: Joi.string().required(),
       departureDate: Joi.string().required(),
       departureTime: Joi.string().required(),
-      returnFlightCode: Joi.string().allow(null),
-      returnDepartureDate: Joi.string().allow(null),
-      returnDepartureTime: Joi.string().allow(null),
+      returnFlightCode: Joi.string().allow(null, ''),
+      returnDepartureDate: Joi.string().allow(null, ''),
+      returnDepartureTime: Joi.string().allow(null, ''),
       bookingStatus: Joi.string().valid('pending', 'confirmed', 'cancelled', 'failed').default('pending'),
       amount: Joi.number().required(),
       passengers: Joi.array().items(Joi.object({
@@ -127,9 +233,32 @@ const validateBookingSchema = (req, res, next) => {
         dateOfBirth: Joi.string().required(),
         passportNumber: Joi.string().required(),
         nationality: Joi.string().required(),
-        type: Joi.string().required()
-      })).required()
-    })),
+        type: Joi.string().valid('ADULT', 'CHILD').required()
+      })).min(1).required(),
+      
+      fareDetails: Joi.object({
+        baseFare: Joi.number().optional(),
+        taxAndSurcharge: Joi.number().optional(),
+        serviceFee: Joi.number().optional(),
+        isRefundable: Joi.boolean().optional()
+      }).optional(),
+      
+      baggage: Joi.object({
+        checkedBaggage: Joi.string().allow('').optional(),
+        cabinBaggage: Joi.string().allow('').optional()
+      }).optional(),
+      
+      segmentDetails: Joi.array().items(Joi.object({
+        flightNumber: Joi.string().optional(),
+        airline: Joi.object({
+          code: Joi.string().optional(),
+          name: Joi.string().optional()
+        }).optional(),
+        departureTime: Joi.string().optional(),
+        arrivalTime: Joi.string().optional(),
+        duration: Joi.number().optional()
+      })).optional()
+    })).optional(),
 
     prices: Joi.object({
       activities: Joi.number().required(),
@@ -142,10 +271,21 @@ const validateBookingSchema = (req, res, next) => {
       grandTotal: Joi.number().required()
     }).required(),
 
-    specialRequirements: Joi.string().allow('').default('')
+    travelersDetails: Joi.object({
+      type: Joi.string().default('family'),
+      rooms: Joi.array().items(Joi.object({
+        adults: Joi.array().items(Joi.string()).optional(),
+        children: Joi.array().items(Joi.string()).optional()
+      })).required()
+    }).optional(),
+
+    specialRequirements: Joi.string().allow('').optional()
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: false });
+  const { error } = schema.validate(req.body, { 
+    abortEarly: false,
+    allowUnknown: true 
+  });
   
   if (error) {
     return res.status(400).json({

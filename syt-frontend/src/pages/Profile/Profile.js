@@ -22,6 +22,7 @@ import {
   useTheme
 } from '@mui/material';
 import axios from 'axios';
+import { Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +35,7 @@ const Profile = () => {
   const { user } = useSelector(state => state.auth);
   const [itineraries, setItineraries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState({});
 
   useEffect(() => {
     const fetchItineraries = async () => {
@@ -210,6 +212,26 @@ const Profile = () => {
     </Paper>
   );
 
+  const handleDelete = async (inquiryToken) => {
+    try {
+      setDeleteLoading(prev => ({ ...prev, [inquiryToken]: true }));
+      const token = localStorage.getItem('token');
+      
+      await axios.delete(`http://localhost:5000/api/itinerary/${inquiryToken}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      // Update local state to remove the deleted itinerary
+      setItineraries(prev => prev.filter(itinerary => itinerary.inquiryToken !== inquiryToken));
+    } catch (error) {
+      console.error('Error deleting itinerary:', error.response || error);
+    } finally {
+      setDeleteLoading(prev => ({ ...prev, [inquiryToken]: false }));
+    }
+  };
+
   const ItineraryCard = ({ itinerary }) => (
     <Card 
       sx={{ 
@@ -231,25 +253,47 @@ const Profile = () => {
                 {itinerary.cities.map(city => city.city).join(' → ')}
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={<ViewIcon sx={{ fontSize: 18 }} />}
-              onClick={() => navigate('/itinerary', { 
-                state: { 
-                  itineraryInquiryToken: itinerary.inquiryToken,
-                  origin: 'profile'
-                },
-                replace: true
-              })}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                alignSelf: 'center',
-                height: '100%',
-              }}
-            >
-              View Itinerary
-            </Button>
+            <Box display="flex" gap={1}>
+              <Button
+                variant="contained"
+                startIcon={<ViewIcon sx={{ fontSize: 18 }} />}
+                onClick={() => navigate('/itinerary', { 
+                  state: { 
+                    itineraryInquiryToken: itinerary.inquiryToken,
+                    origin: 'profile'
+                  },
+                  replace: true
+                })}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  height: '100%',
+                  bgcolor: theme.palette.primary.main,
+                }}
+              >
+                View Itinerary
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Trash2 size={18} />}
+                onClick={() => handleDelete(itinerary.inquiryToken)}
+                disabled={deleteLoading[itinerary.inquiryToken]}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  height: '100%',
+                  borderColor: theme.palette.error.main,
+                  color: theme.palette.error.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.error.main,
+                    color: 'white',
+                  },
+                }}
+              >
+                Delete
+              </Button>
+            </Box>
           </Grid>
           
           <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={1}>

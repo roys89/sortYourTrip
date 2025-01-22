@@ -90,7 +90,6 @@ router.put(
 // Flight Change Routes
 router.post(
   "/flights/:inquiryToken",
-  checkAuth,
   checkInquiryToken,
   searchAvailableFlights
 );
@@ -112,7 +111,6 @@ router.post(
 // Hotel Change Routes
 router.get(
   "/hotels/:inquiryToken/:cityName/:checkIn/:checkOut",
-  checkAuth,
   checkInquiryToken,
   searchAvailableHotels
 );

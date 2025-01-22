@@ -214,7 +214,7 @@ const TransferSchema = new Schema({
 }, { _id: false, strict: false });
 
 const FlightSchema = new Schema({
-  type: Schema.Types.Mixed
+  type: Schema.Types.Mixed  
 }, { _id: false, strict: false });
 
 const HotelSchema = new Schema({

@@ -1,0 +1,104 @@
+/* SeatModal.css */
+.seat-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: start;
+    justify-content: center;
+    padding-top: 5rem;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    overflow-y: auto;
+  }
+  
+  .seat-modal-container {
+    width: 100%;
+    max-width: 64rem;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background-paper);
+    border-radius: 0.75rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(229, 231, 235, 0.5);
+  }
+  
+  .seat-modal-header {
+    padding: 1.5rem;
+    background-color: var(--background-default);
+    border-bottom: 1px solid var(--primary-light);
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.75rem;
+  }
+  
+  .seat-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    background-color: var(--background-paper);
+    color: var(--text-primary);
+  }
+  
+  .seat-modal-footer {
+    padding: 1.5rem;
+    background-color: var(--background-default);
+    border-top: 1px solid var(--primary-light);
+    border-bottom-left-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+  }
+  
+  .seat-button {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .seat-button:not(:disabled):hover {
+    transform: scale(1.05);
+  }
+  
+  .seat-button.selected {
+    background-color: var(--primary-main);
+    color: var(--button-contrastText);
+  }
+  
+  .seat-button:not(.selected) {
+    background-color: var(--background-paper);
+    border: 1px solid var(--primary-light);
+    color: var(--text-primary);
+  }
+  
+  .seat-button.aisle {
+    margin-left: 1rem;
+  }
+  
+  .seat-button:disabled {
+    background-color: var(--background-default);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+  }
+  
+  .tab-button {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .tab-button.active {
+    background-color: var(--primary-main);
+    color: var(--button-contrastText);
+  }
+  
+  .tab-button:not(.active) {
+    background-color: var(--background-paper);
+    color: var(--text-primary);
+  }

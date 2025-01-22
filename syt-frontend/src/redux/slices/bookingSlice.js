@@ -2,30 +2,33 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const generateBookingId = () => {
-  // Generate a booking ID with format: BK-YYYYMMDD-XXXXX
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-  return `BK-${year}${month}${day}-${random}`;
+// API Base URL
+const API_BASE_URL = 'http://localhost:5000/api/booking/itinerary';
+
+// Generate Item ID based on type
+const getItemId = (item, type) => {
+  switch (type) {
+    case 'flight':
+      return item.flightCode;
+    case 'hotel':
+      return item.traceId;
+    case 'activity':
+      return item.bookingRef;
+    case 'transfer':
+      return item.quotation_id;
+    default:
+      return null;
+  }
 };
 
-// Create booking thunk
+// Create booking
 export const createBooking = createAsyncThunk(
   'booking/create',
   async (bookingData, { rejectWithValue }) => {
     try {
-      // Add booking ID to the request payload
-      const bookingWithId = {
-        ...bookingData,
-        bookingId: generateBookingId()
-      };
-
       const response = await axios.post(
-        'http://localhost:5000/api/booking/itinerary',
-        bookingWithId,
+        API_BASE_URL,
+        bookingData,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -33,23 +36,17 @@ export const createBooking = createAsyncThunk(
           }
         }
       );
-
       return response.data;
     } catch (error) {
-      if (error.response?.data?.errors) {
-        return rejectWithValue({
-          message: 'Validation failed',
-          errors: error.response.data.errors
-        });
-      }
       return rejectWithValue({
-        message: error.response?.data?.message || 'Failed to create booking'
+        message: error.response?.data?.message || 'Failed to create booking',
+        errors: error.response?.data?.errors
       });
     }
   }
 );
 
-// Get user bookings thunk
+// Get user bookings
 export const getUserBookings = createAsyncThunk(
   'booking/getUserBookings',
   async ({ page = 1, limit = 10, status, startDate, endDate }, { rejectWithValue }) => {
@@ -63,14 +60,13 @@ export const getUserBookings = createAsyncThunk(
       });
 
       const response = await axios.get(
-        `http://localhost:5000/api/booking/itinerary?${queryParams}`,
+        `${API_BASE_URL}?${queryParams}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
-
       return response.data;
     } catch (error) {
       return rejectWithValue({
@@ -80,20 +76,19 @@ export const getUserBookings = createAsyncThunk(
   }
 );
 
-// Get single booking
-export const getBooking = createAsyncThunk(
-  'booking/getBooking',
+// Get booking by ID
+export const getBookingById = createAsyncThunk(
+  'booking/getById',
   async (bookingId, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/booking/itinerary/${bookingId}`,
+        `${API_BASE_URL}/${bookingId}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
-
       return response.data;
     } catch (error) {
       return rejectWithValue({
@@ -103,17 +98,22 @@ export const getBooking = createAsyncThunk(
   }
 );
 
-// Update booking status
-export const updateBookingStatus = createAsyncThunk(
-  'booking/updateStatus',
-  async ({ bookingId, status, component, componentId }, { rejectWithValue }) => {
+// Book individual item
+export const bookItem = createAsyncThunk(
+  'booking/bookItem',
+  async ({ bookingId, type, item }, { rejectWithValue }) => {
     try {
-      const response = await axios.patch(
-        `http://localhost:5000/api/booking/itinerary/${bookingId}/status`,
+      const itemId = getItemId(item, type);
+      if (!itemId) {
+        throw new Error('Invalid item type or missing ID');
+      }
+
+      const response = await axios.post(
+        `${API_BASE_URL}/${bookingId}/book`,
         {
-          status,
-          component,
-          componentId
+          type,
+          itemId,
+          itemData: item
         },
         {
           headers: {
@@ -122,10 +122,100 @@ export const updateBookingStatus = createAsyncThunk(
         }
       );
 
-      return response.data;
+      return {
+        ...response.data,
+        itemId,
+        type
+      };
     } catch (error) {
       return rejectWithValue({
-        message: error.response?.data?.message || 'Failed to update booking status'
+        message: error.response?.data?.message || 'Failed to book item',
+        type,
+        itemId: getItemId(item, type)
+      });
+    }
+  }
+);
+
+// Book all items in an itinerary
+export const bookAllItems = createAsyncThunk(
+  'booking/bookAll',
+  async ({ bookingId, itinerary }, { dispatch }) => {
+    const bookingPromises = [];
+
+    // Helper function to book items
+    const bookItems = (items, type) => {
+      if (!items) return;
+      items.forEach(item => {
+        bookingPromises.push(
+          dispatch(bookItem({ bookingId, type, item }))
+        );
+      });
+    };
+
+    // Process each city's items
+    itinerary.cities.forEach(city => {
+      city.days.forEach(day => {
+        // Book flights
+        if (day.flights) {
+          bookItems(day.flights.map(f => f.flightData), 'flight');
+        }
+
+        // Book hotels
+        if (day.hotels) {
+          bookItems(day.hotels.map(h => h.data), 'hotel');
+        }
+
+        // Book activities
+        if (day.activities) {
+          bookItems(day.activities, 'activity');
+        }
+
+        // Book transfers
+        if (day.transfers) {
+          bookItems(day.transfers.map(t => t.details), 'transfer');
+        }
+      });
+    });
+
+    // Wait for all bookings to complete
+    return await Promise.allSettled(bookingPromises);
+  }
+);
+
+// Get item voucher
+export const getItemVoucher = createAsyncThunk(
+  'booking/getVoucher',
+  async ({ bookingId, type, item }, { rejectWithValue }) => {
+    try {
+      const itemId = getItemId(item, type);
+      const response = await axios.get(
+        `${API_BASE_URL}/${bookingId}/voucher/${type}/${itemId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          responseType: 'blob'
+        }
+      );
+
+      // Create blob URL and trigger download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `voucher-${type}-${itemId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return { type, itemId };
+    } catch (error) {
+      return rejectWithValue({
+        message: error.response?.data?.message || 'Failed to download voucher',
+        type,
+        itemId: getItemId(item, type)
       });
     }
   }
@@ -137,7 +227,7 @@ export const cancelBooking = createAsyncThunk(
   async (bookingId, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/booking/itinerary/${bookingId}/cancel`,
+        `${API_BASE_URL}/${bookingId}/cancel`,
         {},
         {
           headers: {
@@ -145,7 +235,6 @@ export const cancelBooking = createAsyncThunk(
           }
         }
       );
-
       return response.data;
     } catch (error) {
       return rejectWithValue({
@@ -164,6 +253,8 @@ const initialState = {
     total: 0,
     pages: 0
   },
+  bookingStatuses: {},
+  voucherStatuses: {},
   loading: false,
   error: null,
   success: false
@@ -182,6 +273,14 @@ const bookingSlice = createSlice({
     resetBookingState: () => initialState,
     setCurrentBooking: (state, action) => {
       state.currentBooking = action.payload;
+    },
+    updateItemStatus: (state, action) => {
+      const { type, itemId, status } = action.payload;
+      state.bookingStatuses[`${type}-${itemId}`] = status;
+    },
+    clearItemStatuses: (state) => {
+      state.bookingStatuses = {};
+      state.voucherStatuses = {};
     }
   },
   extraReducers: (builder) => {
@@ -197,6 +296,7 @@ const bookingSlice = createSlice({
         state.currentBooking = action.payload.data;
         state.success = true;
         state.error = null;
+        state.bookingStatuses = {};
       })
       .addCase(createBooking.rejected, (state, action) => {
         state.loading = false;
@@ -220,72 +320,76 @@ const bookingSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Get single booking
-      .addCase(getBooking.pending, (state) => {
+      // Get booking by ID
+      .addCase(getBookingById.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getBooking.fulfilled, (state, action) => {
+      .addCase(getBookingById.fulfilled, (state, action) => {
         state.loading = false;
         state.currentBooking = action.payload.data;
         state.error = null;
       })
-      .addCase(getBooking.rejected, (state, action) => {
+      .addCase(getBookingById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
-      // Update booking status
-      .addCase(updateBookingStatus.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-        state.success = false;
+      // Book item
+      .addCase(bookItem.pending, (state, action) => {
+        const { type, item } = action.meta.arg;
+        const itemId = getItemId(item, type);
+        state.bookingStatuses[`${type}-${itemId}`] = 'pending';
       })
-      .addCase(updateBookingStatus.fulfilled, (state, action) => {
-        state.loading = false;
-        state.currentBooking = action.payload.data;
-        state.success = true;
-        state.error = null;
-        // Update booking in list if exists
-        state.userBookings = state.userBookings.map(booking => 
-          booking.bookingId === action.payload.data.bookingId ? action.payload.data : booking
-        );
+      .addCase(bookItem.fulfilled, (state, action) => {
+        const { type, itemId } = action.payload;
+        state.bookingStatuses[`${type}-${itemId}`] = 'confirmed';
       })
-      .addCase(updateBookingStatus.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-        state.success = false;
+      .addCase(bookItem.rejected, (state, action) => {
+        const { type, itemId } = action.payload;
+        state.bookingStatuses[`${type}-${itemId}`] = 'failed';
+      })
+
+      // Get voucher
+      .addCase(getItemVoucher.pending, (state, action) => {
+        const { type, item } = action.meta.arg;
+        const itemId = getItemId(item, type);
+        state.voucherStatuses[`${type}-${itemId}`] = 'downloading';
+      })
+      .addCase(getItemVoucher.fulfilled, (state, action) => {
+        const { type, itemId } = action.payload;
+        state.voucherStatuses[`${type}-${itemId}`] = 'downloaded';
+      })
+      .addCase(getItemVoucher.rejected, (state, action) => {
+        const { type, itemId } = action.payload;
+        state.voucherStatuses[`${type}-${itemId}`] = 'failed';
       })
 
       // Cancel booking
       .addCase(cancelBooking.pending, (state) => {
         state.loading = true;
         state.error = null;
-        state.success = false;
       })
       .addCase(cancelBooking.fulfilled, (state, action) => {
         state.loading = false;
         state.currentBooking = action.payload.data;
         state.success = true;
         state.error = null;
-        // Update booking in list if exists
-        state.userBookings = state.userBookings.map(booking => 
-          booking.bookingId === action.payload.data.bookingId ? action.payload.data : booking
-        );
       })
       .addCase(cancelBooking.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        state.success = false;
       });
   }
 });
 
-export const { 
-  clearBookingError, 
-  clearBookingSuccess, 
+export const {
+  clearBookingError,
+  clearBookingSuccess,
   resetBookingState,
-  setCurrentBooking 
+  setCurrentBooking,
+  updateItemStatus,
+  clearItemStatuses
 } = bookingSlice.actions;
 
 export default bookingSlice.reducer;

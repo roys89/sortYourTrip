@@ -683,3 +683,121 @@ exports.replaceFlight = async (req, res) => {
     });
   }
 };
+
+exports.updateFlightSeatsAndBaggage = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { flightCode, seatMap, baggageOptions, mealOptions } = req.body;
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    console.log('Updating flight seats and extras:', {
+      itineraryToken,
+      flightCode,
+      seatMapLength: seatMap?.length,
+      baggageOptionsLength: baggageOptions?.length,
+      mealOptionsLength: mealOptions?.length
+    });
+
+    const itinerary = await Itinerary.findOne({ 
+      itineraryToken,
+      inquiryToken 
+    });
+
+    if (!itinerary) {
+      return res.status(404).json({
+        success: false,
+        message: 'Itinerary not found'
+      });
+    }
+
+    let flightFound = false;
+    let updatedFlightData = null;
+
+    // Search for the flight in the itinerary
+    for (const city of itinerary.cities) {
+      for (const day of city.days) {
+        if (day.flights) {
+          const flightIndex = day.flights.findIndex(
+            flight => flight.flightData?.flightCode === flightCode
+          );
+
+          if (flightIndex !== -1) {
+            const currentFlightData = day.flights[flightIndex].flightData;
+            
+            // Update the flight data by keeping all existing data and updating selections
+            updatedFlightData = {
+              ...currentFlightData,  // Preserve all existing flight data
+              flightCode,
+              selectedSeats: seatMap || null,
+              selectedBaggage: baggageOptions || null,
+              selectedMeal: mealOptions || null,
+              isSeatSelected: Array.isArray(seatMap) && seatMap.length > 0,
+              isBaggageSelected: Array.isArray(baggageOptions) && baggageOptions.length > 0,
+              isMealSelected: Array.isArray(mealOptions) && mealOptions.length > 0
+            };
+
+            // Update the flight data
+            day.flights[flightIndex] = {
+              flightData: updatedFlightData
+            };
+
+            console.log('Updated flight data:', {
+              flightCode,
+              isSeatSelected: updatedFlightData.isSeatSelected,
+              isBaggageSelected: updatedFlightData.isBaggageSelected,
+              isMealSelected: updatedFlightData.isMealSelected
+            });
+
+            flightFound = true;
+            break;
+          }
+        }
+      }
+      if (flightFound) break;
+    }
+
+    if (!flightFound) {
+      return res.status(404).json({
+        success: false,
+        message: 'Flight not found in itinerary'
+      });
+    }
+
+    // Save the updated itinerary
+    const updatedItinerary = await itinerary.save();
+
+    // Add to change history
+    if (!updatedItinerary.changeHistory) {
+      updatedItinerary.changeHistory = [];
+    }
+    
+    updatedItinerary.changeHistory.push({
+      type: 'FLIGHT_CHANGE',
+      details: {
+        flightCode,
+        changeType: 'SEATS_AND_EXTRAS_UPDATE',
+        updatedFields: {
+          seats: !!seatMap,
+          baggage: !!baggageOptions,
+          meal: !!mealOptions
+        }
+      }
+    });
+
+    await updatedItinerary.save();
+
+    res.json({
+      success: true,
+      message: 'Flight seats, baggage, and meal updated successfully',
+      flight: updatedFlightData
+    });
+
+  } catch (error) {
+    console.error('Error updating flight seats, baggage, and meal:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating flight seats, baggage, and meal',
+      error: error.message
+    });
+  }
+};

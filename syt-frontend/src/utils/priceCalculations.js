@@ -1,5 +1,39 @@
 // utils/priceCalculations.js
 
+const calculateFlightAddons = (flightData) => {
+  let totalAddons = 0;
+  
+  if (flightData.isSeatSelected && flightData.selectedSeats) {
+    // Calculate total seat prices across all segments
+    totalAddons += flightData.selectedSeats.reduce((seatTotal, segment) => {
+      const segmentTotal = segment.rows.reduce((rowTotal, row) => {
+        return rowTotal + row.seats.reduce((total, seat) => total + (seat.price || 0), 0);
+      }, 0);
+      return seatTotal + segmentTotal;
+    }, 0);
+  }
+
+  if (flightData.isBaggageSelected && flightData.selectedBaggage) {
+    // Calculate total baggage prices
+    totalAddons += flightData.selectedBaggage.reduce((baggageTotal, segment) => {
+      return baggageTotal + segment.options.reduce((total, option) => {
+        return total + (option.price || 0);
+      }, 0);
+    }, 0);
+  }
+
+  if (flightData.isMealSelected && flightData.selectedMeal) {
+    // Calculate total meal prices
+    totalAddons += flightData.selectedMeal.reduce((mealTotal, segment) => {
+      return mealTotal + segment.options.reduce((total, option) => {
+        return total + (option.price || 0);
+      }, 0);
+    }, 0);
+  }
+
+  return Number(totalAddons.toFixed(2));
+};
+
 // Helper to get base price without markup and round to 2 decimals
 const getBasePrice = (item) => {
   let price = 0;
@@ -9,8 +43,11 @@ const getBasePrice = (item) => {
     price = item.packageDetails.amount;
   } else if (item.data?.totalAmount) {
     price = item.data.totalAmount;
-  } else if (item.flightData?.price) {
-    price = item.flightData.price;
+  } else if (item.flightData) {
+    // Get base flight price
+    price = item.flightData.price || 0;
+    // Add any selected add-ons
+    price += calculateFlightAddons(item.flightData);
   } else if (item.details?.selectedQuote?.quote?.fare) {
     price = parseFloat(item.details.selectedQuote.quote?.fare);
   }

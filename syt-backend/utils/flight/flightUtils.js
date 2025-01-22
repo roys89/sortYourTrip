@@ -176,21 +176,26 @@ function formatFlightResponse(itineraryData) {
       })),
   
       // Additional services
-      fareRules: flightItem.fareRule?.[0]?.fareRuleDetail,
-      seatMap: formatSeatMap(flightItem.ssr?.seat),
-      mealOptions: formatMealOptions(flightItem.ssr?.meal),
-      baggageOptions: formatBaggageOptions(flightItem.ssr?.baggage),
+      fareRules: flightItem.fareRule?.[0]?.fareRuleDetail || null,
+      seatMap: formatSeatMap(flightItem.ssr?.seat) || null,
+      mealOptions: formatMealOptions(flightItem.ssr?.meal) || null,
+      baggageOptions: formatBaggageOptions(flightItem.ssr?.baggage) || null,
+
+      //flahgs
+
+      selectedSeats: null,
+      selectedBaggage: null,
+      selectedMeal: null,
+      isSeatSelected: false,
+      isBaggageSelected: false,
+      isMealSelected: false,
   
       // Booking details
       bookingDetails: {
         itineraryCode: itineraryData.results.itineraryCode,
         pnr: flightItem.pnrDetails?.[0]?.pnr,
         isHoldAllowed: flightItem.isHoldAllowed,
-        fareIdentifier: flightItem.fareIdentifier || {
-          name: 'Published',
-          code: 'farjkk7',
-          colorCode: '#0077CE'
-        }
+        fareIdentifier: flightItem.fareIdentifier
       },
   
       // Metadata

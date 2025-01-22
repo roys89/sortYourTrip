@@ -21,7 +21,8 @@ const {
   removeActivity,
   updateActivityWithBookingRef,
   replaceRoom,
-  replaceFlight
+  replaceFlight,
+  updateFlightSeatsAndBaggage
 } = require("../../controllers/itineraryController/itineraryModificationController"); 
 
 const {
@@ -79,6 +80,12 @@ router.put(
 );
 router.put("/:itineraryToken/room", checkAuth, checkInquiryToken, replaceRoom);
 router.put("/:itineraryToken/flight", checkAuth, checkInquiryToken, replaceFlight);
+router.put(
+  "/:itineraryToken/flight/seats",
+  checkAuth,
+  checkInquiryToken,
+  updateFlightSeatsAndBaggage
+);
 
 // Flight Change Routes
 router.post(

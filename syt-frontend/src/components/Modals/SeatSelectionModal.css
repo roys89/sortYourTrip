@@ -1,0 +1,187 @@
+/* SeatSelectionModal.css */
+
+.seat-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 1rem;
+    overflow-y: auto;
+    margin-top: 4rem;
+  }
+  
+  .seat-modal-container {
+    width: 100%;
+    max-width: 56rem;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  /* Theme-aware styles using CSS variables */
+  :root {
+    --seat-modal-bg: #ffffff;
+    --seat-modal-header-bg: #f3f4f6;
+    --seat-modal-text: #1f2937;
+    --seat-modal-text-secondary: #4b5563;
+    --seat-modal-border: #e5e7eb;
+    --seat-modal-hover: #f9fafb;
+    --seat-modal-selected: #2A9D8F;
+    --seat-modal-selected-text: #ffffff;
+    --seat-modal-card-bg: #f9fafb;
+    --seat-modal-disabled: #9ca3af;
+  }
+  
+  [data-theme='dark'] {
+    --seat-modal-bg: #1f2937;
+    --seat-modal-header-bg: #111827;
+    --seat-modal-text: #f3f4f6;
+    --seat-modal-text-secondary: #9ca3af;
+    --seat-modal-border: #374151;
+    --seat-modal-hover: #374151;
+    --seat-modal-selected: #2A9D8F;
+    --seat-modal-selected-text: #ffffff;
+    --seat-modal-card-bg: #111827;
+    --seat-modal-disabled: #4b5563;
+  }
+  
+  .seat-modal-header {
+    padding: 1.5rem;
+    background-color: var(--seat-modal-header-bg);
+    border-bottom: 1px solid var(--seat-modal-border);
+  }
+  
+  .seat-modal-title {
+    color: var(--seat-modal-text);
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  
+  .seat-modal-subtitle {
+    color: var(--seat-modal-text-secondary);
+    font-size: 0.875rem;
+  }
+  
+  .seat-modal-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    background-color: var(--seat-modal-bg);
+  }
+  
+  .seat-modal-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--seat-modal-border);
+  }
+  
+  .seat-modal-tab {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--seat-modal-text);
+    background-color: var(--seat-modal-bg);
+    transition: all 0.2s ease;
+  }
+  
+  .seat-modal-tab:hover:not(.active) {
+    background-color: var(--seat-modal-hover);
+  }
+  
+  .seat-modal-tab.active {
+    background-color: var(--seat-modal-selected);
+    color: var(--seat-modal-selected-text);
+  }
+  
+  .seat-button {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--seat-modal-border);
+    background-color: var(--seat-modal-bg);
+    color: var(--seat-modal-text);
+    transition: all 0.2s ease;
+  }
+  
+  .seat-button:not(:disabled):hover {
+    background-color: var(--seat-modal-hover);
+  }
+  
+  .seat-button.selected {
+    background-color: var(--seat-modal-selected);
+    color: var(--seat-modal-selected-text);
+    border-color: var(--seat-modal-selected);
+  }
+  
+  .seat-button:disabled {
+    background-color: var(--seat-modal-disabled);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  
+  .seat-button.aisle {
+    margin-left: 1rem;
+  }
+  
+  .seat-price {
+    font-size: 0.75rem;
+    color: var(--seat-modal-text-secondary);
+  }
+  
+  .seat-button.selected .seat-price {
+    color: var(--seat-modal-selected-text);
+  }
+  
+  .seat-modal-footer {
+    padding: 1.5rem;
+    background-color: var(--seat-modal-header-bg);
+    border-top: 1px solid var(--seat-modal-border);
+  }
+  
+  .option-card {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--seat-modal-card-bg);
+    border: 1px solid var(--seat-modal-border);
+    color: var(--seat-modal-text);
+    transition: all 0.2s ease;
+  }
+  
+  .option-card:hover:not(.selected) {
+    background-color: var(--seat-modal-hover);
+  }
+  
+  .option-card.selected {
+    background-color: var(--seat-modal-selected);
+    color: var(--seat-modal-selected-text);
+  }
+  
+  .confirm-button {
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    background-color: var(--seat-modal-selected);
+    color: var(--seat-modal-selected-text);
+    transition: all 0.2s ease;
+  }
+  
+  .confirm-button:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+  
+  .confirm-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }

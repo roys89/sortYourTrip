@@ -23,9 +23,7 @@ const SeatSelectionModal = ({
 
   // Initialize selections maintaining exact flight data structure
   const [selectedSeats, setSelectedSeats] = useState(() => {
-    // Create a deep copy of the seatMap with proper segment matching
     const initialSeatMap = flightData.seatMap?.map(segment => {
-      // Find the matching selected segment for this origin/destination pair
       const matchingSelectedSegment = flightData.selectedSeats?.find(
         selectedSegment => 
           selectedSegment.origin === segment.origin && 
@@ -37,9 +35,8 @@ const SeatSelectionModal = ({
         destination: segment.destination,
         resultIdentifier: segment.resultIdentifier,
         rows: segment.rows.map(row => ({
-          seats: row.seats.map(seat => ({
+          seats: row.seats.filter(seat => seat.code !== null).map(seat => ({  // Add filter here
             ...seat,
-            // Check if this seat is selected in the matching segment
             isSelected: matchingSelectedSegment?.rows.some(selectedRow => 
               selectedRow.seats.some(selectedSeat => 
                 selectedSeat.code === seat.code
@@ -52,7 +49,7 @@ const SeatSelectionModal = ({
   
     return initialSeatMap || [];
   });
-  
+
   // Also update the baggage initialization to match segments correctly
   const [selectedBaggage, setSelectedBaggage] = useState(() => {
     return flightData.baggageOptions?.map(segment => {
@@ -199,24 +196,27 @@ const SeatSelectionModal = ({
   };
 
   const handleSubmit = async () => {
-  
     try {
       const transformedSelections = {
         flightCode: flightData.flightCode,
-        seatMap: selectedSeats.map(segment => ({
-          origin: segment.origin,
-          destination: segment.destination,
-          resultIdentifier: segment.resultIdentifier,
-          rows: segment.rows.map(row => ({
-            seats: row.seats.filter(seat => seat.isSelected).map(seat => ({
-              code: seat.code,
-              seatNo:seat.seatNo,
-              price: seat.price,
-              type: seat.type,
-              priceBracket: seat.priceBracket
-            }))
-          })).filter(row => row.seats.length > 0)
-        })),
+        seatMap: selectedSeats
+          .filter(segment => segment.rows.some(row => 
+            row.seats.some(seat => seat.isSelected)
+          ))
+          .map(segment => ({
+            origin: segment.origin,
+            destination: segment.destination,
+            resultIdentifier: segment.resultIdentifier,
+            rows: segment.rows.map(row => ({
+              seats: row.seats.filter(seat => seat.isSelected).map(seat => ({
+                code: seat.code,
+                seatNo: seat.seatNo,
+                price: seat.price,
+                type: seat.type,
+                priceBracket: seat.priceBracket
+              }))
+            })).filter(row => row.seats.length > 0)
+          })),
         baggageOptions: selectedBaggage
           .filter(segment => segment.selectedOption)
           .map(segment => ({
@@ -234,7 +234,7 @@ const SeatSelectionModal = ({
             options: [segment.selectedOption]
           }))
       };
-    
+  
       await dispatch(updateFlightSeats({
         itineraryToken,
         inquiryToken,
@@ -332,19 +332,19 @@ const SeatSelectionModal = ({
                   <div className="grid gap-4">
                     {selectedSeats[activeFlightSegment].rows.map((row, rowIndex) => (
                       <div key={rowIndex} className="flex justify-center items-center gap-2">
-                        {row.seats.map((seat, seatIndex) => (
-                          <button
-                            key={seat.code}
-                            onClick={() => handleSeatClick(activeFlightSegment, rowIndex, seatIndex, seat.isBooked)}
-                            disabled={seat.isBooked || isLoading}
-                            className={`seat-button ${seat.isSelected ? 'selected' : ''} ${seat.type.isAisle ? 'aisle' : ''}`}
-                          >
-                            <span>{seat.code}</span>
-                            {!seat.isBooked && (
-                              <span className="seat-price">₹{seat.price}</span>
-                            )}
-                          </button>
-                        ))}
+                        {row.seats.filter(seat => seat.code !== null).map((seat, seatIndex) => (
+  <button
+    key={seat.code}
+    onClick={() => handleSeatClick(activeFlightSegment, rowIndex, seatIndex, seat.isBooked)}
+    disabled={seat.isBooked || isLoading}
+    className={`seat-button ${seat.isSelected ? 'selected' : ''} ${seat.type?.isAisle ? 'aisle' : ''}`}
+  >
+    <span>{seat.code}</span>
+    {!seat.isBooked && (
+      <span className="seat-price">₹{seat.price}</span>
+    )}
+  </button>
+))}
                       </div>
                     ))}
                   </div>

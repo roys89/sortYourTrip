@@ -61,7 +61,7 @@ const generateQuestionAnswers = (travelers, specialRequirements = '') => {
   if (specialRequirements) {
     answers.push({
       question: "SPECIAL_REQUIREMENTS",
-      answer: specialRequirements
+      answer: specialRequirements || "NA"
     });
   }
 
@@ -81,62 +81,54 @@ const generateQuestionAnswers = (travelers, specialRequirements = '') => {
 
 // Transform travelers data
 export const transformTravelers = (travelers) => {
-  return travelers.map(traveler => ({
-    ...traveler,
-    type: parseInt(traveler.age) >= 12 ? 'adult' : 'child'
-  }));
-};
+  return travelers.map(traveler => {
+    const baseTransform = {
+      title: traveler.title,
+      firstName: traveler.firstName,
+      lastName: traveler.lastName,
+      email: traveler.email,
+      phone: `${traveler.cellCountryCode}-${traveler.phone}`,
+      dateOfBirth: traveler.dateOfBirth,
+      age: traveler.age,
+      passportNumber: traveler.passportNumber,
+      passportIssueDate: traveler.passportIssueDate,
+      passportExpiryDate: traveler.passportExpiryDate,
+      nationality: traveler.nationality,
+      weight: traveler.weight,
+      height: traveler.height,
+      preferredLanguage: traveler.preferredLanguage,
+      foodPreference: traveler.foodPreference,
+      type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
+      gender: traveler.gender,
+      addressLineOne: traveler.addressLineOne,
+      addressLineTwo: traveler.addressLineTwo || '',
+      city: traveler.city,
+      country: traveler.country,
+      countryCode: traveler.countryCode,
+      panNumber: traveler.panNumber, // Added PAN number
+      frequentFlyerAirlineCode: traveler.frequentFlyerAirlineCode || null,
+      frequentFlyerNumber: traveler.frequentFlyerNumber || null
+    };
 
-// Transform activity bookings
-const transformActivityBookings = (bookingItinerary, travelers, specialRequirements) => {
-  return bookingItinerary.cities?.flatMap(city => 
-    city.days?.flatMap(day => 
-      (day.activities || [])
-        .filter(activity => activity.activityType === 'online')
-        .map(activity => ({
-          searchId: activity.searchId,
-          bookingRef: activity.bookingReference?.bookingRef || null,
-          activityCode: activity.activityCode,
-          bookingStatus: 'pending',
-          lead: {
-            title: travelers[0].title,
-            name: travelers[0].firstName,
-            surname: travelers[0].lastName,
-            clientNationality: travelers[0].nationality,
-            age: parseInt(travelers[0].age)
-          },
-          agentRef: generateAgentReference(),
-          rateKey: activity.packageDetails?.ratekey || null,
-          fromDate: day.date,
-          toDate: day.date,
-          groupCode: activity.groupCode,
-          hotelId: null,
-          languageGuide: activity.tourGrade?.langServices?.[0] || {
-            type: "GUIDE",
-            language: "en",
-            legacyGuide: "en/SERVICE_GUIDE"
-          },
-          QuestionAnswers: generateQuestionAnswers(travelers, specialRequirements),
-          travellers: travelers.map(traveler => ({
-            title: traveler.title,
-            name: traveler.firstName,
-            surname: traveler.lastName,
-            type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
-            age: traveler.age
-          })),
-          amount: activity.packageDetails?.amount || 0,
-          packageDetails: {
-            title: activity.packageDetails?.title,
-            description: activity.packageDetails?.description,
-            departureTime: activity.packageDetails?.departureTime,
-            duration: activity.duration,
-            inclusions: activity.inclusions?.map(inc => inc.otherDescription || inc.typeDescription),
-            exclusions: activity.exclusions?.map(exc => exc.otherDescription || exc.typeDescription)
-          },
-          cancellationPolicies: activity.cancellationFromTourDate
-        }))
-    )
-  ) || [];
+    // Add GST details only for adults
+    if (parseInt(traveler.age) >= 12 && traveler.gstNumber) {
+      return {
+        ...baseTransform,
+        gstDetails: {
+          gstNumber: traveler.gstNumber,
+          companyName: traveler.gstCompanyName,
+          companyAddress: traveler.gstCompanyAddress,
+          companyEmail: traveler.gstCompanyEmail,
+          companyContactNumber: traveler.gstCompanyContactNumber
+        }
+      };
+    }
+
+    return {
+      ...baseTransform,
+      gstDetails: null
+    };
+  });
 };
 
 // Transform hotel bookings
@@ -146,56 +138,47 @@ const transformHotelBookings = (bookingItinerary, roomsData) => {
       (day.hotels || [])
         .filter(hotel => hotel.success && hotel.data)
         .map(hotel => {
-          const firstTraveler = roomsData[0].travelers[0]; // Lead guest
-
           return {
             hotelId: hotel.data.staticContent[0].id,
-            traceId: hotel.data.traceId,
-            roomsAllocations: roomsData.map((room, roomIndex) => ({
-              rateId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.rate.id,
-              roomId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.room.id,
-              guests: room.travelers.map(traveler => ({
-                title: traveler.title,
-                firstName: traveler.firstName,
-                lastName: traveler.lastName,
-                isLeadGuest: traveler === firstTraveler,
-                type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
-                email: traveler.email,
-                isdCode: traveler.phone.split('-')[0] || '91',
-                contactNumber: traveler.phone.split('-')[1] || traveler.phone,
-                panCardNumber: null,
-                passportNumber: traveler.passportNumber,
-                passportExpiry: traveler.passportExpiryDate
-              }))
-            })),
-            specialRequests: null,
-            itineraryCode: hotel.data.code,
-            totalAmount: hotel.data.totalAmount,
-            cityCode: hotel.data.hotelDetails?.address?.city?.name,
+            city: hotel.data.hotelDetails?.address?.city?.name,
             checkin: day.date,
             checkout: hotel.checkOut,
             bookingStatus: 'pending',
-            cancellationPolicies: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.cancellationPolicies,
-            boardBasis: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.boardBasis,
-            hotelDetails: {
-              name: hotel.data.hotelDetails?.name,
-              category: hotel.data.hotelDetails?.starRating,
-              address: {
-                line1: hotel.data.hotelDetails?.address?.line1,
-                city: hotel.data.hotelDetails?.address?.city?.name,
-                country: hotel.data.hotelDetails?.address?.country?.name
-              },
-              geolocation: {
-                lat: hotel.data.hotelDetails?.geolocation?.lat,
-                long: hotel.data.hotelDetails?.geolocation?.long
-              }
-            },
-            includes: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.includes || [],
-            additionalCharges: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate.additionalCharges?.map(charge => ({
-              type: charge.charge?.type,
-              description: charge.charge?.description,
-              amount: charge.charge?.amount
-            })) || []
+            itineraryCode: hotel.data.code,
+            bookingArray: [{
+              traceId: hotel.data.traceId,
+              roomsAllocations: roomsData.map((room, roomIndex) => ({
+                rateId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.rate.id,
+                roomId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.room.id,
+                guests: room.travelers.map(traveler => ({
+                  title: traveler.title,
+                  firstName: traveler.firstName,
+                  lastName: traveler.lastName,
+                  isLeadGuest: traveler === room.travelers[0],
+                  type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
+                  email: traveler.email,
+                  isdCode: traveler.cellCountryCode,
+                  contactNumber: traveler.phone,
+                  panCardNumber: traveler.panNumber,
+                  passportNumber: traveler.passportNumber,
+                  passportExpiry: traveler.passportExpiryDate,
+                  addressLineOne: traveler.addressLineOne,
+                  addressLineTwo: traveler.addressLineTwo || '',
+                  city: traveler.city,
+                  countryCode: traveler.countryCode,
+                  nationality: traveler.nationality,
+                  gender: traveler.gender,
+                  gstDetails: parseInt(traveler.age) >= 12 && traveler.gstNumber ? {
+                    gstNumber: traveler.gstNumber,
+                    companyName: traveler.gstCompanyName,
+                    companyAddress: traveler.gstCompanyAddress,
+                    companyEmail: traveler.gstCompanyEmail,
+                    companyContactNumber: traveler.gstCompanyContactNumber
+                  } : null
+                }))
+              })),
+              specialRequests: null
+            }]
           };
         })
     )
@@ -212,54 +195,36 @@ const transformTransferBookings = (bookingItinerary, travelers) => {
         
         return {
           type: transfer.type,
-          booking_date: day.date,
-          booking_time: quote?.routeDetails?.pickup_date?.split(' ')[1] || "00:00",
-          return_date: quote?.routeDetails?.return_date?.split(' ')[0] || null,
-          return_time: quote?.routeDetails?.return_date?.split(' ')[1] || null,
-          guest_details: {
-            first_name: leadTraveler.firstName,
-            last_name: leadTraveler.lastName,
-            email: leadTraveler.email,
-            phone: leadTraveler.phone
-          },
-          quotation_id: transfer.details.quotation_id,
-          quotation_child_id: transfer.details.quotation_child_id || null,
-          comments: transfer.details.comments || null,
-          total_passenger: travelers.length,
-          flight_number: transfer.details.flightNumber || null,
-          bookingStatus: 'pending',
-          amount: quote?.quote?.fare || 0,
-          vehicleDetails: {
-            class: quote?.quote?.vehicle?.ve_class,
-            capacity: quote?.quote?.vehicle?.ve_max_capacity,
-            type: quote?.quote?.vehicle?.ve_similar_types,
-            luggage_capacity: quote?.quote?.vehicle?.ve_luggage_capacity,
-            tags: quote?.quote?.vehicle?.ve_tags,
-            vehicle_image: quote?.quote?.vehicle?.vehicleImages?.ve_im_url
-          },
-          routeDetails: {
-            distance: transfer.details.distance,
-            duration: transfer.details.duration,
-            pickup_location: {
-              address: transfer.details.origin.display_address,
-              coordinates: {
-                lat: parseFloat(transfer.details.origin.lat),
-                long: parseFloat(transfer.details.origin.long)
-              }
+          transferId: transfer.details.quotation_id,
+          bookingDate: day.date,
+          bookingTime: quote?.routeDetails?.pickup_date?.split(' ')[1] || "00:00",
+          returnDate: quote?.routeDetails?.return_date?.split(' ')[0] || null,
+          returnTime: quote?.routeDetails?.return_date?.split(' ')[1] || null,
+          bookingArray: [{
+            booking_date: day.date,
+            booking_time: quote?.routeDetails?.pickup_date?.split(' ')[1] || "00:00",
+            return_date: quote?.routeDetails?.return_date?.split(' ')[0] || null,
+            return_time: quote?.routeDetails?.return_date?.split(' ')[1] || null,
+            guest_details: {
+              title: leadTraveler.title,
+              first_name: leadTraveler.firstName,
+              last_name: leadTraveler.lastName,
+              email: leadTraveler.email,
+              phone: `${leadTraveler.cellCountryCode}-${leadTraveler.phone}`,
+              nationality: leadTraveler.nationality,
+              gender: leadTraveler.gender,
+              addressLineOne: leadTraveler.addressLineOne,
+              addressLineTwo: leadTraveler.addressLineTwo || '',
+              city: leadTraveler.city,
+              country: leadTraveler.country,
+              countryCode: leadTraveler.countryCode
             },
-            dropoff_location: {
-              address: transfer.details.destination.display_address,
-              coordinates: {
-                lat: parseFloat(transfer.details.destination.lat),
-                long: parseFloat(transfer.details.destination.long)
-              }
-            }
-          },
-          fareDetails: {
-            baseFare: quote?.quote?.fare || 0,
-            taxes: 0,
-            fees: 0
-          }
+            quotation_id: transfer.details.quotation_id,
+            quotation_child_id: transfer.details.selectedQuote.quote.quote_id || null,
+            comments: transfer.specialRequirements || null,
+            total_passenger: travelers.length,
+            flight_number: transfer.details.flightNumber || null
+          }]
         };
       })
     )
@@ -270,46 +235,198 @@ const transformTransferBookings = (bookingItinerary, travelers) => {
 const transformFlightBookings = (bookingItinerary, travelers) => {
   return bookingItinerary.cities?.flatMap(city => 
     city.days?.flatMap(day => 
-      (day.flights || []).map(flight => ({
-        flightCode: flight.flightData?.flightCode || `FL-${generateUniqueId()}`,
-        origin: flight.flightData?.origin,
-        destination: flight.flightData?.destination,
-        departureDate: flight.flightData?.departureDate,
-        departureTime: flight.flightData?.departureTime,
-        returnFlightCode: flight.flightData?.returnFlightCode,
-        returnDepartureDate: flight.flightData?.returnDepartureDate,
-        returnDepartureTime: flight.flightData?.returnDepartureTime,
-        bookingStatus: 'pending',
-        amount: flight.flightData?.price || 0,
-        passengers: travelers.map(traveler => ({
-          firstName: traveler.firstName,
-          lastName: traveler.lastName,
-          dateOfBirth: traveler.dateOfBirth,
-          passportNumber: traveler.passportNumber,
-          nationality: traveler.nationality,
-          type: parseInt(traveler.age) >= 12 ? 'ADULT' : 'CHILD'
-        })),
-        fareDetails: {
-          baseFare: flight.flightData?.fareDetails?.baseFare || 0,
-          taxAndSurcharge: flight.flightData?.fareDetails?.taxAndSurcharge || 0,
-          serviceFee: flight.flightData?.fareDetails?.serviceFee || 0,
-          isRefundable: flight.flightData?.fareDetails?.isRefundable || false
-        },
-        baggage: {
-          checkedBaggage: flight.flightData?.segments?.[0]?.baggage || '',
-          cabinBaggage: flight.flightData?.segments?.[0]?.cabinBaggage || ''
-        },
-        segmentDetails: flight.flightData?.segments?.map(segment => ({
-          flightNumber: segment.flightNumber,
-          airline: {
-            code: segment.airline?.code,
-            name: segment.airline?.name
-          },
-          departureTime: segment.departureTime,
-          arrivalTime: segment.arrivalTime,
-          duration: segment.duration
-        })) || []
-      }))
+      (day.flights || []).map(flight => {
+        const flightData = flight.flightData;
+        
+        const seatsBySegment = flightData.selectedSeats?.reduce((acc, segment) => {
+          const segmentSeats = segment.rows.flatMap(row => 
+            row.seats.map(seat => ({
+              origin: segment.origin,
+              destination: segment.destination,
+              code: seat.code,
+              amt: seat.price,
+              seat: seat.seatNo
+            }))
+          );
+          acc[`${segment.origin}-${segment.destination}`] = segmentSeats;
+          return acc;
+        }, {}) || {};
+
+        const meals = flightData.selectedMeal?.flatMap(segment =>
+          segment.options.map(meal => ({
+            origin: segment.origin,
+            destination: segment.destination,
+            code: meal.code,
+            amt: meal.price,
+            description: meal.description
+          }))
+        ) || [];
+
+        return {
+          bookingArray: [{
+            traceId: flightData.resultIndex,
+            passengers: travelers.map((traveler, index) => {
+              const assignedSeats = Object.values(seatsBySegment).map(segmentSeats => {
+                const availableSeat = segmentSeats[index];
+                return availableSeat;
+              }).filter(Boolean);
+
+              return {
+                title: traveler.title,
+                firstName: traveler.firstName,
+                lastName: traveler.lastName,
+                passportNumber: traveler.passportNumber,
+                passportExpiry: traveler.passportExpiryDate,
+                gender: traveler.gender,
+                isLeadPax: index === 0,
+                paxType: parseInt(traveler.age) >= 12 ? 1 : 2,
+                addressLineOne: traveler.addressLineOne,
+                addressLineTwo: traveler.addressLineTwo || '',
+                city: traveler.city,
+                cellCountryCode: traveler.cellCountryCode,
+                contactNumber: traveler.phone,
+                countryCode: traveler.countryCode,
+                countryName: traveler.country,
+                dateOfBirth: traveler.dateOfBirth,
+                email: traveler.email,
+                frequentFlyerAirlineCode: traveler.frequentFlyerAirlineCode || null,
+                frequentFlyerNumber: traveler.frequentFlyerNumber || null,
+                nationality: traveler.nationality,
+                ...(flightData.isSeatSelected || flightData.isMealSelected || flightData.isBaggageSelected) && {
+                  ssr: {
+                    meal: flightData.isMealSelected ? meals : [],
+                    baggage: flightData.isBaggageSelected ? [] : [],
+                    seat: flightData.isSeatSelected ? assignedSeats : []
+                  }
+                },
+                ...(parseInt(traveler.age) >= 12 && traveler.gstNumber) && {
+                  gstCompanyAddress: traveler.gstCompanyAddress,
+                  gstCompanyContactNumber: traveler.gstCompanyContactNumber,
+                  gstCompanyEmail: traveler.gstCompanyEmail,
+                  gstCompanyName: traveler.gstCompanyName,
+                  gstNumber: traveler.gstNumber
+                }
+              };
+            })
+          }],
+          itineraryCode: flightData.bookingDetails?.itineraryCode,
+          flightCode: flightData.flightCode,
+          bookingStatus: 'pending',
+          departureTime: flightData.departureTime,
+          departureDate: flightData.departureDate,
+          destination: flightData.destination,
+          origin: flightData.origin,
+          landingTime: flightData.landingTime,
+          arrivalTime: flightData.arrivalTime,
+          airline: flightData.airline,
+          resultIndex: flightData.resultIndex,
+          flightDuration: flightData.flightDuration,
+          traceId: flightData.traceId || flightData.resultIndex
+        };
+      })
+    )
+  ) || [];
+};
+
+
+
+// Helper function to determine age band
+const determineAgeBand = (age, ageBands) => {
+  const ageNum = parseInt(age);
+  for (const band of ageBands) {
+    if (ageNum >= band.startAge && ageNum <= band.endAge) {
+      return band.ageBand;
+    }
+  }
+  return 'ADULT'; // Default fallback
+};
+
+// Helper function to generate group count string
+const generateGroupCountString = (travelers, ageBands) => {
+  const counts = {
+    ADULT: 0,
+    CHILD: 0,
+    INFANT: 0,
+    SENIOR: 0,
+    YOUTH: 0
+  };
+
+  travelers.forEach(traveler => {
+    const band = determineAgeBand(traveler.age, ageBands);
+    counts[band]++;
+  });
+
+  return `${counts.ADULT}&${counts.CHILD}&${counts.INFANT}&${counts.SENIOR}&${counts.YOUTH}`;
+};
+
+const transformActivityBookings = (bookingItinerary, travelers, specialRequirements) => {
+  return bookingItinerary.cities?.flatMap(city => 
+    city.days?.flatMap(day => 
+      (day.activities || [])
+        .filter(activity => activity.activityType === 'online')
+        .map(activity => {
+          // Generate group count string based on age bands
+          const groupCountStr = generateGroupCountString(travelers, activity.ageBands);
+          
+          // Construct rateKey with bookingRef
+          const rateKey = activity.packageDetails?.ratekey 
+            ? `${activity.packageDetails.ratekey}|${activity.bookingReference?.bookingRef || ''}`
+            : null;
+
+          // Construct groupCode with counts
+          const baseGroupCode = activity.groupCode || '';
+          const groupCode = `${baseGroupCode}-${groupCountStr}`;
+
+          return {
+            searchId: activity.searchId,
+            bookingRef: activity.bookingReference?.bookingRef || null,
+            activityCode: activity.activityCode,
+            bookingStatus: 'pending',
+            lead: {
+              title: travelers[0].title,
+              name: travelers[0].firstName,
+              surname: travelers[0].lastName,
+              clientNationality: travelers[0].nationality,
+              age: parseInt(travelers[0].age),
+              gender: travelers[0].gender,
+              email: travelers[0].email,
+              phone: travelers[0].phone,
+              addressLineOne: travelers[0].addressLineOne,
+              addressLineTwo: travelers[0].addressLineTwo || '',
+              city: travelers[0].city,
+              country: travelers[0].country,
+              countryCode: travelers[0].countryCode
+            },
+            agentRef: generateAgentReference(),
+            rateKey: rateKey,
+            fromDate: day.date,
+            toDate: day.date,
+            groupCode: groupCode,
+            hotelId: null,
+            languageGuide: activity.tourGrade?.langServices?.[0] || {
+              type: "GUIDE",
+              language: "en",
+              legacyGuide: "en/SERVICE_GUIDE"
+            },
+            QuestionAnswers: generateQuestionAnswers(travelers, specialRequirements),
+            travellers: travelers.map(traveler => ({
+              title: traveler.title,
+              name: traveler.firstName,
+              surname: traveler.lastName,
+              type: determineAgeBand(traveler.age, activity.ageBands).toLowerCase(),
+              age: traveler.age,
+              gender: traveler.gender,
+              nationality: traveler.nationality,
+              email: traveler.email,
+              phone: traveler.phone,
+              addressLineOne: traveler.addressLineOne,
+              addressLineTwo: traveler.addressLineTwo || '',
+              city: traveler.city,
+              country: traveler.country,
+              countryCode: traveler.countryCode
+            }))
+          };
+        })
     )
   ) || [];
 };
@@ -362,70 +479,27 @@ export const transformBookingData = (bookingItinerary, formData) => {
     const allTravelers = formData.rooms.flatMap(room => room.travelers);
     const transformedTravelers = transformTravelers(allTravelers);
 
-    const hotelBookings = transformHotelBookings(bookingItinerary, formData.rooms);
-    const transferBookings = transformTransferBookings(bookingItinerary, transformedTravelers);
-    const activityBookings = transformActivityBookings(bookingItinerary, transformedTravelers, formData.specialRequirements);
-    const flightBookings = transformFlightBookings(bookingItinerary, transformedTravelers);
+    // Generate unique booking ID
+    const bookingId = `BK-${generateUniqueId()}-${Date.now()}`;
 
-    // Basic booking info
     return {
+      bookingId,
       itineraryToken: bookingItinerary.itineraryToken,
       inquiryToken: bookingItinerary.inquiryToken,
       status: 'pending',
       bookingDate: new Date().toISOString(),
 
       // Transformed travelers
-      travelers: transformedTravelers.map(traveler => ({
-        title: traveler.title,
-        firstName: traveler.firstName,
-        lastName: traveler.lastName,
-        email: traveler.email,
-        phone: traveler.phone,
-        dateOfBirth: traveler.dateOfBirth,
-        age: traveler.age,
-        passportNumber: traveler.passportNumber,
-        passportIssueDate: traveler.passportIssueDate,
-        passportExpiryDate: traveler.passportExpiryDate,
-        nationality: traveler.nationality,
-        weight: traveler.weight,
-        height: traveler.height,
-        preferredLanguage: traveler.preferredLanguage,
-        foodPreference: traveler.foodPreference,
-        type: traveler.type
-      })),
+      travelers: transformedTravelers,
 
       // Bookings
-      hotelBookings: hotelBookings.map(hotel => ({
-        ...hotel,
-        bookingStatus: 'pending'
-      })),
-
-      transferBookings: transferBookings.map(transfer => ({
-        ...transfer,
-        bookingStatus: 'pending'
-      })),
-
-      activityBookings: activityBookings.map(activity => ({
-        ...activity,
-        bookingStatus: 'pending'
-      })),
-
-      flightBookings: flightBookings.map(flight => ({
-        ...flight,
-        bookingStatus: 'pending'
-      })),
+      hotelBookings: transformHotelBookings(bookingItinerary, formData.rooms),
+      transferBookings: transformTransferBookings(bookingItinerary, transformedTravelers),
+      activityBookings: transformActivityBookings(bookingItinerary, transformedTravelers, formData.specialRequirements),
+      flightBookings: transformFlightBookings(bookingItinerary, transformedTravelers),
 
       // Price information
-      prices: {
-        activities: Number(bookingItinerary.priceTotals?.activities || 0),
-        hotels: Number(bookingItinerary.priceTotals?.hotels || 0),
-        flights: Number(bookingItinerary.priceTotals?.flights || 0),
-        transfers: Number(bookingItinerary.priceTotals?.transfers || 0),
-        subtotal: Number(bookingItinerary.priceTotals?.subtotal || 0),
-        tcsRate: Number(bookingItinerary.priceTotals?.tcsRate || 0),
-        tcsAmount: Number(bookingItinerary.priceTotals?.tcsAmount || 0),
-        grandTotal: Number(bookingItinerary.priceTotals?.grandTotal || 0)
-      },
+      prices: calculatePrices(bookingItinerary),
 
       // Additional information
       specialRequirements: formData.specialRequirements || '',
@@ -442,6 +516,7 @@ export const transformBookingData = (bookingItinerary, formData) => {
             .map(t => t.age)
         }))
       },
+
       userInfo: {
         userId: bookingItinerary.userInfo?.userId || null,
         firstName: bookingItinerary.userInfo?.firstName || null,
@@ -449,7 +524,6 @@ export const transformBookingData = (bookingItinerary, formData) => {
         email: bookingItinerary.userInfo?.email || null,
         phoneNumber: bookingItinerary.userInfo?.phoneNumber || null
       }
-
     };
   } catch (error) {
     console.error('Error transforming booking data:', error);

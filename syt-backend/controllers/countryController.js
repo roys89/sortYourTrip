@@ -3,7 +3,7 @@ const Country = require('../models/Country');
 class CountryController {
   async getAllCountries(req, res) {
     try {
-      const countries = await Country.find().select('name code');
+      const countries = await Country.find().select('name code countryCode nationality');
       res.status(200).json(countries);
     } catch (error) {
       res.status(500).json({ message: 'Server error', error: error.message });

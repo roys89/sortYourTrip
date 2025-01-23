@@ -98,7 +98,7 @@ function formatFlightResponse(itineraryData) {
       transportationType: "flight",
       flightProvider: firstSegment.al.alN,
       flightCode: `${firstSegment.al.alC}${firstSegment.al.fN}`,
-      
+      traceId: flightItem.traceId,
       // Route info
       origin: firstSegment.or.cN,
       destination: lastSegment.ds.cN,

@@ -87,13 +87,41 @@ class ApiLogger {
     quotationId
   }) {
     try {
-      // Sanitize all path components
+      // Special handling for auth logs
+      if (apiType === 'flight_auth' || apiType === 'hotel_auth') {
+        const authDirPath = path.join(this.basePath, 'auth');
+        
+        if (!this.ensureDirectoryExists(authDirPath)) {
+          throw new Error(`Failed to create auth directory: ${authDirPath}`);
+        }
+  
+        const authFilePath = path.join(authDirPath, `${apiType}.json`);
+        
+        // Check if file exists and read existing data
+        let existingData = {};
+        if (fs.existsSync(authFilePath)) {
+          try {
+            existingData = JSON.parse(fs.readFileSync(authFilePath, 'utf8'));
+          } catch (err) {
+            console.error('Error reading existing auth file:', err);
+          }
+        }
+  
+        // Update or add new token data
+        existingData[inquiryToken || 'default'] = {
+          token: responseData.AccessToken,
+          timestamp: new Date().toISOString()
+        };
+  
+        return this.safeWriteFile(authFilePath, existingData);
+      }
+
+      // Regular API logging
       const sanitizedInquiryToken = this.sanitizePath(inquiryToken);
       const sanitizedCity = this.sanitizePath(cityName);
       const formattedDate = this.formatDate(date);
       const sanitizedApiType = this.sanitizePath(apiType);
 
-      // Create directory path
       const dirComponents = [
         this.basePath,
         sanitizedInquiryToken
@@ -113,12 +141,10 @@ class ApiLogger {
 
       const dirPath = path.join(...dirComponents);
 
-      // Ensure directory exists
       if (!this.ensureDirectoryExists(dirPath)) {
         throw new Error(`Failed to create directory: ${dirPath}`);
       }
 
-      // Generate dynamic filenames based on type
       const requestFilename = this.generateFilename({
         type: 'request',
         activityCode,
@@ -136,7 +162,6 @@ class ApiLogger {
       const requestFilePath = path.join(dirPath, requestFilename);
       const responseFilePath = path.join(dirPath, responseFilename);
 
-      // Prepare metadata
       const metadata = {
         inquiryToken,
         cityName,
@@ -149,7 +174,6 @@ class ApiLogger {
         timestamp: new Date().toISOString()
       };
 
-      // Write files
       const requestSuccess = this.safeWriteFile(requestFilePath, {
         metadata,
         data: requestData
@@ -174,7 +198,6 @@ class ApiLogger {
     }
   }
 
-  // Optional: Add method to read logged data
   readLoggedData(filePath) {
     try {
       if (!fs.existsSync(filePath)) {
@@ -195,6 +218,30 @@ class ApiLogger {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  // Add method to read auth token
+  getAuthToken(inquiryToken) {
+    try {
+      const authFilePath = path.join(this.basePath, 'auth', 'flight_auth.json');
+      
+      if (!fs.existsSync(authFilePath)) {
+        return null;
+      }
+
+      const authData = JSON.parse(fs.readFileSync(authFilePath, 'utf8'));
+      const tokenData = authData[inquiryToken];
+
+      if (!tokenData) {
+        return null;
+      }
+
+      // Could add token expiration check here if needed
+      return tokenData.token;
+    } catch (error) {
+      console.error('Error reading auth token:', error);
+      return null;
     }
   }
 }

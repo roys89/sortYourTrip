@@ -5,6 +5,7 @@ const FlightSearchService = require("../../services/flightServices/flightSearchS
 const FlightFareRulesService = require("../../services/flightServices/flightFareRulesService");
 const FlightCreateItineraryService = require("../../services/flightServices/flightCreateItineraryService");
 const FlightUtils = require("../../utils/flight/flightUtils");
+const FlightTokenManager = require('../../services/tokenManagers/flightTokenManager');
 
 /**
  * Helper function to attempt booking a specific flight with retries
@@ -101,7 +102,26 @@ function getPreferredIndex(length, preference) {
   }
 }
 
+//token preFetching 
+
+const prefetchToken = async () => {
+  try {
+    const authToken = await FlightTokenManager.getOrSetToken(
+      async () => {
+        const authResponse = await FlightAuthService.login();
+        return authResponse.token;
+      }
+    );
+    return authToken;
+  } catch (error) {
+    console.error("Error prefetching flight token:", error);
+    throw error;
+  }
+};
+
+
 module.exports = {
+  prefetchToken,
   getFlights: async (requestData) => {
     try {
       const {
@@ -119,13 +139,16 @@ module.exports = {
         throw new Error("Missing required flight request parameters");
       }
 
-      // Get auth token
-      const authResponse = await FlightAuthService.login(inquiryToken);
-      if (!authResponse.success) {
+      const authToken = await FlightTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await FlightAuthService.login();
+          return authResponse.token;
+        }
+      );
+
+      if (!authToken) {
         throw new Error("Authentication failed");
       }
-
-      const token = authResponse.token;
 
       // Search flights
       const searchResponse = await FlightSearchService.searchFlights({
@@ -135,7 +158,7 @@ module.exports = {
         travelers,
         inquiryToken,
         type,
-        token,
+        token: authToken,
       });
 
       if (!searchResponse.success) {
@@ -171,7 +194,7 @@ module.exports = {
         inquiryToken,
         cityName: `${departureCity.city} to ${cities[0].city}`,
         date: departureDates.startDate,
-        token,
+        token: authToken,
       };
 
       // Start from the preferred index based on preferences

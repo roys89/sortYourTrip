@@ -1,10 +1,10 @@
-//services/flightServices/flightAuthService.js
+//service/flightServices/flightAuthService.js
 
 const axios = require('axios');
 const apiLogger = require('../../helpers/apiLogger');
 
 class FlightAuthService {
-  static async login(inquiryToken) {
+  static async login() {
     try {
       // Exact URL as specified
       const url = 'https://trav-auth-sandbox.travclan.com/authentication/internal/service/login';
@@ -26,9 +26,11 @@ class FlightAuthService {
         data: requestBody
       });
 
+      // Console log successful message
+      console.log('Flight Authentication Successful');
+
       // Log API data
       const logData = {
-        inquiryToken,
         cityName: 'auth',
         date: new Date().toISOString(),
         apiType: 'flight_auth',
@@ -54,9 +56,11 @@ class FlightAuthService {
       };
 
     } catch (error) {
+      // Console log error message
+      console.error('Flight Authentication Failed:', error.message);
+
       // Log error
       const errorLogData = {
-        inquiryToken: inquiryToken || 'unknown',
         cityName: 'auth',
         date: new Date().toISOString(),
         apiType: 'flight_auth_error',

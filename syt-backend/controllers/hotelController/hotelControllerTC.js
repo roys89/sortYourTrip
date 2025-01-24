@@ -2,7 +2,8 @@ const HotelLocationService = require('../../services/hotelServices/hotelLocation
 const HotelSearchService = require('../../services/hotelServices/hotelSearchService');
 const HotelItineraryService = require('../../services/hotelServices/hotelItineraryService');
 const HotelRoomRatesService = require('../../services/hotelServices/hotelRoomRatesService');
-
+const  HotelTokenManager = require('../../services/tokenManagers/hotelTokenManager');
+const HotelAuthService = require('../../services/hotelServices/hotelAuthService');
 /**
  * Helper function to format room occupancy for API request
  */
@@ -269,10 +270,26 @@ async function selectRoomRatesWithRetry(itineraryResponse, travelersDetails, par
   };
 }
 
+// preFetching token
+
+const prefetchToken = async () => {
+  try {
+    const authToken = await HotelTokenManager.getOrSetToken(
+      async () => await HotelAuthService.getAuthToken()
+    );
+    return authToken;
+  } catch (error) {
+    console.error("Error prefetching hotel token:", error);
+    throw error;
+  }
+};
+
+
 /**
  * Main controller function to handle hotel bookings
  */
 module.exports = {
+  prefetchToken,
   getHotels: async (requestData) => {
     try {
       const {
@@ -282,10 +299,13 @@ module.exports = {
         endDate,
         travelersDetails,
         preferences,
-        inquiryToken,
-        authToken
+        inquiryToken
       } = requestData;
 
+// 1. Get authentication token internally
+const authToken = await HotelTokenManager.getOrSetToken(
+  async () => await HotelAuthService.getAuthToken()
+);
       // Search for location
       const locationResponse = await HotelLocationService.searchLocation(
         city,

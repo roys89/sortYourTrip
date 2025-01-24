@@ -43,9 +43,8 @@ module.exports = {
   
       // Get auth token
       const authToken = await FlightTokenManager.getOrSetToken(
-        inquiryToken,
         async () => {
-          const authResponse = await FlightAuthService.login(inquiryToken);
+          const authResponse = await FlightAuthService.login();
           return authResponse.token;
         }
       );

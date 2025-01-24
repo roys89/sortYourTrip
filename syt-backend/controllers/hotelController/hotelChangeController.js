@@ -152,10 +152,10 @@ selectHotelRoom: async (req, res) => {
 
   try {
       // Get auth token
-      const authToken = await HotelTokenManager.getOrSetToken(
-          inquiryToken,
-          async () => await HotelAuthService.getAuthToken(inquiryToken)
-      );
+// 1. Get authentication token internally
+const authToken = await HotelTokenManager.getOrSetToken(
+  async () => await HotelAuthService.getAuthToken()
+);
 
       // Select room rates
       const roomRatesResponse = await HotelRoomRatesService.selectRoomRates({

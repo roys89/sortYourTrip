@@ -6,11 +6,9 @@ const fs = require("fs");
 const apiLogger = require("../../helpers/apiLogger");
 const { getCityActivities } = require("../activityController/activityControllerGRNC");
 const ActivityDestination = require("../../models/itineraryModel/ActivityDestination");
-const { getHotels } = require("../hotelController/hotelControllerTC");
 const { getGroundTransfer } = require("../transferController/transferControllerLA");
-const { getFlights } = require("../flightController/flightControllerTC");
-const HotelTokenManager = require('../../services/tokenManagers/hotelTokenManager');
-const HotelAuthService = require('../../services/hotelServices/hotelAuthService');
+const { getFlights, prefetchToken: prefetchFlightToken } = require("../flightController/flightControllerTC");
+const { getHotels, prefetchToken: prefetchHotelToken } = require("../hotelController/hotelControllerTC");
 const TransferOrchestrationService = require('../../services/transferServices/transferOrchestrationService');
 
 // Helper function to calculate days between dates
@@ -210,9 +208,17 @@ const processActivitiesForDay = async (
 };
 
 // Process flights and hotels concurrently
-const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) => {
+const processFlightsAndHotels = async (inquiry, cityDayDistribution) => {
   try {
-    const [departureFlights, returnFlights] = await Promise.all([
+    console.log("Prefetching authentication tokens...");
+    // Pre-fetch both tokens before parallel requests
+    await Promise.all([
+      prefetchFlightToken(),
+      prefetchHotelToken()
+    ]);
+    
+    console.log("Getting flights and hotels concurrently...");
+    const [departureFlights, returnFlights, hotelResponses] = await Promise.all([
       getFlights({
         inquiryToken: inquiry.itineraryInquiryToken,
         departureCity: inquiry.departureCity,
@@ -236,30 +242,24 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) 
         },
         includeDetailedLandingInfo: true,
         type: "return_flight",
-      })
+      }),
+      Promise.all(cityDayDistribution.map(async ({ city, startDate, endDate }, index) => {
+        const extendedCheckoutDate = new Date(endDate);
+        extendedCheckoutDate.setDate(extendedCheckoutDate.getDate() + 1);
+
+        console.log(`Getting hotel for city ${index + 1}/${cityDayDistribution.length}: ${city.city}`);
+
+        return getHotels({
+          city: city.city,
+          country: city.country,
+          startDate: startDate,
+          endDate: extendedCheckoutDate,
+          travelersDetails: inquiry.travelersDetails,
+          preferences: inquiry.preferences,
+          inquiryToken: inquiry.itineraryInquiryToken
+        });
+      }))
     ]);
-
-    const hotelPromises = cityDayDistribution.map(async ({ city, startDate, endDate }, index) => {
-      const extendedCheckoutDate = new Date(endDate);
-      extendedCheckoutDate.setDate(extendedCheckoutDate.getDate() + 1);
-
-      console.log(`Getting hotel for city ${index + 1}/${cityDayDistribution.length}: ${city.city}`);
-
-      const hotelResponse = await getHotels({
-        city: city.city,
-        country: city.country,
-        startDate: startDate,
-        endDate: extendedCheckoutDate,
-        travelersDetails: inquiry.travelersDetails,
-        preferences: inquiry.preferences,
-        inquiryToken: inquiry.itineraryInquiryToken,
-        authToken
-      });
-
-      return hotelResponse;
-    });
-
-    const hotelResponses = await Promise.all(hotelPromises);
 
     return {
       departureFlights,
@@ -271,6 +271,7 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution, authToken) 
     throw error;
   }
 };
+
 // Main transfer orchestration function
 async function orchestrateTransfersForItinerary(params) {
   const { itineraryDaysByCity, inquiry, departureFlights, returnFlights, inquiryToken } = params;
@@ -526,16 +527,10 @@ exports.createItinerary = async (req, res) => {
       inquiry.selectedCities
     );
 
-    // Get and cache auth token for the entire flow
-    const authToken = await HotelTokenManager.getOrSetToken(
-      inquiryToken,
-      async () => await HotelAuthService.getAuthToken(inquiryToken)
-    );
-
     // Step 2: Get flights and hotels concurrently
     console.log("Getting flights and hotels concurrently...");
     const { departureFlights, returnFlights, hotelResponses } = 
-      await processFlightsAndHotels(inquiry, cityDayDistribution, authToken);
+      await processFlightsAndHotels(inquiry, cityDayDistribution);
 
     // Step 3: Process cities sequentially
     const processedCities = [];

@@ -21,6 +21,9 @@ class HotelAuthService {
         data: requestBody
       });
 
+  // Console log successful message
+  console.log(`Hotel Authentication Successful`);
+
       // Log API data
       const logData = {
         inquiryToken,

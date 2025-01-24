@@ -127,7 +127,7 @@ function formatFlightResponse(itineraryData) {
       // Airport details (controller will enhance with location)
       originAirport: {
         name: firstSegment.or.aN,
-        code: firstSegment.or.aC,
+        code: flightItem.origin || null,
         city: firstSegment.or.cN,
         terminal: firstSegment.or.tr,
         location: {
@@ -137,7 +137,7 @@ function formatFlightResponse(itineraryData) {
       },
       arrivalAirport: {
         name: lastSegment.ds.aN,
-        code: lastSegment.ds.aC,
+        code: flightItem.destination || null,
         city: lastSegment.ds.cN,
         terminal: lastSegment.ds.tr,
         location: {

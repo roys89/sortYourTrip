@@ -229,7 +229,7 @@ module.exports = {
         originAirport: {
           ...formattedFlight.originAirport,
           name: departureCity.name || departureCity.city,
-          code: departureCity.code,
+          code: departureCity.iata || null,
           city: departureCity.city,
           country: departureCity.country,
           location: {
@@ -240,7 +240,7 @@ module.exports = {
         arrivalAirport: {
           ...formattedFlight.arrivalAirport,
           name: cities[0].name || cities[0].city,
-          code: cities[0].code,
+          code: cities[0].iata || null,
           city: cities[0].city,
           country: cities[0].country,
           location: {

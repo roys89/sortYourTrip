@@ -25,8 +25,10 @@ module.exports = {
 
       // Get auth token
       const authToken = await HotelTokenManager.getOrSetToken(
-        inquiryToken,
-        async () => await HotelAuthService.getAuthToken(inquiryToken)
+        async () => {
+          const authResponse = await HotelAuthService.getAuthToken();
+          return authResponse.token;
+        }
       );
 
       // Search location
@@ -104,8 +106,10 @@ module.exports = {
     try {
         // Get auth token
         const authToken = await HotelTokenManager.getOrSetToken(
-            inquiryToken, 
-            async () => await HotelAuthService.getAuthToken(inquiryToken)
+          async () => {
+            const authResponse = await HotelAuthService.getAuthToken();
+            return authResponse.token;
+          }
         );
 
         // Prepare params object to match the method signature
@@ -154,7 +158,10 @@ selectHotelRoom: async (req, res) => {
       // Get auth token
 // 1. Get authentication token internally
 const authToken = await HotelTokenManager.getOrSetToken(
-  async () => await HotelAuthService.getAuthToken()
+  async () => {
+    const authResponse = await HotelAuthService.getAuthToken();
+    return authResponse.token;
+  }
 );
 
       // Select room rates
@@ -223,8 +230,10 @@ module.exports.getHotelRooms = async (req, res) => {
   try {
     // Get auth token
     const authToken = await HotelTokenManager.getOrSetToken(
-      inquiryToken,
-      async () => await HotelAuthService.getAuthToken(inquiryToken)
+      async () => {
+        const authResponse = await HotelAuthService.getAuthToken();
+        return authResponse.token;
+      }
     );
 
     // Prepare params for itinerary creation

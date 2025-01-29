@@ -37,7 +37,7 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
       traceId: searchResponse.data.traceId,
       resultIndex: selectedFlight.rI,
       inquiryToken: params.inquiryToken,
-      cityName: params.cityName,
+      cityName: params.cityName,  
       date: params.date,
       token: params.token,
     });
@@ -225,7 +225,7 @@ module.exports = {
       // Then enhance with location data
       const enhancedFlight = {
         ...formattedFlight,
-        type: requestData.type,
+        type: requestData.type || null,
         originAirport: {
           ...formattedFlight.originAirport,
           name: departureCity.name || departureCity.city,

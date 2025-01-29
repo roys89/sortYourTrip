@@ -28,7 +28,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import Summary from "../../components/BookingSummary/BookingSummary";
+import PriceChangeModal from "../../components/PriceChangeModal/PriceChangeModal";
+import ReviewBookingModal from "../../components/ReviewBookingModal/ReviewBookingModal";
 import { createBooking } from "../../redux/slices/bookingSlice";
+import { allocateFlightPassengers, allocateHotelRooms } from '../../redux/slices/guestAllocationSlice';
+import { resetPriceCheck } from "../../redux/slices/priceCheckSlice";
 import { transformBookingData } from "../../utils/bookingDataTransformer";
 
 const calculateAge = (birthDate) => {
@@ -53,6 +57,11 @@ const BookingForm = () => {
   const { isAuthenticated, loading: authLoading } = useSelector(
     (state) => state.auth
   );
+
+  
+  const [showReviewModal, setShowReviewModal] = useState(false);
+
+  const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
 
   // Local state
   const [countries, setCountries] = useState([]);
@@ -387,76 +396,161 @@ const BookingForm = () => {
     return isValid;
   };
 
-  // Add this debug function to help identify issues
-  const debugFormData = () => {
-    formData.rooms?.forEach((room, roomIndex) => {
-      room.travelers.forEach((traveler, travelerIndex) => {
-        console.log(`Room ${roomIndex + 1}, Traveler ${travelerIndex + 1}:`, {
-          firstName: traveler.firstName,
-          lastName: traveler.lastName,
-          email: traveler.email,
-          phone: traveler.phone,
-          dateOfBirth: traveler.dateOfBirth,
-          nationality: traveler.nationality,
-          weight: traveler.weight,
-          height: traveler.height,
-          preferredLanguage: traveler.preferredLanguage,
-          foodPreference: traveler.foodPreference,
-          gender: traveler.gender,
-          addressLineOne: traveler.addressLineOne,
-          city: traveler.city,
-          country: traveler.country,
-          cellCountryCode: traveler.cellCountryCode,
-          countryCode: traveler.countryCode,
-        });
-      });
-    });
-  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
 
-    // Add debug logging
-    console.log("Form submission attempted");
-    debugFormData();
+// Add this utility function at the top of the file
+const generateBookingId = () => {
+  const timestamp = Date.now();
+  const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+  return `BK-${timestamp}-${randomPart}`;
+};
 
-    if (!validateForm()) {
-      return;
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!validateForm()) {
+    return;
+  }
 
+  try {
     setLoading(true);
     setError(null);
 
+    // Generate booking ID
+    const bookingId = generateBookingId();
+
+    // First create booking
+    const result = await dispatch(createBooking({
+      bookingId,
+      itineraryToken: tokens.itinerary,
+      inquiryToken: tokens.inquiry,
+      userInfo: itinerary?.userInfo || {},
+      rooms: formData.rooms,
+      specialRequirements: formData.specialRequirements
+    })).unwrap();
+
+    if (result.success) {
+      // Update formData with bookingId
+      setFormData(prev => ({
+        ...prev,
+        bookingId
+      }));
+
+      // Show review modal for user to confirm details
+      setShowReviewModal(true);
+    }
+
+  } catch (error) {
+    console.error("Form submission error:", error);
+    setError(error.message || "Failed to process form");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Add new function for handling review confirmation
+const handleReviewConfirm = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    const allAllocations = [];
+
+    // Process allocations
+    for (const city of itinerary.cities) {
+      for (const day of city.days) {
+        // Handle flights
+        if (day.flights?.length) {
+          const flightAllocations = day.flights.map(flight => 
+            dispatch(allocateFlightPassengers({
+              bookingId: formData.bookingId,
+              itineraryToken: tokens.itinerary,
+              inquiryToken: tokens.inquiry,
+              itinerary,
+              flight,
+              formData     // <-- Pass the form data
+            }))
+          );
+          allAllocations.push(...flightAllocations);
+        }
+
+        // Handle hotels
+        if (day.hotels?.length) {
+          const hotelAllocations = day.hotels.map(hotel => 
+            dispatch(allocateHotelRooms({
+              bookingId: formData.bookingId,
+              itineraryToken: tokens.itinerary,
+              inquiryToken: tokens.inquiry,
+              itinerary,
+              hotel,
+              formData     // <-- Pass the form data
+            }))
+          );
+          allAllocations.push(...hotelAllocations);
+        }
+      }
+    }
+
+    // Wait for all allocations to complete successfully
+    const results = await Promise.all(allAllocations);
+
+    // Check if all allocations were successful
+    const allSuccessful = results.every(result => 
+      result.payload && result.payload.response && result.payload.response.success
+    );
+
+    if (!allSuccessful) {
+      throw new Error("One or more allocations failed. Please try again.");
+    }
+
+    // Close review modal and open price check
+    setShowReviewModal(false);
+    setShowPriceChangeModal(true);
+
+  } catch (error) {
+    console.error('Allocation error:', error);
+    setError(error.message || "Failed to allocate rooms/flights");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Separate function for the actual booking process
+  const proceedWithBooking = async () => {
     try {
+      setLoading(true);
+      setError(null);
+  
       const transformedTravelersDetails = {
         type: itinerary.travelersDetails.type,
         rooms: formData.rooms.map((room) => {
           const adults = room.travelers
             .filter((t) => t.type === "adult")
             .map((t) => t.age);
-
+  
           const children = room.travelers
             .filter((t) => t.type === "child")
             .map((t) => t.age);
-
+  
           return {
             adults,
             children,
           };
         }),
       };
-
+  
       const bookingData = transformBookingData(itinerary, {
+        bookingId: generateBookingId(), // Regenerate booking ID for final booking
         travelers: formData.rooms.flatMap((room) => room.travelers),
         rooms: formData.rooms,
         specialRequirements: formData.specialRequirements,
         travelersDetails: transformedTravelersDetails,
       });
-
+  
       const result = await dispatch(createBooking(bookingData)).unwrap();
-
+  
       setSuccess(true);
-
+  
       setTimeout(() => {
         navigate("/booking-confirmation", {
           state: {
@@ -473,6 +567,14 @@ const BookingForm = () => {
       setLoading(false);
     }
   };
+  
+  // Handle modal close
+  const handleModalClose = () => {
+    setShowPriceChangeModal(false);
+    dispatch(resetPriceCheck());
+  };
+
+
   // Fetch countries on mount
   useEffect(() => {
     const getCountries = async () => {
@@ -690,10 +792,10 @@ const BookingForm = () => {
                                   disabled={loading}
                                   label="Title"
                                 >
-                                  <MenuItem value="Mr.">Mr.</MenuItem>
-                                  <MenuItem value="Mrs.">Mrs.</MenuItem>
-                                  <MenuItem value="Ms.">Ms.</MenuItem>
-                                  <MenuItem value="Dr.">Dr.</MenuItem>
+                                  <MenuItem value="Mr">Mr.</MenuItem>
+                                  <MenuItem value="Mrs">Mrs.</MenuItem>
+                                  <MenuItem value="Ms">Ms.</MenuItem>
+                                  <MenuItem value="Dr">Dr.</MenuItem>
                                 </Select>
                               </FormControl>
                             </Grid>
@@ -1316,17 +1418,15 @@ const BookingForm = () => {
                       Back to Itinerary
                     </Button>
                     <Button
-                      type="submit"
-                      variant="contained"
-                      size="large"
-                      disabled={loading}
-                      sx={styles.submitButton}
-                      endIcon={
-                        loading ? <CircularProgress size={20} /> : <Send />
-                      }
-                    >
-                      {loading ? "Processing..." : "Book Now"}
-                    </Button>
+  type="submit"
+  variant="contained"
+  size="large"
+  disabled={loading}
+  sx={styles.submitButton}
+  endIcon={loading ? <CircularProgress size={20} /> : <Send />}
+>
+  {loading ? "Processing..." : "Review & Book"}  {/* Updated button text */}
+</Button>
                   </Box>
                 </Box>
               </Paper>
@@ -1338,6 +1438,26 @@ const BookingForm = () => {
           </Grid>
         </Container>
       </Box>
+
+
+      <ReviewBookingModal 
+        open={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onConfirm={handleReviewConfirm}
+        formData={formData}
+      />
+
+      <PriceChangeModal
+        open={showPriceChangeModal}
+        onClose={handleModalClose}
+        onConfirm={async () => {
+          setShowPriceChangeModal(false);
+          await proceedWithBooking();
+        }}
+        itinerary={itinerary}
+        tokens={tokens}
+      />
+
 
       {/* Snackbars for Error and Success */}
       <Snackbar

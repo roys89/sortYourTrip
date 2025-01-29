@@ -275,7 +275,10 @@ async function selectRoomRatesWithRetry(itineraryResponse, travelersDetails, par
 const prefetchToken = async () => {
   try {
     const authToken = await HotelTokenManager.getOrSetToken(
-      async () => await HotelAuthService.getAuthToken()
+      async () => {
+        const authResponse = await HotelAuthService.getAuthToken();
+        return authResponse.token;
+      }
     );
     return authToken;
   } catch (error) {
@@ -283,7 +286,6 @@ const prefetchToken = async () => {
     throw error;
   }
 };
-
 
 /**
  * Main controller function to handle hotel bookings
@@ -302,10 +304,17 @@ module.exports = {
         inquiryToken
       } = requestData;
 
-// 1. Get authentication token internally
-const authToken = await HotelTokenManager.getOrSetToken(
-  async () => await HotelAuthService.getAuthToken()
-);
+      const authToken = await HotelTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await HotelAuthService.getAuthToken();
+          return authResponse.token;
+        }
+      );
+  
+      if (!authToken) {
+        throw new Error("Hotel authentication failed");
+      }
+  
       // Search for location
       const locationResponse = await HotelLocationService.searchLocation(
         city,

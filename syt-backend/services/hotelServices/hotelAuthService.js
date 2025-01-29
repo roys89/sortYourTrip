@@ -3,7 +3,7 @@ const axios = require('axios');
 const apiLogger = require('../../helpers/apiLogger');
 
 class HotelAuthService {
-  static async getAuthToken(inquiryToken) {
+  static async getAuthToken() {
     try {
       const url = 'https://trav-auth-sandbox.travclan.com/authentication/internal/service/login';
       const requestBody = {
@@ -11,7 +11,7 @@ class HotelAuthService {
         user_id: "97b6e108b",
         api_key: "1b0053b5-6005-4df6-b982-3711525e8e79"
       };
-
+  
       const response = await axios({
         method: 'post',
         url: url,
@@ -20,13 +20,11 @@ class HotelAuthService {
         },
         data: requestBody
       });
-
-  // Console log successful message
-  console.log(`Hotel Authentication Successful`);
-
+  
+      console.log('Hotel Authentication Successful');
+  
       // Log API data
       const logData = {
-        inquiryToken,
         cityName: 'auth',
         date: new Date().toISOString(),
         apiType: 'hotel_auth',
@@ -43,15 +41,18 @@ class HotelAuthService {
         },
         responseData: response.data
       };
-
+  
       apiLogger.logApiData(logData);
-
-      return response.data.AccessToken;
-
+  
+      return {
+        success: true,
+        token: response.data.AccessToken
+      };
+  
     } catch (error) {
-      // Log error
+      console.error('Hotel Authentication Failed:', error.message);
+  
       const errorLogData = {
-        inquiryToken: inquiryToken || 'unknown',
         cityName: 'auth',
         date: new Date().toISOString(),
         apiType: 'hotel_auth_error',
@@ -63,9 +64,13 @@ class HotelAuthService {
           details: error.response?.data || {}
         }
       };
-
+  
       apiLogger.logApiData(errorLogData);
-      throw error;
+  
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 }

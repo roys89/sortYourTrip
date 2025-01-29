@@ -132,58 +132,59 @@ export const transformTravelers = (travelers) => {
 };
 
 // Transform hotel bookings
-const transformHotelBookings = (bookingItinerary, roomsData) => {
-  return bookingItinerary.cities?.flatMap(city => 
-    city.days?.flatMap(day => 
-      (day.hotels || [])
-        .filter(hotel => hotel.success && hotel.data)
-        .map(hotel => {
-          return {
-            hotelId: hotel.data.staticContent[0].id,
-            city: hotel.data.hotelDetails?.address?.city?.name,
-            checkin: day.date,
-            checkout: hotel.checkOut,
-            bookingStatus: 'pending',
-            itineraryCode: hotel.data.code,
-            bookingArray: [{
-              traceId: hotel.data.traceId,
-              roomsAllocations: roomsData.map((room, roomIndex) => ({
-                rateId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.rate.id,
-                roomId: hotel.data.items[0].selectedRoomsAndRates[roomIndex]?.room.id,
-                guests: room.travelers.map(traveler => ({
-                  title: traveler.title,
-                  firstName: traveler.firstName,
-                  lastName: traveler.lastName,
-                  isLeadGuest: traveler === room.travelers[0],
-                  type: parseInt(traveler.age) >= 12 ? 'adult' : 'child',
-                  email: traveler.email,
-                  isdCode: traveler.cellCountryCode,
-                  contactNumber: traveler.phone,
-                  panCardNumber: traveler.panNumber,
-                  passportNumber: traveler.passportNumber,
-                  passportExpiry: traveler.passportExpiryDate,
-                  addressLineOne: traveler.addressLineOne,
-                  addressLineTwo: traveler.addressLineTwo || '',
-                  city: traveler.city,
-                  countryCode: traveler.countryCode,
-                  nationality: traveler.nationality,
-                  gender: traveler.gender,
-                  gstDetails: parseInt(traveler.age) >= 12 && traveler.gstNumber ? {
-                    gstNumber: traveler.gstNumber,
-                    companyName: traveler.gstCompanyName,
-                    companyAddress: traveler.gstCompanyAddress,
-                    companyEmail: traveler.gstCompanyEmail,
-                    companyContactNumber: traveler.gstCompanyContactNumber
-                  } : null
-                }))
-              })),
-              specialRequests: null
-            }]
+const transformHotelBookings = (hotelData, travelers, hotelContext) => {
+  // Validate inputs
+  if (!hotelData || !travelers || travelers.length === 0) {
+    console.error('Invalid hotel data or travelers');
+    return [];
+  }
+
+  return [{
+    hotelId: hotelData.staticContent[0].id,
+    city: hotelData.hotelDetails?.address?.city?.name,
+    checkin: hotelContext.checkIn || new Date().toISOString().split('T')[0],
+    checkout: hotelContext.checkOut || new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0],
+    bookingStatus: 'pending',
+    itineraryCode: hotelData.code,
+    bookingArray: [{
+      traceId: hotelData.traceId,
+      roomsAllocations: hotelData.items[0].selectedRoomsAndRates.map((roomRate, roomIndex) => ({
+        rateId: roomRate.rate.id,
+        roomId: roomRate.room.id,
+        guests: travelers.slice(0, roomRate.room.maxOccupancy).map((traveler, guestIndex) => {
+          const guestData = {
+            title: traveler.title,
+            firstName: traveler.firstName,
+            lastName: traveler.lastName,
+            isLeadGuest: guestIndex === 0,
+            type: traveler.type,
+            email: traveler.email,
+            isdCode: traveler.cellCountryCode,
+            contactNumber: traveler.phone,
+            panCardNumber: traveler.panNumber || null,
+            passportNumber: traveler.passportNumber || null,
+            passportExpiry: traveler.passportExpiryDate || null
           };
+
+          // Only add gstDetails if traveler is adult and has gstNumber
+          // if (traveler.type === 'adult' && traveler.gstNumber) {
+          //   guestData.gstDetails = {
+          //     gstNumber: traveler.gstNumber,
+          //     companyName: traveler.gstCompanyName,
+          //     companyAddress: traveler.gstCompanyAddress,
+          //     companyEmail: traveler.gstCompanyEmail,
+          //     companyContactNumber: traveler.gstCompanyContactNumber
+          //   };
+          // }
+
+          return guestData;
         })
-    )
-  ) || [];
+      })),
+      specialRequests: null
+    }]
+  }];
 };
+
 
 // Transform transfer bookings
 const transformTransferBookings = (bookingItinerary, travelers) => {
@@ -231,102 +232,157 @@ const transformTransferBookings = (bookingItinerary, travelers) => {
   ) || [];
 };
 
-// Transform flight bookings
-const transformFlightBookings = (bookingItinerary, travelers) => {
-  return bookingItinerary.cities?.flatMap(city => 
-    city.days?.flatMap(day => 
-      (day.flights || []).map(flight => {
-        const flightData = flight.flightData;
-        
-        const seatsBySegment = flightData.selectedSeats?.reduce((acc, segment) => {
-          const segmentSeats = segment.rows.flatMap(row => 
-            row.seats.map(seat => ({
-              origin: segment.origin,
-              destination: segment.destination,
-              code: seat.code,
-              amt: seat.price,
-              seat: seat.seatNo
-            }))
-          );
-          acc[`${segment.origin}-${segment.destination}`] = segmentSeats;
-          return acc;
-        }, {}) || {};
-
-        const meals = flightData.selectedMeal?.flatMap(segment =>
-          segment.options.map(meal => ({
-            origin: segment.origin,
-            destination: segment.destination,
-            code: meal.code,
-            amt: meal.price,
-            description: meal.description
-          }))
-        ) || [];
-
-        return {
-          bookingArray: [{
-            traceId: flightData.resultIndex,
-            passengers: travelers.map((traveler, index) => {
-              const assignedSeats = Object.values(seatsBySegment).map(segmentSeats => {
-                const availableSeat = segmentSeats[index];
-                return availableSeat;
-              }).filter(Boolean);
-
-              return {
-                title: traveler.title,
-                firstName: traveler.firstName,
-                lastName: traveler.lastName,
-                passportNumber: traveler.passportNumber,
-                passportExpiry: traveler.passportExpiryDate,
-                gender: traveler.gender,
-                isLeadPax: index === 0,
-                paxType: parseInt(traveler.age) >= 12 ? 1 : 2,
-                addressLineOne: traveler.addressLineOne,
-                addressLineTwo: traveler.addressLineTwo || '',
-                city: traveler.city,
-                cellCountryCode: traveler.cellCountryCode,
-                contactNumber: traveler.phone,
-                countryCode: traveler.countryCode,
-                countryName: traveler.country,
-                dateOfBirth: traveler.dateOfBirth,
-                email: traveler.email,
-                frequentFlyerAirlineCode: traveler.frequentFlyerAirlineCode || null,
-                frequentFlyerNumber: traveler.frequentFlyerNumber || null,
-                nationality: traveler.nationality,
-                ...(flightData.isSeatSelected || flightData.isMealSelected || flightData.isBaggageSelected) && {
-                  ssr: {
-                    meal: flightData.isMealSelected ? meals : [],
-                    baggage: flightData.isBaggageSelected ? [] : [],
-                    seat: flightData.isSeatSelected ? assignedSeats : []
-                  }
-                },
-                ...(parseInt(traveler.age) >= 12 && traveler.gstNumber) && {
-                  gstCompanyAddress: traveler.gstCompanyAddress,
-                  gstCompanyContactNumber: traveler.gstCompanyContactNumber,
-                  gstCompanyEmail: traveler.gstCompanyEmail,
-                  gstCompanyName: traveler.gstCompanyName,
-                  gstNumber: traveler.gstNumber
-                }
-              };
-            })
-          }],
-          itineraryCode: flightData.bookingDetails?.itineraryCode,
-          flightCode: flightData.flightCode,
-          bookingStatus: 'pending',
-          departureTime: flightData.departureTime,
-          departureDate: flightData.departureDate,
-          destination: flightData.destination,
-          origin: flightData.origin,
-          landingTime: flightData.landingTime,
-          arrivalTime: flightData.arrivalTime,
-          airline: flightData.airline,
-          resultIndex: flightData.resultIndex,
-          flightDuration: flightData.flightDuration,
-          traceId: flightData.traceId || flightData.resultIndex
-        };
-      })
-    )
-  ) || [];
+// Add this utility function at the top of the file
+const formatDateToYYYYMMDD = (dateString) => {
+  if (!dateString) return null;
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date:', dateString);
+      return null;
+    }
+    
+    return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
+  } catch (error) {
+    console.error('Date formatting error:', error);
+    return null;
+  }
 };
+
+// Transform flight bookings
+const transformFlightBookings = (flightData, travelers) => {
+  // Validate input parameters
+  if (!flightData) {
+    console.error('No flight data provided');
+    return [];
+  }
+
+  if (!travelers || travelers.length === 0) {
+    console.error('No travelers provided');
+    return [];
+  }
+
+  try {
+    // Process seat selections
+    const seatsBySegment = (flightData.selectedSeats || []).reduce((acc, segment) => {
+      const segmentSeats = segment.rows?.flatMap(row => 
+        (row.seats || []).map(seat => ({
+          origin: segment.origin,
+          destination: segment.destination,
+          code: seat.code,
+          amt: seat.price,
+          seat: seat.seatNo
+        }))
+      ) || [];
+
+      acc[`${segment.origin}-${segment.destination}`] = segmentSeats;
+      return acc;
+    }, {});
+
+    // Process meal selections
+    const meals = (flightData.selectedMeal || []).flatMap(segment =>
+      (segment.options || []).map(meal => ({
+        origin: segment.origin,
+        destination: segment.destination,
+        code: meal.code,
+        amt: meal.price,
+        description: meal.description
+      }))
+    );
+
+    // Transform flight booking
+    return [{
+      bookingArray: [{
+        traceId: flightData.traceId,
+        passengers: travelers.map((traveler, index) => {
+          // Assign seats for each traveler
+          const assignedSeats = Object.values(seatsBySegment).map(segmentSeats => {
+            return segmentSeats[index] || (segmentSeats.length > 0 ? segmentSeats[0] : null);
+          }).filter(Boolean);
+
+          // Format dates in YYYY-MM-DD
+          const formattedDob = formatDateToYYYYMMDD(traveler.dateOfBirth);
+          const formattedPassportExpiry = formatDateToYYYYMMDD(traveler.passportExpiryDate);
+          const formattedPassportIssue = formatDateToYYYYMMDD(traveler.passportIssueDate);
+
+          // Log the date transformations for debugging
+          console.log('Date transformations:', {
+            original: {
+              dob: traveler.dateOfBirth,
+              passportExpiry: traveler.passportExpiryDate,
+              passportIssue: traveler.passportIssueDate
+            },
+            formatted: {
+              dob: formattedDob,
+              passportExpiry: formattedPassportExpiry,
+              passportIssue: formattedPassportIssue
+            }
+          });
+
+          return {
+            title: traveler.title,
+            firstName: traveler.firstName,
+            lastName: traveler.lastName,
+            passportNumber: traveler.passportNumber,
+            passportExpiry: formattedPassportExpiry,
+            passportIssueDate: formattedPassportIssue,
+            gender: traveler.gender,
+            isLeadPax: index === 0,
+            paxType: calculatePaxType(traveler.age),
+            addressLineOne: traveler.addressLineOne,
+            addressLineTwo: traveler.addressLineTwo || '',
+            city: traveler.city,
+            cellCountryCode: traveler.cellCountryCode,
+            contactNumber: traveler.phone,
+            countryCode: traveler.countryCode,
+            countryName: traveler.country,
+            dateOfBirth: formattedDob,
+            email: traveler.email,
+            frequentFlyerAirlineCode: traveler.frequentFlyerAirlineCode || null,
+            frequentFlyerNumber: traveler.frequentFlyerNumber || null,
+            ...(flightData.isSeatSelected || flightData.isMealSelected || flightData.isBaggageSelected) && {
+              ssr: {
+                meal: flightData.isMealSelected ? meals : [],
+                baggage: flightData.isBaggageSelected ? [] : [],
+                seat: flightData.isSeatSelected ? assignedSeats : []
+              }
+            },
+            ...(calculatePaxType(traveler.age) === 1) && {
+              gstCompanyAddress: traveler.gstCompanyAddress || null,
+              gstCompanyContactNumber: traveler.gstCompanyContactNumber || null,
+              gstCompanyEmail: traveler.gstCompanyEmail || null,
+              gstCompanyName: traveler.gstCompanyName || null,
+              gstNumber: traveler.gstNumber || null
+            }
+          };
+        })
+      }],
+      itineraryCode: flightData.bookingDetails?.itineraryCode,
+      flightCode: flightData.flightCode,
+      bookingStatus: 'pending',
+      departureTime: flightData.departureTime,
+      departureDate: flightData.departureDate,
+      destination: flightData.destination,
+      origin: flightData.origin,
+      landingTime: flightData.landingTime,
+      arrivalTime: flightData.arrivalTime,
+      airline: flightData.airline,
+      resultIndex: flightData.resultIndex,
+      flightDuration: flightData.flightDuration,
+      traceId: flightData.traceId
+    }];
+  } catch (error) {
+    console.error('Flight Booking Transformation Error:', error);
+    return [];
+  }
+};
+
+// Helper function to calculate passenger type
+function calculatePaxType(age) {
+  const ageNum = parseInt(age);
+  return ageNum >= 12 ? 1 : 2; // 1 for adult, 2 for child
+}
 
 
 
@@ -531,10 +587,14 @@ export const transformBookingData = (bookingItinerary, formData) => {
   }
 };
 
-// Export all necessary functions
+// Export helper functions
 export {
-  calculatePrices
+  calculatePrices,
+  transformActivityBookings,
+  transformFlightBookings,
+  transformHotelBookings,
+  transformTransferBookings
 };
 
-// Default export
+// Default export remains the same
 export default transformBookingData;

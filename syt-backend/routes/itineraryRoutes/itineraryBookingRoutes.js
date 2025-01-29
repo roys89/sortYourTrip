@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { validateBookingRequest } = require('../../middlewares/validationMiddleware');
+const { validateBooking } = require('../../middlewares/validationMiddleware');
 const ItineraryBookingController = require('../../controllers/itineraryController/itineraryBookingController');
 const authMiddleware = require('../../middlewares/authMiddleware');
 const { AppError } = require('../../utils/errorHandling');
@@ -13,28 +13,33 @@ const asyncHandler = (fn) => (req, res, next) => {
 // Apply authentication middleware to all routes
 router.use(authMiddleware);
 
-// Routes without binding
+// Create new booking from form data
 router.post('/', 
-  validateBookingRequest, 
+  validateBooking, 
   asyncHandler(ItineraryBookingController.createBooking)
 );
 
+// Get user's bookings
 router.get('/', 
   asyncHandler(ItineraryBookingController.getUserBookings)
 );
 
+// Get booking statistics
 router.get('/stats', 
   asyncHandler(ItineraryBookingController.getBookingStats)
 );
 
+// Get specific booking
 router.get('/:bookingId', 
   asyncHandler(ItineraryBookingController.getBookingById)
 );
 
+// Update booking status
 router.patch('/:bookingId/status', 
   asyncHandler(ItineraryBookingController.updateBookingStatus)
 );
 
+// Cancel booking
 router.patch('/:bookingId/cancel', 
   asyncHandler(ItineraryBookingController.cancelBooking)
 );

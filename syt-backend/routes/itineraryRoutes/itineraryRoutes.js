@@ -44,6 +44,14 @@ const {
   createActivityBookingReference,
 } = require("../../controllers/activityController/activityControllerGRNC");
 
+const hotelRecheckController = require('../../controllers/hotelRecheckController');
+
+const {
+  // recheckActivityPrices,
+  // recheckHotelPrices,
+  recheckFlightPrices,
+} = require("../../controllers/priceRecheckController");
+
 // Middleware
 const checkAuth = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
@@ -172,5 +180,31 @@ router.get(
   checkInquiryToken,
   getTransferOptions
 );
+
+
+// Recheck Routes
+
+router.post(
+  "/:itineraryToken/recheck-flights",
+  checkAuth,
+  checkInquiryToken,
+  recheckFlightPrices
+);
+
+// router.post(
+//   "/:itineraryToken/recheck-hotels",
+//   checkAuth,
+//   checkInquiryToken,
+//   recheckHotelPrices
+// );
+
+// router.post(
+//   "/:itineraryToken/recheck-activities",
+//   checkAuth,
+//   checkInquiryToken,
+//   recheckActivityPrices
+// );
+
+router.post('/:itineraryToken/recheck-hotels', hotelRecheckController.recheckHotelPrices);
 
 module.exports = router;

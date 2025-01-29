@@ -3,8 +3,8 @@ const NodeCache = require('node-cache');
 class HotelTokenManager {
   constructor() {
     this.cache = new NodeCache({ 
-      stdTTL: 3300,
-      checkperiod: 120
+      stdTTL: 3300,  // 55 minutes 
+      checkperiod: 120 // Check every 2 minutes
     });
   }
 
@@ -40,7 +40,7 @@ class HotelTokenManager {
 
     } catch (error) {
       console.error('Error in hotel token manager:', error);
-      return tokenFetcher();
+      throw error;
     }
   }
 

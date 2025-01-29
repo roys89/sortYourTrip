@@ -212,10 +212,20 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution) => {
   try {
     console.log("Prefetching authentication tokens...");
     // Pre-fetch both tokens before parallel requests
-    await Promise.all([
-      prefetchFlightToken(),
-      prefetchHotelToken()
+    const [flightToken, hotelToken] = await Promise.all([
+      prefetchFlightToken().catch(error => {
+        console.error("Flight token prefetch failed:", error);
+        return null;
+      }),
+      prefetchHotelToken().catch(error => {
+        console.error("Hotel token prefetch failed:", error);
+        return null;
+      })
     ]);
+
+    if (!flightToken || !hotelToken) {
+      throw new Error("Failed to prefetch authentication tokens");
+    }
     
     console.log("Getting flights and hotels concurrently...");
     const [departureFlights, returnFlights, hotelResponses] = await Promise.all([

@@ -1,19 +1,31 @@
-// ReviewBookingModal.js
 import {
-    Alert,
-    Box,
-    Button,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    Grid,
-    Typography
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Grid,
+  IconButton,
+  LinearProgress,
+  Typography
 } from '@mui/material';
-import { Hotel, UserCheck, X } from 'lucide-react';
-import React from 'react';
+import {
+  AlertTriangle,
+  Check,
+  Hotel,
+  Plane,
+  RefreshCw,
+  UserCheck,
+  X
+} from 'lucide-react';
+import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { allocateFlightPassengers, allocateHotelRooms } from '../../redux/slices/guestAllocationSlice';
 
 // Traveler Information Component
 const TravelerInfo = ({ traveler }) => (
@@ -58,9 +70,9 @@ const TravelerInfo = ({ traveler }) => (
 
 // Room Information Component
 const RoomInfo = ({ room }) => (
-  <Box sx={{ mb: 4 }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-      <Hotel size={24} sx={{ mr: 1 }} />
+  <Box className="mb-6">
+    <Box className="flex items-center gap-2 mb-3">
+      <Hotel size={24} />
       <Typography variant="h6">Room {room.roomNumber}</Typography>
     </Box>
     {room.travelers.map((traveler, idx) => (
@@ -69,19 +81,167 @@ const RoomInfo = ({ room }) => (
   </Box>
 );
 
-// Main Review Booking Modal Component
+// Allocation Progress Component
+const AllocationProgress = ({ progress, currentItem }) => (
+  <Alert severity="info" sx={{ mb: 3 }}>
+    <AlertTitle>Allocating Rooms and Flights</AlertTitle>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+      <CircularProgress size={20} />
+      <Typography>
+        Progress: {progress.current} of {progress.total} items
+      </Typography>
+    </Box>
+    
+    {currentItem && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        {currentItem.type === 'flight' ? (
+          <>
+            <Plane size={16} />
+            <Typography variant="body2">
+              Allocating flight: {currentItem.origin} → {currentItem.destination}
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Hotel size={16} />
+            <Typography variant="body2">
+              Allocating hotel: {currentItem.name}
+            </Typography>
+          </>
+        )}
+      </Box>
+    )}
+    
+    <LinearProgress 
+      variant="determinate"
+      value={(progress.current / progress.total) * 100}
+      sx={{ mt: 1 }}
+    />
+  </Alert>
+);
+
 const ReviewBookingModal = ({ 
   open, 
   onClose, 
-  onConfirm,
   formData,
-  isProcessing = false,
-  error = null
+  itinerary,
+  tokens,
+  onAllocationComplete 
 }) => {
+  const dispatch = useDispatch();
+  const [isAllocating, setIsAllocating] = useState(false);
+  const [allocationProgress, setAllocationProgress] = useState({
+    current: 0,
+    total: 0
+  });
+  const [currentAllocation, setCurrentAllocation] = useState(null);
+  const [error, setError] = useState(null);
+  const [failedAllocations, setFailedAllocations] = useState([]);
+
+  const handleConfirm = async () => {
+    try {
+      setIsAllocating(true);
+      setError(null);
+      setFailedAllocations([]);
+
+      // Calculate total allocations
+      const totalAllocations = itinerary.cities.reduce((total, city) => {
+        return city.days.reduce((dayTotal, day) => {
+          return dayTotal + (day.flights?.length || 0) + (day.hotels?.length || 0);
+        }, total);
+      }, 0);
+
+      setAllocationProgress({ current: 0, total: totalAllocations });
+
+      for (const city of itinerary.cities) {
+        for (const day of city.days) {
+          // Handle flights
+          if (day.flights?.length) {
+            for (const flight of day.flights) {
+              try {
+                setCurrentAllocation({
+                  type: 'flight',
+                  origin: flight.flightData.origin,
+                  destination: flight.flightData.destination
+                });
+
+                await dispatch(allocateFlightPassengers({
+                  bookingId: formData.bookingId,
+                  itineraryToken: tokens.itinerary,
+                  inquiryToken: tokens.inquiry,
+                  itinerary,
+                  flight,
+                  formData
+                })).unwrap();
+
+                setAllocationProgress(prev => ({
+                  ...prev,
+                  current: prev.current + 1
+                }));
+              } catch (error) {
+                setFailedAllocations(prev => [...prev, {
+                  type: 'flight',
+                  details: flight.flightData,
+                  error: error.message
+                }]);
+              }
+            }
+          }
+
+          // Handle hotels
+          if (day.hotels?.length) {
+            for (const hotel of day.hotels) {
+              try {
+                setCurrentAllocation({
+                  type: 'hotel',
+                  name: hotel.data.staticContent[0].name
+                });
+
+                await dispatch(allocateHotelRooms({
+                  bookingId: formData.bookingId,
+                  itineraryToken: tokens.itinerary,
+                  inquiryToken: tokens.inquiry,
+                  itinerary,
+                  hotel,
+                  formData
+                })).unwrap();
+
+                setAllocationProgress(prev => ({
+                  ...prev,
+                  current: prev.current + 1
+                }));
+              } catch (error) {
+                setFailedAllocations(prev => [...prev, {
+                  type: 'hotel',
+                  details: hotel.data.staticContent[0],
+                  error: error.message
+                }]);
+              }
+            }
+          }
+        }
+      }
+
+      // Check if any allocations failed
+      if (failedAllocations.length > 0) {
+        throw new Error('Some allocations failed. Please review the errors and try again.');
+      }
+
+      // Proceed to next step
+      onAllocationComplete();
+
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setIsAllocating(false);
+      setCurrentAllocation(null);
+    }
+  };
+
   return (
     <Dialog 
       open={open} 
-      onClose={!isProcessing ? onClose : undefined}
+      onClose={!isAllocating ? onClose : undefined}
       maxWidth="md"
       fullWidth
       PaperProps={{
@@ -94,41 +254,74 @@ const ReviewBookingModal = ({
             <UserCheck size={24} />
             <Typography variant="h6">Review Your Booking Details</Typography>
           </Box>
-          {!isProcessing && (
-            <Button
-              onClick={onClose}
-              sx={{ minWidth: 'auto', p: 1 }}
-            >
+          {!isAllocating && (
+            <IconButton onClick={onClose} size="small">
               <X size={20} />
-            </Button>
+            </IconButton>
           )}
         </Box>
       </DialogTitle>
 
       <DialogContent>
+        {/* Allocation Progress */}
+        {isAllocating && (
+          <AllocationProgress 
+            progress={allocationProgress}
+            currentItem={currentAllocation}
+          />
+        )}
+
+        {/* Error Display */}
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={handleConfirm}
+                startIcon={<RefreshCw size={16} />}
+              >
+                Retry
+              </Button>
+            }
+          >
+            <AlertTitle>Error During Allocation</AlertTitle>
             {error}
           </Alert>
         )}
 
-        {isProcessing && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <CircularProgress size={20} />
-              <Typography>
-                Processing your booking...
+        {/* Failed Allocations */}
+        {failedAllocations.length > 0 && (
+          <Alert 
+            severity="warning" 
+            icon={<AlertTriangle />}
+            sx={{ mb: 3 }}
+          >
+            <AlertTitle>Failed Allocations</AlertTitle>
+            {failedAllocations.map((fail, idx) => (
+              <Typography key={idx} variant="body2" gutterBottom>
+                • {fail.type === 'flight' ? 'Flight' : 'Hotel'}: {
+                  fail.type === 'flight' 
+                    ? `${fail.details.origin} → ${fail.details.destination}`
+                    : fail.details.name
+                }
+                <br />
+                <span className="text-sm text-gray-600">Error: {fail.error}</span>
               </Typography>
-            </Box>
+            ))}
           </Alert>
         )}
 
+        {/* Room & Traveler Details */}
         <Box sx={{ mb: 4 }}>
           {formData.rooms.map((room, index) => (
             <RoomInfo key={index} room={room} />
           ))}
         </Box>
 
+        {/* Special Requirements */}
         {formData.specialRequirements && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -141,25 +334,26 @@ const ReviewBookingModal = ({
         )}
 
         <Divider sx={{ my: 3 }} />
-
-        <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={onClose}
-            disabled={isProcessing}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={onConfirm}
-            disabled={isProcessing}
-            startIcon={isProcessing && <CircularProgress size={20} />}
-          >
-            {isProcessing ? 'Processing...' : 'Confirm & Continue'}
-          </Button>
-        </DialogActions>
       </DialogContent>
+
+      <DialogActions sx={{ p: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={onClose}
+          disabled={isAllocating}
+          startIcon={<X size={18} />}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleConfirm}
+          disabled={isAllocating}
+          startIcon={isAllocating ? <CircularProgress size={20} /> : <Check size={18} />}
+        >
+          {isAllocating ? 'Allocating...' : 'Confirm & Continue'}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };

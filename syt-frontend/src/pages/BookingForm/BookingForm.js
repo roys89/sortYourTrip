@@ -31,7 +31,6 @@ import Summary from "../../components/BookingSummary/BookingSummary";
 import PriceChangeModal from "../../components/PriceChangeModal/PriceChangeModal";
 import ReviewBookingModal from "../../components/ReviewBookingModal/ReviewBookingModal";
 import { createBooking } from "../../redux/slices/bookingSlice";
-import { allocateFlightPassengers, allocateHotelRooms } from '../../redux/slices/guestAllocationSlice';
 import { resetPriceCheck } from "../../redux/slices/priceCheckSlice";
 import { transformBookingData } from "../../utils/bookingDataTransformer";
 
@@ -416,10 +415,8 @@ const handleSubmit = async (e) => {
     setLoading(true);
     setError(null);
 
-    // Generate booking ID
     const bookingId = generateBookingId();
 
-    // First create booking
     const result = await dispatch(createBooking({
       bookingId,
       itineraryToken: tokens.itinerary,
@@ -430,18 +427,14 @@ const handleSubmit = async (e) => {
     })).unwrap();
 
     if (result.success) {
-      // Update formData with bookingId
       setFormData(prev => ({
         ...prev,
         bookingId
       }));
-
-      // Show review modal for user to confirm details
       setShowReviewModal(true);
     }
 
   } catch (error) {
-    console.error("Form submission error:", error);
     setError(error.message || "Failed to process form");
   } finally {
     setLoading(false);
@@ -449,71 +442,6 @@ const handleSubmit = async (e) => {
 };
 
 // Add new function for handling review confirmation
-const handleReviewConfirm = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-
-    const allAllocations = [];
-
-    // Process allocations
-    for (const city of itinerary.cities) {
-      for (const day of city.days) {
-        // Handle flights
-        if (day.flights?.length) {
-          const flightAllocations = day.flights.map(flight => 
-            dispatch(allocateFlightPassengers({
-              bookingId: formData.bookingId,
-              itineraryToken: tokens.itinerary,
-              inquiryToken: tokens.inquiry,
-              itinerary,
-              flight,
-              formData     // <-- Pass the form data
-            }))
-          );
-          allAllocations.push(...flightAllocations);
-        }
-
-        // Handle hotels
-        if (day.hotels?.length) {
-          const hotelAllocations = day.hotels.map(hotel => 
-            dispatch(allocateHotelRooms({
-              bookingId: formData.bookingId,
-              itineraryToken: tokens.itinerary,
-              inquiryToken: tokens.inquiry,
-              itinerary,
-              hotel,
-              formData     // <-- Pass the form data
-            }))
-          );
-          allAllocations.push(...hotelAllocations);
-        }
-      }
-    }
-
-    // Wait for all allocations to complete successfully
-    const results = await Promise.all(allAllocations);
-
-    // Check if all allocations were successful
-    const allSuccessful = results.every(result => 
-      result.payload && result.payload.response && result.payload.response.success
-    );
-
-    if (!allSuccessful) {
-      throw new Error("One or more allocations failed. Please try again.");
-    }
-
-    // Close review modal and open price check
-    setShowReviewModal(false);
-    setShowPriceChangeModal(true);
-
-  } catch (error) {
-    console.error('Allocation error:', error);
-    setError(error.message || "Failed to allocate rooms/flights");
-  } finally {
-    setLoading(false);
-  }
-};
 
   // Separate function for the actual booking process
   const proceedWithBooking = async () => {
@@ -1439,21 +1367,22 @@ const handleReviewConfirm = async () => {
         </Container>
       </Box>
 
-
       <ReviewBookingModal 
-        open={showReviewModal}
-        onClose={() => setShowReviewModal(false)}
-        onConfirm={handleReviewConfirm}
-        formData={formData}
-      />
+  open={showReviewModal}
+  onClose={() => setShowReviewModal(false)}
+  formData={formData}
+  itinerary={itinerary}
+  tokens={tokens}
+  onAllocationComplete={() => {
+    setShowReviewModal(false);
+    setShowPriceChangeModal(true);
+  }}
+/>
 
-      <PriceChangeModal
+   <PriceChangeModal
         open={showPriceChangeModal}
         onClose={handleModalClose}
-        onConfirm={async () => {
-          setShowPriceChangeModal(false);
-          await proceedWithBooking();
-        }}
+        onConfirm={proceedWithBooking}
         itinerary={itinerary}
         tokens={tokens}
       />

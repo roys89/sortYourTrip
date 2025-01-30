@@ -59,18 +59,31 @@ function calculateTotalDuration(flight) {
   function formatBaggageOptions(baggageData) {
     if (!baggageData || !Array.isArray(baggageData)) return [];
     
-    return baggageData.map(segment => ({
-      origin: segment.origin,
-      destination: segment.destination,
-      resultIdentifier: segment.resultIdentifier,
-      options: segment.options.map(bag => ({
-        code: bag.code,
-        price: bag.amt,
-        description: bag.dsc,
-        weight: parseInt(bag.dsc.match(/\d+/)?.[0] || '0')
-      }))
-    }));
-  }
+    return baggageData.map((segment, currentIndex) => {
+      let optionsToUse = [];
+      
+      // If baggageSame is true, copy options from the referenced index
+      if (segment.baggageSame && typeof segment.index === 'number') {
+        const referenceSegment = baggageData[segment.index];
+        optionsToUse = referenceSegment.options || [];
+      } else {
+        // Otherwise use this segment's own options
+        optionsToUse = segment.options || [];
+      }
+
+      return {
+        origin: segment.origin,
+        destination: segment.destination,
+        resultIdentifier: segment.resultIdentifier,
+        options: optionsToUse.map(bag => ({
+          code: bag.code,
+          price: bag.amt,
+          description: bag.dsc,
+          weight: parseInt(bag.dsc.match(/\d+/)?.[0] || '0')
+        }))
+      };
+    });
+}
   
 /**
  * Format flight response from itinerary data

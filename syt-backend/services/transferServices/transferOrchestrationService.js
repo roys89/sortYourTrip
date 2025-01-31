@@ -753,80 +753,92 @@ class TransferOrchestrationService {
   }
 
   // Update transfers for flight change
-async updateTransfersForFlightChange(params) {
-  const {
-    itinerary,
-    cityName,
-    date,
-    newFlightDetails,
-    type = 'departure_flight'
-  } = params;
-
-  try {
-    console.log('Updating transfers for flight change:', {
+  async updateTransfersForFlightChange(params) {
+    const {
+      itinerary,
       cityName,
       date,
-      flightCode: newFlightDetails?.flightCode || 'No flight code',
-      type
-    });
-
-    // Early validation checks
-    if (!newFlightDetails) {
-      console.error('No flight details provided');
-      return [];
-    }
-
-    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
-    if (cityIndex === -1) {
-      throw new Error(`City not found: ${cityName}`);
-    }
-
-    const city = itinerary.cities[cityIndex];
-    const dayIndex = city.days.findIndex(d => d.date === date);
-    if (dayIndex === -1) {
-      throw new Error(`Day not found: ${date}`);
-    }
-
-    // Find the active hotel for this date
-    const activeHotel = city.days[dayIndex].hotels?.[0];
-    if (!activeHotel) {
-      console.warn('No active hotel found for date:', date);
-      return []; 
-    }
-
-    // Validate hotel and flight details
-    if (!activeHotel.data?.hotelDetails) {
-      console.warn('Hotel details missing for transfer processing');
-      return [];
-    }
-
-    // Prepare location objects for transfers
-    const hotelLocation = this.formatLocationForTransfer({
-      city: cityName,
-      country: activeHotel.data.hotelDetails.address.country.name,
-      address: this.formatAddressToSingleLine(activeHotel.data.hotelDetails.address),
-      latitude: activeHotel.data.hotelDetails.geolocation?.lat,
-      longitude: activeHotel.data.hotelDetails.geolocation?.long
-    }, 'hotel');
-
-    // Prepare airport location
-    const airportLocation = this.formatLocationForTransfer({
-      city: newFlightDetails.origin || newFlightDetails.destination,
-      country: newFlightDetails.originAirport?.country || newFlightDetails.arrivalAirport?.country,
-      address: newFlightDetails.originAirport?.name || newFlightDetails.arrivalAirport?.name,
-      latitude: newFlightDetails.originAirport?.location?.latitude || newFlightDetails.arrivalAirport?.location?.latitude,
-      longitude: newFlightDetails.originAirport?.location?.longitude || newFlightDetails.arrivalAirport?.location?.longitude
-    }, 'airport');
-
-    const updatedTransfers = [];
-
-    // Logging for debugging
-    console.log('Flight Transfer Context:', {
-      cityIndex,
-      isFirstCity: cityIndex === 0,
-      isLastCity: cityIndex === itinerary.cities.length - 1,
-      flightType: type
-    });
+      newFlightDetails,
+      type = 'departure_flight'
+    } = params;
+  
+    try {
+      console.log('Updating transfers for flight change:', {
+        cityName,
+        date,
+        flightCode: newFlightDetails?.flightCode || 'No flight code',
+        type
+      });
+  
+      // Early validation checks
+      if (!newFlightDetails) {
+        console.error('No flight details provided');
+        return [];
+      }
+  
+      const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+      if (cityIndex === -1) {
+        throw new Error(`City not found: ${cityName}`);
+      }
+  
+      const city = itinerary.cities[cityIndex];
+      
+      // Find the active hotel based on flight type
+      let activeHotel;
+      if (type === 'return_flight') {
+        // For return flights, get hotel from first day of the city
+        activeHotel = city.days[0].hotels?.[0];
+        console.log('Using hotel from first day for return flight:', {
+          cityFirstDay: city.days[0].date,
+          hotelFound: !!activeHotel
+        });
+      } else {
+        // For other flight types, get hotel from the flight date
+        const dayIndex = city.days.findIndex(d => d.date === date);
+        if (dayIndex === -1) {
+          throw new Error(`Day not found: ${date}`);
+        }
+        activeHotel = city.days[dayIndex].hotels?.[0];
+      }
+  
+      if (!activeHotel) {
+        console.warn('No active hotel found');
+        return []; 
+      }
+  
+      // Validate hotel details
+      if (!activeHotel.data?.hotelDetails) {
+        console.warn('Hotel details missing for transfer processing');
+        return [];
+      }
+  
+      // Prepare location objects for transfers
+      const hotelLocation = this.formatLocationForTransfer({
+        city: cityName,
+        country: activeHotel.data.hotelDetails.address.country.name,
+        address: this.formatAddressToSingleLine(activeHotel.data.hotelDetails.address),
+        latitude: activeHotel.data.hotelDetails.geolocation?.lat,
+        longitude: activeHotel.data.hotelDetails.geolocation?.long
+      }, 'hotel');
+  
+      // Prepare airport location
+      const airportLocation = this.formatLocationForTransfer({
+        city: newFlightDetails.origin || newFlightDetails.destination,
+        country: newFlightDetails.originAirport?.country || newFlightDetails.arrivalAirport?.country,
+        address: newFlightDetails.originAirport?.name || newFlightDetails.arrivalAirport?.name,
+        latitude: newFlightDetails.originAirport?.location?.latitude || newFlightDetails.arrivalAirport?.location?.latitude,
+        longitude: newFlightDetails.originAirport?.location?.longitude || newFlightDetails.arrivalAirport?.location?.longitude
+      }, 'airport');
+  
+      const updatedTransfers = [];
+  
+      // Logging for debugging
+      console.log('Flight Transfer Context:', {
+        cityIndex,
+        isFirstCity: cityIndex === 0,
+        isLastCity: cityIndex === itinerary.cities.length - 1,
+        flightType: type
+      });  
 
     // Determine transfer processing based on flight type and city position
     switch(type) {
@@ -859,17 +871,21 @@ async updateTransfersForFlightChange(params) {
         }
         break;
 
-      case 'return_flight':
-        // Last city departure
-        if (cityIndex === itinerary.cities.length - 1) {
-          console.log('Processing hotel to airport departure transfer');
+        case 'return_flight':
+          // Get the day index for the return flight
+          const returnDayIndex = city.days.findIndex(d => d.date === date);
+          if (returnDayIndex === -1) {
+            throw new Error(`Return flight day not found: ${date}`);
+          }
+  
+          console.log('Processing hotel to airport departure transfer for return flight');
           const hotelToAirportTransfer = await this.processHotelToAirportTransfer({
             flight: newFlightDetails,
-            hotel: { data: activeHotel },
+            hotel: { data: activeHotel.data },  // Use hotel from first day
             travelersDetails: itinerary.travelersDetails,
             inquiryToken: params.inquiryToken,
             preferences: itinerary.preferences,
-            date,
+            date, // Use the return flight date
             origin: { 
               type: 'hotel', 
               ...hotelLocation 
@@ -879,15 +895,14 @@ async updateTransfersForFlightChange(params) {
               ...airportLocation 
             }
           });
-
+  
           if (hotelToAirportTransfer) {
-            console.log('Hotel to airport transfer processed successfully');
+            console.log('Hotel to airport transfer processed successfully for return flight');
             updatedTransfers.push(hotelToAirportTransfer);
           } else {
-            console.warn('Failed to process hotel to airport transfer');
+            console.warn('Failed to process hotel to airport transfer for return flight');
           }
-        }
-        break;
+          break;
 
       case 'inter_city_flight':
         // Handling transfers for inter-city flight
@@ -969,7 +984,7 @@ async updateTransfersForFlightChange(params) {
     return updatedTransfers;
 
   } catch (error) {
-    console.error('Comprehensive error in updateTransfersForFlightChange:', error, {
+    console.error('Error in updateTransfersForFlightChange:', error, {
       newFlightDetails,
       cityName,
       date,

@@ -52,6 +52,11 @@ const {
   recheckFlightPrices,
 } = require("../../controllers/priceRecheckController");
 
+
+
+const {getFlights} = require("../../controllers/flightController/flightControllerTC");
+
+
 // Middleware
 const checkAuth = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
@@ -189,6 +194,13 @@ router.post(
   checkAuth,
   checkInquiryToken,
   recheckFlightPrices
+);
+
+router.post(
+  "/:itineraryToken/flights/search",
+  checkAuth,
+  checkInquiryToken,
+  getFlights
 );
 
 // router.post(

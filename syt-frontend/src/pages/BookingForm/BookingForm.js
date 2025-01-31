@@ -81,7 +81,7 @@ const BookingForm = () => {
 
   const initialTravelerState = useMemo(
     () => ({
-      title: "Mr.",
+      title: "Mr",
       firstName: "",
       lastName: "",
       email: "",
@@ -307,7 +307,7 @@ const BookingForm = () => {
       const updatedTravelers = [...room.travelers];
 
       if (field === "gender") {
-        const defaultTitles = { male: "Mr.", female: "Ms.", other: "Mr." };
+        const defaultTitles = { male: "Mr", female: "Ms", other: "Mr" };
         updatedTravelers[travelerIndex].gender = value;
         updatedTravelers[travelerIndex].title = defaultTitles[value];
       } else if (field === "country") {
@@ -720,10 +720,10 @@ const handleSubmit = async (e) => {
                                   disabled={loading}
                                   label="Title"
                                 >
-                                  <MenuItem value="Mr">Mr.</MenuItem>
-                                  <MenuItem value="Mrs">Mrs.</MenuItem>
-                                  <MenuItem value="Ms">Ms.</MenuItem>
-                                  <MenuItem value="Dr">Dr.</MenuItem>
+                                  <MenuItem value="Mr">Mr</MenuItem>
+                                  <MenuItem value="Mrs">Mrs</MenuItem>
+                                  <MenuItem value="Ms">Ms</MenuItem>
+                                  <MenuItem value="Dr">Dr</MenuItem>
                                 </Select>
                               </FormControl>
                             </Grid>

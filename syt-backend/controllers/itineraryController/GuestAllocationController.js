@@ -38,10 +38,12 @@ class GuestAllocationController {
       });
 
     } catch (error) {
-      console.error('Flight Allocation Error:', error);
-      return res.status(500).json({
+      // console.error('Flight Allocation Error:', error);
+      return res.status(error.status || 500).json({
         success: false,
-        message: error.message || 'Flight allocation failed'
+        errorCode: error.error.error.errorCode,
+        message: error.error.error.errorMessage,
+        status: error.status
       });
     }
   }
@@ -79,10 +81,14 @@ class GuestAllocationController {
 
     } catch (error) {
       console.error('Hotel Allocation Error:', error);
-      return res.status(500).json({
+      return res.status(error.error?.httpStatusCode || error.status || 500).json({
         success: false,
-        message: error.message || 'Hotel allocation failed'
+        errorCode: error.error?.error?.code || null,
+        message: error.error?.error?.message || error.error?.message || "An unexpected error occurred",
+        errors: Array.isArray(error.error?.error?.errors) ? error.error.error.errors : [],
+        status: error.error?.httpStatusCode || error.status || 500
       });
+      
     }
   }
 }

@@ -126,7 +126,7 @@ const FlightDetailModal = ({
           date,
           newFlightDetails: createResponse.data.data,
           type,  // Pass flight type for accurate replacement
-          userStyle: 'Normal'
+          
         },
         {
           headers: {

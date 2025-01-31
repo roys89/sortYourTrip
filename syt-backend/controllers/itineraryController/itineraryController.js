@@ -234,6 +234,7 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution) => {
         departureCity: inquiry.departureCity,
         cities: [inquiry.selectedCities[0]],
         travelers: inquiry.travelersDetails,
+        preferences: inquiry.preferences,
         departureDates: {
           startDate: inquiry.departureDates.startDate,
           endDate: inquiry.departureDates.startDate,
@@ -246,6 +247,7 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution) => {
         departureCity: inquiry.selectedCities[inquiry.selectedCities.length - 1],
         cities: [inquiry.departureCity],
         travelers: inquiry.travelersDetails,
+        preferences: inquiry.preferences,
         departureDates: {
           startDate: inquiry.departureDates.endDate,
           endDate: inquiry.departureDates.endDate,
@@ -636,6 +638,7 @@ exports.createItinerary = async (req, res) => {
       inquiryToken: inquiry.itineraryInquiryToken,
       userInfo: inquiry.userInfo,
       travelersDetails: inquiry.travelersDetails,
+      preferences: inquiry.preferences,
       cities: itineraryWithTransfers,
     });
 
@@ -648,6 +651,7 @@ exports.createItinerary = async (req, res) => {
       userInfo: savedItinerary.userInfo,
       cities: savedItinerary.cities,
       travelersDetails: savedItinerary.travelersDetails,
+      preferences: savedItinerary.preferences,
     };
 
     // Save debug file
@@ -705,6 +709,7 @@ exports.getItinerary = async (req, res) => {
       userInfo: itinerary.userInfo,
       cities: itinerary.cities,
       travelersDetails: itinerary.travelersDetails,
+      preferences: itinerary.preferences,
       priceTotals: itinerary.priceTotals || null,
     };
 
@@ -743,6 +748,7 @@ exports.getItineraryByInquiryToken = async (req, res) => {
       userInfo: itinerary.userInfo,
       cities: itinerary.cities,
       travelersDetails: itinerary.travelersDetails,
+      preferences: itinerary.preferences,
       priceTotals: itinerary.priceTotals || null,
     });
   } catch (error) {

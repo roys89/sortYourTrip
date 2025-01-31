@@ -1,4 +1,3 @@
-// guestAllocationSlice.js
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 import {
@@ -15,15 +14,9 @@ export const allocateFlightPassengers = createAsyncThunk(
     inquiryToken, 
     itinerary,
     flight,
-    formData  // Added formData parameter
+    formData
   }, { rejectWithValue }) => {
     try {
-      // Extensive logging for debugging
-      console.log('===== Allocate Flight Passengers =====');
-      console.log('Booking ID:', bookingId);
-      console.log('Form Data:', formData);
-      console.log('Flight Data:', JSON.stringify(flight, null, 2));
-
       // Validate input parameters
       if (!bookingId || !formData) {
         throw new Error('Booking ID and form data are required');
@@ -36,8 +29,6 @@ export const allocateFlightPassengers = createAsyncThunk(
       // Extract travelers directly from form data
       const travelers = formData.rooms.flatMap(room => room.travelers);
       
-      console.log('Extracted Travelers:', JSON.stringify(travelers, null, 2));
-
       // Validate travelers
       if (!travelers || travelers.length === 0) {
         throw new Error('No travelers found for flight allocation');
@@ -48,8 +39,6 @@ export const allocateFlightPassengers = createAsyncThunk(
         flight.flightData,
         travelers
       );
-
-      console.log('Transformed Flight Data:', JSON.stringify(flightData, null, 2));
 
       // Prepare API payload
       const payload = {
@@ -62,9 +51,7 @@ export const allocateFlightPassengers = createAsyncThunk(
         inquiryToken: inquiryToken
       };
 
-      console.log('API Payload:', JSON.stringify(payload, null, 2));
-
-      // Make API call with enhanced error handling
+      // Make API call
       const response = await axios.post(
         `http://localhost:5000/api/guest-allocation/${bookingId}/allocate-flight`,
         payload,
@@ -87,20 +74,17 @@ export const allocateFlightPassengers = createAsyncThunk(
       };
 
     } catch (error) {
-      console.error('Flight Allocation Error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack
-      });
-
-      return rejectWithValue({
-        bookingId,
-        flightCode: flight?.flightData?.flightCode,
-        message: error.response?.data?.message || error.message || 'Flight allocation failed',
-        status: error.response?.status,
-        errors: error.response?.data?.errors || []
-      });
+      // console.log('Flight Allocation Error - Original:', error);
+      // console.log('Flight Allocation Error - Response:', error.response?.data);
+      
+      // Prefer the API's error response data if available
+      const errorResponse = error.response?.data || {
+        success: false,
+        errorCode: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        status: error.response?.status
+      };
+      return rejectWithValue(errorResponse);
     }
   }
 );
@@ -114,15 +98,9 @@ export const allocateHotelRooms = createAsyncThunk(
     inquiryToken, 
     itinerary,
     hotel,
-    formData  // Added formData parameter
+    formData
   }, { rejectWithValue }) => {
     try {
-      // Extensive logging for debugging
-      console.log('===== Allocate Hotel Rooms =====');
-      console.log('Booking ID:', bookingId);
-      console.log('Form Data:', formData);
-      console.log('Hotel Data:', JSON.stringify(hotel, null, 2));
-
       // Validate input parameters
       if (!bookingId || !formData) {
         throw new Error('Booking ID and form data are required');
@@ -134,8 +112,6 @@ export const allocateHotelRooms = createAsyncThunk(
 
       // Extract travelers directly from form data
       const travelers = formData.rooms.flatMap(room => room.travelers);
-
-      console.log('Extracted Travelers:', JSON.stringify(travelers, null, 2));
 
       // Validate travelers
       if (!travelers || travelers.length === 0) {
@@ -149,8 +125,6 @@ export const allocateHotelRooms = createAsyncThunk(
         hotel
       );
 
-      console.log('Transformed Hotel Data:', JSON.stringify(hotelData, null, 2));
-
       // Prepare API payload
       const payload = {
         hotelData: hotelData,
@@ -162,9 +136,7 @@ export const allocateHotelRooms = createAsyncThunk(
         inquiryToken: inquiryToken
       };
 
-      console.log('API Payload:', JSON.stringify(payload, null, 2));
-
-      // Make API call with enhanced error handling
+      // Make API call
       const response = await axios.post(
         `http://localhost:5000/api/guest-allocation/${bookingId}/allocate-hotel`,
         payload,
@@ -187,19 +159,13 @@ export const allocateHotelRooms = createAsyncThunk(
       };
 
     } catch (error) {
-      console.error('Hotel Allocation Error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack
-      });
-
+      const errorResponse = error.response?.data;
       return rejectWithValue({
         bookingId,
         hotelId: hotel?.data?.staticContent?.[0]?.id,
-        message: error.response?.data?.message || error.message || 'Hotel allocation failed',
-        status: error.response?.status,
-        errors: error.response?.data?.errors || []
+        error: errorResponse,
+        message: error.message,
+        status: error.response?.status
       });
     }
   }
@@ -223,7 +189,7 @@ export const checkAllocationStatus = createAsyncThunk(
     } catch (error) {
       return rejectWithValue({
         message: error.response?.data?.message || 'Failed to check allocation status',
-        error: error
+        error: error.response?.data
       });
     }
   }
@@ -287,13 +253,24 @@ const guestAllocationSlice = createSlice({
         state.progress.current += 1;
         state.status.lastUpdated = new Date().toISOString();
       })
+      
       .addCase(allocateFlightPassengers.rejected, (state, action) => {
+        const failedAllocation = {
+          type: 'flight',
+          details: action.meta.arg.flight.flightData,
+          error: {
+            success: false,
+            errorCode: action.payload.errorCode,
+            message: action.payload.message,
+            status: action.payload.status
+          }
+        };
+      
+        // console.log('Created Failed Allocation:', failedAllocation);
+        
         state.loading = false;
         state.error = action.payload;
-        state.failedAllocations.push({
-          type: 'flight',
-          ...action.payload
-        });
+        state.failedAllocations.push(failedAllocation);
       })
 
       // Hotel allocation reducers
@@ -309,11 +286,15 @@ const guestAllocationSlice = createSlice({
         state.status.lastUpdated = new Date().toISOString();
       })
       .addCase(allocateHotelRooms.rejected, (state, action) => {
+        // Preserve the full error structure in the failed allocation
+        const errorData = action.payload.error;
+        
         state.loading = false;
         state.error = action.payload;
         state.failedAllocations.push({
           type: 'hotel',
-          ...action.payload
+          details: action.meta.arg.hotel.data.staticContent[0],
+          error: errorData // Keep the complete error structure from the API
         });
       })
 

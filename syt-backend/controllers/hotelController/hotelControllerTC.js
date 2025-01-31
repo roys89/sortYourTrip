@@ -25,7 +25,7 @@ function getHotelRatings(budget) {
   switch (budget) {
     case "Luxury":
       return [4, 5];
-    case "Somewhere In-between":
+    case "Somewhere In-Between":
       return [3, 4];
     case "Pocket Friendly":
       return [3];
@@ -61,7 +61,7 @@ function selectBestHotel(hotels, budget) {
       
       if (price < avgPrice * 1.5 && price > avgPrice * 0.8) score += 20;
     } 
-    else if (budget === "Somewhere In-between") {
+    else if (budget === "Somewhere In-Between") {
       if (starRating === 4) score += 30;
       else if (starRating === 3) score += 20;
 

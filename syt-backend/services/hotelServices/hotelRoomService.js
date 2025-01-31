@@ -63,8 +63,15 @@ class HotelRoomService {
           status: error.response?.status
         }
       });
-
-      throw error;
+    
+      // Create structured error object
+      const errorResponse = {
+        error: error.response?.data || {},
+        message: error.message,
+        status: error.response?.status
+      };
+    
+      throw errorResponse;
     }
   }
 }

@@ -50,7 +50,8 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
         itineraryResponse.details?.error?.errorMessage ||
         itineraryResponse.details?.details?.error?.errorMessage;
 
-      if (errorCode == 1000 || errorCode == 50) {
+      // Add error code 400 to retry conditions
+      if (errorCode == 1000 || errorCode == 50 || errorCode == 400) {
         console.log(
           `Flight ${currentIndex + 1} not available (Error ${errorCode}): ${errorMessage}, trying next flight...`
         );
@@ -72,11 +73,14 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
       selectedFlight,
     };
   } catch (error) {
+    // Add error code 400 check in catch block as well
     if (
       error.response?.data?.error?.errorCode === "1000" ||
-      error.response?.data?.error?.errorCode === 50 ||
+      error.response?.data?.error?.errorCode === "50" ||
+      error.response?.data?.error?.errorCode === "400" ||
       error.response?.data?.details?.error?.errorCode === "1000" ||
-      error.response?.data?.details?.error?.errorCode === "50"
+      error.response?.data?.details?.error?.errorCode === "50" ||
+      error.response?.data?.details?.error?.errorCode === "400"
     ) {
       console.log(
         `Flight ${currentIndex + 1} not available, trying next flight...`
@@ -88,22 +92,7 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
   }
 }
 
-/**
- * Get preferred index based on user preference
- */
-function getPreferredIndex(length, preference) {
-  switch (preference?.toLowerCase()) {
-    case "luxury":
-      return Math.floor(length * 0.75);
-    case "pocket friendly":
-      return Math.floor(length * 0.25);
-    default:
-      return Math.floor(length * 0.5);
-  }
-}
-
 //token preFetching 
-
 const prefetchToken = async () => {
   try {
     const authToken = await FlightTokenManager.getOrSetToken(
@@ -119,7 +108,6 @@ const prefetchToken = async () => {
   }
 };
 
-
 module.exports = {
   prefetchToken,
   getFlights: async (requestData) => {
@@ -129,7 +117,6 @@ module.exports = {
         cities,
         travelers,
         departureDates,
-        preferences,
         type = "departure_flight",
         inquiryToken,
       } = requestData;
@@ -170,24 +157,21 @@ module.exports = {
         throw new Error("No flights found");
       }
 
-      // Filter out flights that exceed 24 hours
-      const validDurationFlights = flights.filter((flight) => {
+      // Filter out flights that exceed 24 hours and are Flexi
+      const validFlights = flights.filter((flight) => {
         const totalDuration = FlightUtils.calculateTotalDuration(flight);
-        return totalDuration <= 24 * 60; // 24 hours in minutes
+        return (
+          totalDuration <= 24 * 60 && // 24 hours in minutes
+          flight.fareIdentifier.name.toLowerCase() === 'flexi'
+        );
       });
 
-      if (!validDurationFlights.length) {
-        throw new Error("No flights found within 24-hour duration limit");
+      if (!validFlights.length) {
+        throw new Error("No Flexi flights found within 24-hour duration limit");
       }
 
-      // Sort remaining flights by price and remove outliers
-      const sortedFlights = [...validDurationFlights].sort(
-        (a, b) => a.pF - b.pF
-      );
-      const totalFlights = sortedFlights.length;
-      const startIndex = Math.floor(totalFlights * 0.1);
-      const endIndex = Math.floor(totalFlights * 0.9);
-      const validFlights = sortedFlights.slice(startIndex, endIndex);
+      // Sort flights by price for more predictable retry behavior
+      const sortedFlights = [...validFlights].sort((a, b) => a.pF - b.pF);
 
       // Common params for booking attempts
       const bookingParams = {
@@ -197,32 +181,26 @@ module.exports = {
         token: authToken,
       };
 
-      // Start from the preferred index based on preferences
-      const startingIndex = getPreferredIndex(
-        validFlights.length,
-        preferences?.flightPreference
-      );
-
-      // Attempt booking with retry logic
+      // Start from the beginning of sorted flights
       const bookingResult = await tryFlightBooking(
-        validFlights,
+        sortedFlights,
         searchResponse,
         bookingParams,
-        startingIndex
+        0
       );
 
       if (!bookingResult.success) {
         throw new Error(bookingResult.error);
       }
 
-      // First format the flight data from itinerary
+      // Format the flight data from itinerary
       const formattedFlight = FlightUtils.formatFlightResponse(bookingResult.itinerary);
       
       if (!formattedFlight) {
         throw new Error('Failed to format flight data');
       }
 
-      // Then enhance with location data
+      // Enhance with location data
       const enhancedFlight = {
         ...formattedFlight,
         type: requestData.type || null,
@@ -278,14 +256,12 @@ module.exports = {
         };
       }
 
-      // Format the itinerary data using the utility
       const formattedFlight = FlightUtils.formatFlightResponse(response.data);
       
       if (!formattedFlight) {
         throw new Error('Failed to format flight data');
       }
 
-      // Then enhance with location data
       const enhancedFlight = {
         ...formattedFlight,
         type: requestData.type,

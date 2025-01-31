@@ -300,6 +300,7 @@ const ItinerarySchema = new Schema(
     },
     userInfo: UserInfoSchema,  // Add this field
     travelersDetails: TravelersDetailsSchema,
+    preferences: Schema.Types.Mixed,
     cities: [CitySchema],
     priceTotals: {
       type: PriceTotalsSchema,

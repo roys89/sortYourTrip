@@ -9,29 +9,36 @@ const getFlightSearchParams = (expiredFlight, itinerary) => {
     country: expiredFlight.originAirport.country,
     iata: expiredFlight.originAirport.code,
     name: expiredFlight.originAirport.name,
+    destination_id: expiredFlight.originAirport.destinationId || null, // Add this
     latitude: expiredFlight.originAirport.location.latitude,
     longitude: expiredFlight.originAirport.location.longitude
   };
 
   const destinationCity = {
+    destination_id: null, // Add this
     city: expiredFlight.destination,
     country: expiredFlight.arrivalAirport.country,
     iata: expiredFlight.arrivalAirport.code,
     name: expiredFlight.arrivalAirport.name,
-    latitude: expiredFlight.arrivalAirport.location.latitude,
-    longitude: expiredFlight.arrivalAirport.location.longitude
+    continent: null, // Add this if needed
+    lat: expiredFlight.arrivalAirport.location.latitude,
+    long: expiredFlight.arrivalAirport.location.longitude
   };
 
   return {
     departureCity,
     cities: [destinationCity],
-    travelers: itinerary.travelersDetails,
-    departureDates: {
-      startDate: expiredFlight.departureDate,
-      endDate: expiredFlight.departureDate
+    travelers: {
+      type: itinerary.travelersDetails.type || 'family',
+      rooms: itinerary.travelersDetails.rooms
     },
-    preferences: itinerary.preferences,
+    departureDates: {
+      startDate: new Date(expiredFlight.departureDate).toISOString(),
+      endDate: new Date(expiredFlight.departureDate).toISOString()
+    },
     type: expiredFlight.type,
+    includeDetailedLandingInfo: true,
+    inquiryToken: itinerary.inquiryToken,
   };
 };
 
@@ -65,8 +72,8 @@ export const updateItineraryFlight = createAsyncThunk(
   'flightReplacement/updateItinerary',
   async ({ itineraryToken, cityName, date, newFlightDetails, type, inquiryToken }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(
-        `http://localhost:5000/api/itinerary/${itineraryToken}/replace-flight`,
+      const response = await axios.put(
+        `http://localhost:5000/api/itinerary/${itineraryToken}/flight`,
         {
           cityName,
           date,

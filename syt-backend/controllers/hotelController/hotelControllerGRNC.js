@@ -113,7 +113,7 @@ const getHotelsForCity = async (cityCode, countryCode, preferences) => {
     let starCategoryFilter;
     if (budget === 'Luxury') {
       starCategoryFilter = 5;
-    } else if (budget === 'Somewhere In-between') {
+    } else if (budget === 'Somewhere In-Between') {
       starCategoryFilter = 4;
     } else if (budget === 'Pocket Friendly') {
       starCategoryFilter = 3;

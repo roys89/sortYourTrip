@@ -3,9 +3,10 @@ import { configureStore } from '@reduxjs/toolkit';
 import activityReducer from './slices/activitySlice';
 import authReducer from './slices/authSlice';
 import bookingReducer from './slices/bookingSlice';
-import flightReplacementReducer from './slices/flightReplacementSlice'; // Add import
+import flightReplacementReducer from './slices/flightReplacementSlice';
 import flightReducer from './slices/flightSlice';
 import guestAllocationSlice from './slices/guestAllocationSlice';
+import hotelReplacementReducer from './slices/hotelReplacementSlice';
 import hotelReducer from './slices/hotelSlice';
 import itineraryReducer from './slices/itinerarySlice';
 import markupReducer from './slices/markupSlice';
@@ -30,6 +31,7 @@ export const store = configureStore({
     roomChange: roomChangeReducer,
     priceCheck: priceCheckReducer,
     guestAllocation: guestAllocationSlice,
-    flightReplacement: flightReplacementReducer, // Add reducer
+    flightReplacement: flightReplacementReducer,
+    hotelReplacement: hotelReplacementReducer,
   }
 });

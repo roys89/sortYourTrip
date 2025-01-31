@@ -260,8 +260,8 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution) => {
         extendedCheckoutDate.setDate(extendedCheckoutDate.getDate() + 1);
 
         console.log(`Getting hotel for city ${index + 1}/${cityDayDistribution.length}: ${city.city}`);
-
-        return getHotels({
+        // Log the data being sent to getHotels
+        const hotelRequestData = {
           city: city.city,
           country: city.country,
           startDate: startDate,
@@ -269,7 +269,11 @@ const processFlightsAndHotels = async (inquiry, cityDayDistribution) => {
           travelersDetails: inquiry.travelersDetails,
           preferences: inquiry.preferences,
           inquiryToken: inquiry.itineraryInquiryToken
-        });
+        };
+
+        console.log('Data being sent to getHotels:', JSON.stringify(hotelRequestData, null, 2));
+
+        return getHotels(hotelRequestData);
       }))
     ]);
 

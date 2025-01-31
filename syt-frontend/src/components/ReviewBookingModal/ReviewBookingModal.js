@@ -27,7 +27,10 @@ import {
   allocateFlightPassengers,
   allocateHotelRooms
 } from '../../redux/slices/guestAllocationSlice';
-
+import {
+  searchReplacementHotel,
+  updateItineraryHotel
+} from '../../redux/slices/hotelReplacementSlice';
 
 // Helper function to get remaining error message
 const getRemainingErrorMessage = (failedAllocations) => {
@@ -79,43 +82,104 @@ const AllocationProgress = ({ progress, currentItem }) => (
   </Alert>
 );
 
-// Traveler Information Component
-const TravelerInfo = ({ traveler }) => (
-  <Box className="p-4 bg-gray-50 rounded mb-4">
-    <Grid container spacing={3}>
-      <Grid item xs={12} sm={6}>
-        <Typography variant="subtitle1" gutterBottom>Personal Details</Typography>
-        <Typography>Name: {traveler.title} {traveler.firstName} {traveler.lastName}</Typography>
-        <Typography>Gender: {traveler.gender}</Typography>
-        <Typography>Date of Birth: {traveler.dateOfBirth}</Typography>
-        <Typography>Type: {traveler.type}</Typography>
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <Typography variant="subtitle1" gutterBottom>Contact Details</Typography>
-        <Typography>Email: {traveler.email}</Typography>
-        <Typography>Phone: +{traveler.cellCountryCode} {traveler.phone}</Typography>
-      </Grid>
-    </Grid>
-  </Box>
-);
+// Hotel Replacement Handler Component
+const HotelReplacementHandler = ({ failedHotel, itinerary, tokens, onReplaceSuccess, isAllocating }) => {
+  const dispatch = useDispatch();
+  const [isReplacing, setIsReplacing] = useState(false);
 
-// Room Information Component
-const RoomInfo = ({ room }) => (
-  <Box className="mb-6">
-    <Box className="flex items-center gap-2 mb-3">
-      <Hotel size={24} />
-      <Typography variant="h6">Room {room.roomNumber}</Typography>
+  console.log('Full failedHotel object:', failedHotel);
+  console.log('Type of failedHotel:', typeof failedHotel);
+  console.log('Keys of failedHotel:', Object.keys(failedHotel));
+
+  const handleHotelReplacement = async () => {
+    try {
+      setIsReplacing(true);
+  
+      console.log("Failed Hotel Details:", JSON.stringify(failedHotel, null, 2));
+  
+      // Determine the correct way to access hotel details
+      const hotelDetails = failedHotel.data 
+        ? failedHotel.data.staticContent[0] 
+        : failedHotel.details 
+        ? failedHotel.details 
+        : failedHotel;
+  
+      console.log("Extracted Hotel Details:", hotelDetails);
+  
+      // 1. Search for replacement hotel
+      const searchResult = await dispatch(searchReplacementHotel({
+        failedHotel,
+        itinerary,
+        inquiryToken: tokens.inquiry
+      })).unwrap();
+  
+      const newHotelDetails = [{
+        ...searchResult.data,
+        checkIn: hotelDetails.checkIn,
+        checkOut: hotelDetails.checkOut
+      }];
+      
+      // 2. Update itinerary with new hotel
+      const result = await dispatch(updateItineraryHotel({
+        itineraryToken: tokens.itinerary,
+        date: hotelDetails.checkIn,
+        newHotelDetails: newHotelDetails[0],
+        checkIn: hotelDetails.checkIn,
+        checkout: hotelDetails.checkOut,
+        inquiryToken: tokens.inquiry
+      })).unwrap();
+  
+      if (result.success) {
+        // Pass the replaced hotel details to onReplaceSuccess
+        onReplaceSuccess(newHotelDetails[0]);
+      } else {
+        throw new Error('Failed to update itinerary with new hotel');
+      }
+  
+    } catch (error) {
+      console.error('Error replacing hotel:', error);
+    } finally {
+      setIsReplacing(false);
+    }
+  };
+
+  return (
+    <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+      <div>
+        <Typography variant="body2">
+          Hotel: {
+            (failedHotel.data?.staticContent?.[0]?.name) || 
+            (failedHotel.details?.name) || 
+            (failedHotel.name) || 
+            'Unknown Hotel'
+          }
+          <br />
+          <span className="text-sm text-gray-600">
+            {failedHotel.error?.message || 'No specific error message'}
+          </span>
+        </Typography>
+      </div>
+      <Button
+        size="small"
+        variant="outlined"
+        onClick={handleHotelReplacement}
+        startIcon={isReplacing ? <CircularProgress size={16} /> : <RefreshCw size={16} />}
+        disabled={isAllocating || isReplacing}
+        sx={{ ml: 2 }}
+      >
+        {isReplacing ? 'Replacing...' : 'Replace Hotel'}
+      </Button>
     </Box>
-    {room.travelers.map((traveler, idx) => (
-      <TravelerInfo key={idx} traveler={traveler} />
-    ))}
-  </Box>
-);
+  );
+};
 
 // Failed Allocations Component
 const FailedAllocationsSection = ({ 
   failedAllocations, 
   handleFlightReplacement,
+  itinerary,
+  tokens,
+  onHotelReplaceSuccess,
   isAllocating
 }) => (
   <Alert 
@@ -153,17 +217,13 @@ const FailedAllocationsSection = ({
             </Box>
           )}
           {fail.type === 'hotel' && (
-            <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-              <div>
-                <Typography variant="body2">
-                  Hotel: {fail.details.name}
-                  <br />
-                  <span className="text-sm text-gray-600">
-                    {fail.error.message}
-                  </span>
-                </Typography>
-              </div>
-            </Box>
+            <HotelReplacementHandler
+              failedHotel={fail}
+              itinerary={itinerary}
+              tokens={tokens}
+              onReplaceSuccess={onHotelReplaceSuccess}
+              isAllocating={isAllocating}
+            />
           )}
         </Box>
       ))}
@@ -171,6 +231,40 @@ const FailedAllocationsSection = ({
   </Alert>
 );
 
+// Room Information Component
+const RoomInfo = ({ room }) => (
+  <Box className="mb-6">
+    <Box className="flex items-center gap-2 mb-3">
+      <Hotel size={24} />
+      <Typography variant="h6">Room {room.roomNumber}</Typography>
+    </Box>
+    {room.travelers.map((traveler, idx) => (
+      <TravelerInfo key={idx} traveler={traveler} />
+    ))}
+  </Box>
+);
+
+// Traveler Information Component
+const TravelerInfo = ({ traveler }) => (
+  <Box className="p-4 bg-gray-50 rounded mb-4">
+    <Grid container spacing={3}>
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle1" gutterBottom>Personal Details</Typography>
+        <Typography>Name: {traveler.title} {traveler.firstName} {traveler.lastName}</Typography>
+        <Typography>Gender: {traveler.gender}</Typography>
+        <Typography>Date of Birth: {traveler.dateOfBirth}</Typography>
+        <Typography>Type: {traveler.type}</Typography>
+      </Grid>
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle1" gutterBottom>Contact Details</Typography>
+        <Typography>Email: {traveler.email}</Typography>
+        <Typography>Phone: +{traveler.cellCountryCode} {traveler.phone}</Typography>
+      </Grid>
+    </Grid>
+  </Box>
+);
+
+// Main ReviewBookingModal Component
 const ReviewBookingModal = ({ 
   open, 
   onClose, 
@@ -197,10 +291,8 @@ const ReviewBookingModal = ({
 
   const handleFlightReplacement = async (failedFlight) => {
     try {
-      // Clear previous error when starting replacement
       setError(null);
       setIsAllocating(true);
-      // Reset progress during replacement
       setAllocationProgress({
         current: 0,
         total: 0
@@ -218,8 +310,6 @@ const ReviewBookingModal = ({
         itinerary,
         inquiryToken: tokens.inquiry
       })).unwrap();
-  
-      console.log('Flight search result:', searchResult);
   
       if (!Array.isArray(searchResult) || searchResult.length === 0) {
         throw new Error('No replacement flights found');
@@ -242,8 +332,6 @@ const ReviewBookingModal = ({
         type: failedFlight.details.type || 'departure_flight',
         inquiryToken: tokens.inquiry
       })).unwrap();
-  
-      console.log('Itinerary update result:', result);
   
       if (result.success) {
         const updatedFailedAllocations = failedAllocations.filter(f => 
@@ -271,6 +359,26 @@ const ReviewBookingModal = ({
     } finally {
       setIsAllocating(false);
       setCurrentAllocation(null);
+    }
+  };
+
+  const handleHotelReplaceSuccess = (replacedHotel) => {
+    // Remove only the specific failed hotel from failedAllocations
+    const updatedFailedAllocations = failedAllocations.filter(f => 
+      f.type !== 'hotel' || 
+      f.details.staticContent[0].id !== replacedHotel.staticContent[0].id
+    );
+    
+    setFailedAllocations(updatedFailedAllocations);
+  
+    // Check remaining hotel failures
+    const remainingFailedHotels = updatedFailedAllocations.filter(f => 
+      f.type === 'hotel'
+    );
+  
+    if (remainingFailedHotels.length === 0) {
+      setError('Please go back to itinerary to view updated hotels');
+      setAllocationComplete(false);
     }
   };
 
@@ -323,48 +431,49 @@ const ReviewBookingModal = ({
                 setFailedAllocations(prev => [...prev, {
                   type: 'flight',
                   details: flight.flightData,
-                  error: error.message
+                  error: error.response?.data || error
                 }]);
               }
             }
           }
 
           // Handle hotels
-          if (day.hotels?.length) {
-            for (const hotel of day.hotels) {
-              try {
-                setCurrentAllocation({
-                  type: 'hotel',
-                  name: hotel.data.staticContent[0].name
-                });
+          // In the allocation loop
+if (day.hotels?.length) {
+  for (const hotel of day.hotels) {
+    try {
+      setCurrentAllocation({
+        type: 'hotel',
+        name: hotel.data.staticContent[0].name
+      });
 
-                const result = await dispatch(allocateHotelRooms({
-                  bookingId: formData.bookingId,
-                  itineraryToken: tokens.itinerary,
-                  inquiryToken: tokens.inquiry,
-                  itinerary,
-                  hotel,
-                  formData
-                })).unwrap();
+      const result = await dispatch(allocateHotelRooms({
+        bookingId: formData.bookingId,
+        itineraryToken: tokens.itinerary,
+        inquiryToken: tokens.inquiry,
+        itinerary,
+        hotel,
+        formData
+      })).unwrap();
 
-                setSuccessfulAllocations(prev => ({
-                  ...prev,
-                  hotels: [...prev.hotels, { hotel, result }]
-                }));
+      setSuccessfulAllocations(prev => ({
+        ...prev,
+        hotels: [...prev.hotels, { hotel, result }]
+      }));
 
-                setAllocationProgress(prev => ({
-                  ...prev,
-                  current: prev.current + 1
-                }));
-              } catch (error) {
-                setFailedAllocations(prev => [...prev, {
-                  type: 'hotel',
-                  details: hotel.data.staticContent[0],
-                  error: error.message
-                }]);
-              }
-            }
-          }
+      setAllocationProgress(prev => ({
+        ...prev,
+        current: prev.current + 1
+      }));
+    } catch (error) {
+      setFailedAllocations(prev => [...prev, {
+        type: 'hotel',
+        details: hotel, // Pass entire hotel data
+        error: error.response?.data || error
+      }]);
+    }
+  }
+}
         }
       }
 
@@ -440,135 +549,138 @@ const ReviewBookingModal = ({
           </Alert>
         )}
 
-{failedAllocations.length > 0 && (
-  <FailedAllocationsSection
-    failedAllocations={failedAllocations}
-    handleFlightReplacement={handleFlightReplacement}
-    isAllocating={isAllocating}
-  />
-)}
+        {failedAllocations.length > 0 && (
+          <FailedAllocationsSection
+            failedAllocations={failedAllocations}
+            handleFlightReplacement={handleFlightReplacement}
+            itinerary={itinerary}
+            tokens={tokens}
+            onHotelReplaceSuccess={handleHotelReplaceSuccess}
+            isAllocating={isAllocating}
+          />
+        )}
 
-{allocationComplete && failedAllocations.length === 0 && !error?.includes('go back to itinerary') && (
-  <Alert 
-    severity="success" 
-    sx={{ mb: 3 }}
-    icon={<Check size={20} />}
-  >
-    <AlertTitle>Allocation Complete</AlertTitle>
-    <AlertDescription>
-      All rooms and flights have been successfully allocated.
-    </AlertDescription>
-  </Alert>
-)}
-
-{/* Room & Traveler Details */}
-<Box sx={{ mb: 4 }}>
-  {formData.rooms.map((room, index) => (
-    <RoomInfo key={index} room={room} />
-  ))}
-</Box>
-
-{/* Special Requirements */}
-{formData.specialRequirements && (
-  <Box sx={{ mt: 3 }}>
-    <Typography variant="h6" gutterBottom>
-      Special Requirements
-    </Typography>
-    <Typography sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-      {formData.specialRequirements}
-    </Typography>
-  </Box>
-)}
-
-<Divider sx={{ my: 3 }} />
-</DialogContent>
-
-<DialogActions>
-  <Box sx={{ 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    width: '100%', 
-    p: 2,
-    alignItems: 'flex-start'  // Added to keep Cancel button height consistent
-  }}>
-    <Button
-      variant="outlined"
-      onClick={onClose}
-      disabled={isAllocating}
-      startIcon={<X size={18} />}
-      sx={{ 
-        borderColor: 'error.main',
-        color: 'error.main',
-        '&:hover': {
-          borderColor: 'error.dark',
-          backgroundColor: 'error.lighter',
-        }
-      }}
-    >
-      Cancel
-    </Button>
-
-    <Box sx={{ display: 'flex', gap: 2 }}>
-      {failedAllocations.length === 0 && error?.includes('go back to itinerary') && (
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: 2, 
-          alignItems: 'center',
-          maxWidth: '500px'  // To control alert width
-        }}>
-          <Alert severity="success">
-            <AlertTitle>All replacements complete!</AlertTitle>
+        {allocationComplete && failedAllocations.length === 0 && !error?.includes('go back to itinerary') && (
+          <Alert 
+            severity="success" 
+            sx={{ mb: 3 }}
+            icon={<Check size={20} />}
+          >
+            <AlertTitle>Allocation Complete</AlertTitle>
             <AlertDescription>
-              You can now go back to itinerary to view your updated flights and select seats
+              All rooms and flights have been successfully allocated.
             </AlertDescription>
           </Alert>
-          <Button
-            variant="contained"
-            onClick={() => {
-              navigate('/itinerary', {
-                state: {
-                  itineraryToken: tokens.itinerary,
-                  itineraryInquiryToken: tokens.inquiry
-                }
-              });
-            }}
-            startIcon={<ChevronLeft size={18} />}
-            color="primary"
-            fullWidth
-          >
-            Go Back to Itinerary
-          </Button>
+        )}
+
+        {/* Room & Traveler Details */}
+        <Box sx={{ mb: 4 }}>
+          {formData.rooms.map((room, index) => (
+            <RoomInfo key={index} room={room} />
+          ))}
         </Box>
-      )}
-      
-      {!error?.includes('go back to itinerary') && (
-        !allocationComplete ? (
+
+        {/* Special Requirements */}
+        {formData.specialRequirements && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Special Requirements
+            </Typography>
+            <Typography sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              {formData.specialRequirements}
+            </Typography>
+          </Box>
+        )}
+
+        <Divider sx={{ my: 3 }} />
+      </DialogContent>
+
+      <DialogActions>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          width: '100%', 
+          p: 2,
+          alignItems: 'flex-start'
+        }}>
           <Button
-            variant="contained"
-            onClick={handleConfirm}
+            variant="outlined"
+            onClick={onClose}
             disabled={isAllocating}
-            startIcon={isAllocating ? <CircularProgress size={20} /> : <Check size={18} />}
+            startIcon={<X size={18} />}
+            sx={{ 
+              borderColor: 'error.main',
+              color: 'error.main',
+              '&:hover': {
+                borderColor: 'error.dark',
+                backgroundColor: 'error.lighter',
+              }
+            }}
           >
-            {isAllocating ? 'Allocating...' : 'Start Allocation'}
+            Cancel
           </Button>
-        ) : (
-          <Button
-            variant="contained"
-            onClick={handleProceed}
-            disabled={failedAllocations.length > 0}
-            startIcon={<Check size={18} />}
-            color="success"
-          >
-            Proceed to Price Check
-          </Button>
-        )
-      )}
-    </Box>
-  </Box>
-</DialogActions>
-</Dialog>
-);
+
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {failedAllocations.length === 0 && error?.includes('go back to itinerary') && (
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 2, 
+                alignItems: 'center',
+                maxWidth: '500px'
+              }}>
+                <Alert severity="success">
+                  <AlertTitle>All replacements complete!</AlertTitle>
+                  <AlertDescription>
+                    You can now go back to itinerary to view your updated flights and select seats
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    navigate('/itinerary', {
+                      state: {
+                        itineraryToken: tokens.itinerary,
+                        itineraryInquiryToken: tokens.inquiry
+                      }
+                    });
+                  }}
+                  startIcon={<ChevronLeft size={18} />}
+                  color="primary"
+                  fullWidth
+                >
+                  Go Back to Itinerary
+                </Button>
+              </Box>
+            )}
+            
+            {!error?.includes('go back to itinerary') && (
+              !allocationComplete ? (
+                <Button
+                  variant="contained"
+                  onClick={handleConfirm}
+                  disabled={isAllocating}
+                  startIcon={isAllocating ? <CircularProgress size={20} /> : <Check size={18} />}
+                >
+                  {isAllocating ? 'Allocating...' : 'Start Allocation'}
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleProceed}
+                  disabled={failedAllocations.length > 0}
+                  startIcon={<Check size={18} />}
+                  color="success"
+                >
+                  Proceed to Price Check
+                </Button>
+              )
+            )}
+          </Box>
+        </Box>
+      </DialogActions>
+    </Dialog>
+  );
 };
 
 export default ReviewBookingModal;

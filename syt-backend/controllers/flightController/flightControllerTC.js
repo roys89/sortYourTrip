@@ -160,11 +160,8 @@ module.exports = {
       // Filter out flights that exceed 24 hours and are Flexi
       const validFlights = flights.filter((flight) => {
         const totalDuration = FlightUtils.calculateTotalDuration(flight);
-        return (
-          totalDuration <= 24 * 60 && // 24 hours in minutes
-          flight.fareIdentifier.name.toLowerCase() === 'flexi'
-        );
-      });
+        return totalDuration <= 24 * 60; // 24 hours in minutes
+    });
 
       if (!validFlights.length) {
         throw new Error("No Flexi flights found within 24-hour duration limit");

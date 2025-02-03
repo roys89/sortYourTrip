@@ -227,15 +227,16 @@ exports.replaceHotel = async (req, res) => {
       };
     }
 
+    const updatedHotel = itinerary.cities[cityIndex].days[dayIndex].hotels;
     // Save the updated itinerary
-    const updatedItinerary = await itinerary.save();
+    await itinerary.save();
 
     res.json({
       success: true,
       partialSuccess: !transferUpdateStatus.success,
       transferUpdateFailed: !transferUpdateStatus.success,
       message: transferUpdateStatus.message || 'Hotel and related transfers updated successfully',
-      itinerary: updatedItinerary
+      updatedHotel: updatedHotel
     });
 
   } catch (error) {
@@ -663,15 +664,16 @@ exports.replaceFlight = async (req, res) => {
       console.warn('Flight data validation warning:', validationError.message);
     }
 
+    const updatedFlight = currentDay.flights;
     // Save the updated itinerary
-    const updatedItinerary = await itinerary.save();
+    await itinerary.save();
 
     res.json({
       success: true,
       message: 'Flight and related transfers updated successfully',
       partialSuccess: false,
       transferUpdateFailed: false,
-      itinerary: updatedItinerary
+      updatedFlight: updatedFlight
     });
 
   } catch (error) {

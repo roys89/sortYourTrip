@@ -1,17 +1,16 @@
-// services/hotelServices/hotelRecheckService.js
 const axios = require('axios');
 const apiLogger = require('../../helpers/apiLogger');
 
 class HotelRecheckService {
-  static async recheckHotels(hotelQueries, token, inquiryToken) {
+  static async recheckHotels(hotelQueries, token) {
     try {
       const results = [];
       let totalPrice = 0;
 
       for (const query of hotelQueries) {
         try {
-          const url = `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/${query.itineraryCode}/check-price/?traceId=${query.traceId}`;
-
+          const url = `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/${query.itineraryCode}/check-price`;
+          
           const response = await axios.get(
             url,
             {
@@ -20,39 +19,30 @@ class HotelRecheckService {
                 'Content-Type': 'application/json',
                 'source': 'website',
                 'authorization-type': 'external-service'
+              },
+              params: {
+                traceId: query.traceId
               }
             }
           );
 
           // Log the API call
           apiLogger.logApiData({
-            inquiryToken,
+            inquiryToken: query.inquiryToken,
             apiType: 'hotel_price_recheck',
             date: new Date().toISOString().split('T')[0],
             searchId: query.traceId,
-            quotationId: query.itineraryCode,
-            requestData: {},
+            itineraryCode: query.itineraryCode,
+            requestData: {
+              traceId: query.traceId
+            },
             responseData: response.data
           });
 
-          // Process response based on the example response provided
-          const hotelData = response.data.results?.[0]?.data?.[0];
-          if (hotelData) {
-            const newPrice = hotelData.rates?.[0]?.finalRate || 0;
-            totalPrice += newPrice;
-            
-            results.push({
-              itineraryCode: query.itineraryCode,
-              traceId: query.traceId,
-              newPrice,
-              priceChanged: Math.abs(newPrice - query.originalPrice) > 0,
-              difference: newPrice - query.originalPrice,
-              percentageChange: ((newPrice - query.originalPrice) / query.originalPrice) * 100,
-              details: {
-                baseRate: hotelData.rates?.[0]?.baseRate || 0,
-                taxes: hotelData.rates?.[0]?.taxes || []
-              }
-            });
+          const priceData = this.extractPriceData(response.data, query);
+          if (priceData) {
+            totalPrice += priceData.currentTotalAmount;
+            results.push(priceData);
           }
 
         } catch (error) {
@@ -60,12 +50,14 @@ class HotelRecheckService {
           results.push(errorResponse);
 
           apiLogger.logApiData({
-            inquiryToken,
+            inquiryToken: query.inquiryToken,
             apiType: 'hotel_price_recheck_error',
             date: new Date().toISOString().split('T')[0],
             searchId: query.traceId,
-            quotationId: query.itineraryCode,
-            requestData: {},
+            itineraryCode: query.itineraryCode,
+            requestData: {
+              traceId: query.traceId
+            },
             responseData: {
               error: error.response?.data || {},
               message: error.message,
@@ -85,6 +77,42 @@ class HotelRecheckService {
       console.error('Error in HotelRecheckService:', error);
       throw error;
     }
+  }
+
+  static extractPriceData(responseData, query) {
+    const hotelResult = responseData.results?.find(result => 
+      result.itineraryCode === query.itineraryCode
+    );
+
+    if (!hotelResult) return null;
+
+    const { priceChangeData } = hotelResult;
+    const hotelData = hotelResult.data?.[0];
+    const rate = hotelData?.rates?.[0];
+
+    if (!priceChangeData || !rate) return null;
+
+    return {
+      itineraryCode: query.itineraryCode,
+      traceId: query.traceId,
+      status: 'success',
+      priceChangeData: {
+        previousTotalAmount: priceChangeData.previousTotalAmount,
+        currentTotalAmount: priceChangeData.currentTotalAmount,
+        isPriceChanged: priceChangeData.isPriceChanged,
+        priceChangeAmount: priceChangeData.isPriceChanged 
+          ? priceChangeData.currentTotalAmount - priceChangeData.previousTotalAmount 
+          : 0
+      },
+      rateDetails: {
+        baseRate: rate.baseRate,
+        finalRate: rate.finalRate,
+        taxAmount: rate.taxAmount,
+        taxes: rate.taxes || [],
+        refundable: rate.refundable,
+        cancellationPolicies: rate.cancellationPolicies
+      }
+    };
   }
 
   static handlePriceCheckError(error, query) {

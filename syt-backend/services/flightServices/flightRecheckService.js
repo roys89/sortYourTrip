@@ -1,4 +1,3 @@
-// services/flightServices/flightRecheckService.js
 const axios = require('axios');
 const apiLogger = require('../../helpers/apiLogger');
 
@@ -6,11 +5,9 @@ class FlightRecheckService {
   static async recheckFlights(flightQueries, token) {
     try {
       const results = [];
-      let totalPrice = 0;
 
       for (const query of flightQueries) {
         try {
-          // Correct API structure - itineraryCode in URL, only traceId in body
           const url = `https://flight-aggregator-api-sandbox.travclan.com/api/v2/flights/itinerary/${query.itineraryCode}/fare-quote`;
           const payload = {
             traceId: query.traceId
@@ -36,27 +33,48 @@ class FlightRecheckService {
             date: new Date().toISOString().split('T')[0],
             searchId: query.traceId,
             itineraryCode: query.itineraryCode,
-            requestData: {
-              traceId: query.traceId
-            },
+            requestData: payload,
             responseData: response.data
           });
 
-          const fareQuote = response.data.response?.fareQuote;
-          if (this.validateFareQuote(fareQuote)) {
-            totalPrice += fareQuote.finalFare;
-            results.push({
-              itineraryCode: query.itineraryCode,
-              traceId: query.traceId,
-              newPrice: fareQuote.finalFare,
-              details: {
-                baseFare: fareQuote.baseFare,
-                tax: fareQuote.taxAndSurcharge
-              }
-            });
+          if (!response.data.results) {
+            console.error('No results in response:', response.data);
+            throw new Error('Invalid response format');
           }
 
+          const {
+            previousTotalAmount,
+            totalAmount,
+            isPriceChanged,
+            isBaggageChanged,
+            baseFare,
+            taxAndSurcharge,
+            insuranceAmount = 0
+          } = response.data.results;
+
+          results.push({
+            itineraryCode: query.itineraryCode,
+            traceId: query.traceId,
+            status: 'success',
+            previousTotalAmount,
+            totalAmount,
+            isPriceChanged,
+            isBaggageChanged,
+            priceChangeAmount: isPriceChanged ? totalAmount - previousTotalAmount : 0,
+            details: {
+              baseFare,
+              taxAndSurcharge,
+              insuranceAmount
+            }
+          });
+
         } catch (error) {
+          console.error('Error processing flight query:', {
+            itineraryCode: query.itineraryCode,
+            error: error.message,
+            response: error.response?.data
+          });
+
           const errorResponse = this.handleFareQuoteError(error, query);
           results.push(errorResponse);
 
@@ -66,9 +84,7 @@ class FlightRecheckService {
             date: new Date().toISOString().split('T')[0],
             searchId: query.traceId,
             itineraryCode: query.itineraryCode,
-            requestData: {
-              traceId: query.traceId
-            },
+            requestData: { traceId: query.traceId },
             responseData: {
               error: error.response?.data || {},
               message: error.message,
@@ -79,8 +95,13 @@ class FlightRecheckService {
         }
       }
 
+      // Calculate total from successful results only
+      const totalAmount = results
+        .filter(result => result.status === 'success')
+        .reduce((sum, result) => sum + (result.totalAmount || 0), 0);
+
       return {
-        total: totalPrice,
+        total: totalAmount,
         details: results
       };
 
@@ -90,21 +111,12 @@ class FlightRecheckService {
     }
   }
 
-  // Rest of the class remains the same
-  static validateFareQuote(fareQuote) {
-    if (!fareQuote) return false;
-    if (!fareQuote.baseFare || !fareQuote.taxAndSurcharge || !fareQuote.finalFare) {
-      return false;
-    }
-    return true;
-  }
-
   static handleFareQuoteError(error, query) {
     const errorResponse = {
       itineraryCode: query.itineraryCode,
       traceId: query.traceId,
       status: 'error',
-      message: error.message
+      message: error.message || 'Unknown error occurred'
     };
 
     if (error.response?.data?.error?.errorCode === '1000') {
@@ -113,6 +125,10 @@ class FlightRecheckService {
     } else if (error.response?.status === 429) {
       errorResponse.message = 'Too many requests. Please try again later';
       errorResponse.type = 'RATE_LIMIT';
+    } else if (!error.response) {
+      errorResponse.type = 'NETWORK_ERROR';
+    } else {
+      errorResponse.type = 'API_ERROR';
     }
 
     return errorResponse;

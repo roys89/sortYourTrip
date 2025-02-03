@@ -1,39 +1,38 @@
-// components/PriceChangeModal/PriceChangeModal.js
+// components/PriceCheckModal/PriceCheckModal.js
 import {
-    Alert,
-    AlertTitle,
-    Box,
-    Button,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    IconButton,
-    Tooltip,
-    Typography
+  Alert,
+  AlertTitle,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  Tooltip,
+  Typography
 } from "@mui/material";
 import {
-    AlertTriangle,
-    ArrowRight,
-    Check,
-    Hotel,
-    Minus,
-    Plane,
-    Plus,
-    RefreshCw,
-    X
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  Hotel,
+  Minus,
+  Plane,
+  Plus,
+  RefreshCw,
+  X
 } from "lucide-react";
 import React, { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-    recheckActivityPrices,
-    recheckFlightPrices,
-    recheckHotelPrices,
-    resetPriceCheck,
-    selectFlightProgress,
-    selectHotelProgress
+  recheckFlightPrices,
+  recheckHotelPrices,
+  resetPriceCheck,
+  selectFlightProgress,
+  selectHotelProgress
 } from '../../redux/slices/priceCheckSlice';
 
 const FlightProgressRow = ({ flight, isChecking, result, error, onRetry }) => (
@@ -178,7 +177,7 @@ const PriceChangeRow = ({ label, original = 0, current = 0, isLoading, error, on
   );
 };
 
-const PriceChangeModal = ({
+const PriceCheckModal = ({
   open,
   onClose,
   onConfirm,
@@ -194,12 +193,23 @@ const PriceChangeModal = ({
   // Initialize price checks when modal opens
   const initiatePriceChecks = useCallback(async () => {
     try {
-      // Extract all flights from the itinerary
+      console.log('Itinerary received:', itinerary);
+      
+      // Extract all flights and hotels from the itinerary 
       const allFlights = itinerary.cities.flatMap(city => 
         city.days.flatMap(day => day.flights || [])
       );
-
-      // Start price checks in parallel
+      
+      const allHotels = itinerary.cities.flatMap(city => 
+        city.days.flatMap(day => day.hotels || [])
+      );
+      
+      console.log('Extracted hotels:', allHotels);
+      if(allHotels.length > 0) {
+        console.log('Sample hotel structure:', JSON.stringify(allHotels[0]));
+      }
+  
+      // Start price checks in parallel (removed activities)
       await Promise.all([
         dispatch(recheckFlightPrices({ 
           itineraryToken: itinerary.itineraryToken, 
@@ -208,17 +218,15 @@ const PriceChangeModal = ({
         })),
         dispatch(recheckHotelPrices({ 
           itineraryToken: itinerary.itineraryToken, 
-          inquiryToken: tokens.inquiry 
-        })),
-        dispatch(recheckActivityPrices({ 
-          itineraryToken: itinerary.itineraryToken, 
-          inquiryToken: tokens.inquiry 
+          inquiryToken: tokens.inquiry,
+          hotels: allHotels
         }))
       ]);
     } catch (error) {
       console.error('Error checking prices:', error);
     }
   }, [dispatch, itinerary, tokens.inquiry]);
+  
 
   // Effect to handle modal open/close
   useEffect(() => {
@@ -238,8 +246,7 @@ const PriceChangeModal = ({
       return {
         newPrices: {
           flights: 0,
-          hotels: 0,
-          activities: 0
+          hotels: 0
         },
         total: {
           original: 0,
@@ -250,23 +257,22 @@ const PriceChangeModal = ({
         }
       };
     }
-
+  
     const newPrices = {
       flights: priceCheck.flights.data?.newPrice || originalPrices.flights || 0,
-      hotels: priceCheck.hotels.data?.total || originalPrices.hotels || 0,
-      activities: priceCheck.activities.data?.newPrice || originalPrices.activities || 0
+      hotels: priceCheck.hotels.data?.total || originalPrices.hotels || 0
     };
-
+  
     const total = {
       original: originalPrices.grandTotal || 0,
       new: Object.values(newPrices).reduce((sum, val) => sum + (val || 0), 0),
       hasPriceChanges: false
     };
-
+  
     total.difference = total.new - total.original;
     total.percentageChange = total.original ? ((total.new - total.original) / total.original) * 100 : 0;
     total.hasPriceChanges = total.difference !== 0;
-
+  
     return { newPrices, total };
   }, [originalPrices, priceCheck]);
 
@@ -284,21 +290,18 @@ const PriceChangeModal = ({
             flights: allFlights
           }));
           break;
-
+  
         case 'hotels':
+          const allHotels = itinerary.cities.flatMap(city => 
+            city.days.flatMap(day => day.hotels || [])
+          );
           await dispatch(recheckHotelPrices({ 
             itineraryToken: itinerary.itineraryToken, 
-            inquiryToken: tokens.inquiry 
+            inquiryToken: tokens.inquiry,
+            hotels: allHotels
           }));
           break;
-
-        case 'activities':
-          await dispatch(recheckActivityPrices({ 
-            itineraryToken: itinerary.itineraryToken, 
-            inquiryToken: tokens.inquiry 
-          }));
-          break;
-
+  
         default:
           await initiatePriceChecks();
       }
@@ -307,13 +310,9 @@ const PriceChangeModal = ({
     }
   };
 
-  const isLoading = priceCheck.flights.loading || 
-                   priceCheck.hotels.loading || 
-                   priceCheck.activities.loading;
+  const isLoading = priceCheck.flights.loading || priceCheck.hotels.loading;
 
-  const hasErrors = priceCheck.flights.error || 
-                   priceCheck.hotels.error || 
-                   priceCheck.activities.error;
+  const hasErrors = priceCheck.flights.error || priceCheck.hotels.error;
 
   const { newPrices, total } = calculateTotalChanges();
 
@@ -434,17 +433,6 @@ const PriceChangeModal = ({
             </Box>
           )}
         </PriceChangeRow>
-
-        <Divider />
-
-        <PriceChangeRow 
-          label="Activities"
-          original={originalPrices?.activities}
-          current={newPrices.activities}
-          isLoading={priceCheck.activities.loading}
-          error={priceCheck.activities.error}
-          onRetry={() => handleRetry('activities')}
-        />
       </Box>
 
       {!isLoading && (
@@ -509,4 +497,4 @@ const PriceChangeModal = ({
 );
 };
 
-export default PriceChangeModal;
+export default PriceCheckModal;

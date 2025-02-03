@@ -93,69 +93,95 @@ export const recheckFlightPrices = createAsyncThunk(
   }
 );
 
+const extractHotelDetails = (hotel) => ({
+  traceId: hotel.data.traceId,
+  itineraryCode: hotel.data.code,  
+  name: hotel.data.hotelDetails.name,
+  roomType: hotel.data.items[0]?.selectedRoomsAndRates[0]?.room?.name,
+  originalPrice: hotel.data.items[0]?.selectedRoomsAndRates[0]?.rate?.finalRate
+});
+
 export const recheckHotelPrices = createAsyncThunk(
   'priceCheck/hotels',
-  async ({ itineraryToken, inquiryToken }, { dispatch, rejectWithValue }) => {
+  async ({ itineraryToken, inquiryToken, hotels }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await axios.post(
-        `http://localhost:5000/api/itinerary/${itineraryToken}/recheck-hotels`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'X-Inquiry-Token': inquiryToken
-          }
-        }
-      );
-
-      const hotelData = response.data.data;
-
-      // Process hotel results
-      if (hotelData.details && Array.isArray(hotelData.details)) {
-        hotelData.details.forEach(hotel => {
+      const results = [];
+      let totalNewPrice = 0;
+      
+      for (const hotel of hotels) {
+        const hotelDetails = extractHotelDetails(hotel);
+        
+        try {
           dispatch(updateHotelCheckProgress({
-            currentHotel: {
-              traceId: hotel.traceId,
-              name: hotel.hotelName,
-              roomType: hotel.roomType
+            currentHotel: hotelDetails,
+            isChecking: true
+          }));
+
+          const response = await axios.post(
+            `http://localhost:5000/api/itinerary/${itineraryToken}/recheck-hotels`,
+            { 
+              hotelQueries: [
+                {
+                  traceId: hotelDetails.traceId,
+                  itineraryCode: hotelDetails.itineraryCode
+                }
+              ]
             },
-            result: {
-              ...hotel,
-              status: 'completed'
-            },
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-Inquiry-Token': inquiryToken
+              }
+            }
+          );
+
+          const hotelResult = {
+            ...hotelDetails,
+            newPrice: response.data.data.newPrice,
+            priceChanged: response.data.data.priceChanged,
+            difference: response.data.data.difference,
+            percentageChange: response.data.data.percentageChange,
+            status: 'completed'
+          };
+
+          totalNewPrice += response.data.data.newPrice;
+          results.push(hotelResult);
+
+          dispatch(updateHotelCheckProgress({
+            currentHotel: hotelDetails,
+            result: hotelResult,
             isChecking: false,
             isCompleted: true
           }));
-        });
+
+        } catch (error) {
+          results.push({
+            ...hotelDetails,
+            error: error.response?.data?.message || error.message,
+            status: 'failed'
+          });
+
+          dispatch(updateHotelCheckProgress({
+            currentHotel: hotelDetails,
+            error: error.response?.data?.message || error.message,
+            isChecking: false,
+            isCompleted: true
+          }));
+        }
       }
 
-      return response.data;
+      return {
+        results,
+        total: totalNewPrice
+      };
+
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
 
-export const recheckActivityPrices = createAsyncThunk(
-  'priceCheck/activities',
-  async ({ itineraryToken, inquiryToken }, { rejectWithValue }) => {
-    try {
-      const response = await axios.post(
-        `http://localhost:5000/api/itinerary/${itineraryToken}/recheck-activities`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'X-Inquiry-Token': inquiryToken
-          }
-        }
-      );
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
-    }
-  }
-);
+
 
 // Initial state
 const initialState = {
@@ -182,12 +208,6 @@ const initialState = {
       completed: false,
       isChecking: false
     }
-  },
-  activities: {
-    loading: false,
-    error: null,
-    data: null,
-    retryCount: 0
   },
   overallStatus: 'idle' // idle, checking, completed, failed
 };
@@ -283,21 +303,6 @@ const priceCheckSlice = createSlice({
         state.hotels.error = action.payload;
         state.hotels.progress.completed = true;
       })
-
-      // Activity reducers
-      .addCase(recheckActivityPrices.pending, (state) => {
-        state.activities.loading = true;
-        state.activities.error = null;
-      })
-      .addCase(recheckActivityPrices.fulfilled, (state, action) => {
-        state.activities.loading = false;
-        state.activities.data = action.payload;
-        state.activities.error = null;
-      })
-      .addCase(recheckActivityPrices.rejected, (state, action) => {
-        state.activities.loading = false;
-        state.activities.error = action.payload;
-      });
   }
 });
 

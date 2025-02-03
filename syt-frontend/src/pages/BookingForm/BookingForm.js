@@ -28,7 +28,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import Summary from "../../components/BookingSummary/BookingSummary";
-import PriceChangeModal from "../../components/PriceChangeModal/PriceChangeModal";
+import PriceCheckModal from "../../components/PriceCheckModal/PriceCheckModal";
 import ReviewBookingModal from "../../components/ReviewBookingModal/ReviewBookingModal";
 import { createBooking } from "../../redux/slices/bookingSlice";
 import { resetPriceCheck } from "../../redux/slices/priceCheckSlice";
@@ -60,7 +60,7 @@ const BookingForm = () => {
   
   const [showReviewModal, setShowReviewModal] = useState(false);
 
-  const [showPriceChangeModal, setShowPriceChangeModal] = useState(false);
+  const [showPriceCheckModal, setShowPriceCheckModal] = useState(false);
 
   // Local state
   const [countries, setCountries] = useState([]);
@@ -498,7 +498,7 @@ const handleSubmit = async (e) => {
   
   // Handle modal close
   const handleModalClose = () => {
-    setShowPriceChangeModal(false);
+    setShowPriceCheckModal(false);
     dispatch(resetPriceCheck());
   };
 
@@ -1375,12 +1375,12 @@ const handleSubmit = async (e) => {
   tokens={tokens}
   onAllocationComplete={() => {
     setShowReviewModal(false);
-    setShowPriceChangeModal(true);
+    setShowPriceCheckModal(true);
   }}
 />
 
-   <PriceChangeModal
-        open={showPriceChangeModal}
+   <PriceCheckModal
+        open={showPriceCheckModal}
         onClose={handleModalClose}
         onConfirm={proceedWithBooking}
         itinerary={itinerary}

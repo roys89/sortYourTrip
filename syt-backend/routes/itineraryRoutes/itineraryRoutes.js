@@ -44,11 +44,10 @@ const {
   createActivityBookingReference,
 } = require("../../controllers/activityController/activityControllerGRNC");
 
-const hotelRecheckController = require('../../controllers/hotelRecheckController');
 
 const {
   // recheckActivityPrices,
-  // recheckHotelPrices,
+  recheckHotelPrices,
   recheckFlightPrices,
 } = require("../../controllers/priceRecheckController");
 
@@ -217,6 +216,8 @@ router.post(
 //   recheckActivityPrices
 // );
 
-router.post('/:itineraryToken/recheck-hotels', hotelRecheckController.recheckHotelPrices);
+router.post('/:itineraryToken/recheck-hotels', checkAuth,
+  checkInquiryToken,
+  recheckHotelPrices);
 
 module.exports = router;

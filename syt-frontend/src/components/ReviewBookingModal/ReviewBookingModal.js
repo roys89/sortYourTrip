@@ -94,48 +94,38 @@ const HotelReplacementHandler = ({ failedHotel, itinerary, tokens, onReplaceSucc
   const handleHotelReplacement = async () => {
     try {
       setIsReplacing(true);
-  
-      console.log("Failed Hotel Details:", JSON.stringify(failedHotel, null, 2));
-  
-      // Determine the correct way to access hotel details
-      const hotelDetails = failedHotel.data 
-        ? failedHotel.data.staticContent[0] 
-        : failedHotel.details 
-        ? failedHotel.details 
-        : failedHotel;
-  
-      console.log("Extracted Hotel Details:", hotelDetails);
-  
+      
+      // Get the correct hotel details structure
+      const hotelData = failedHotel.details?.data || failedHotel.details;
+      
       // 1. Search for replacement hotel
       const searchResult = await dispatch(searchReplacementHotel({
         failedHotel,
         itinerary,
         inquiryToken: tokens.inquiry
       })).unwrap();
-  
-      const newHotelDetails = [{
-        ...searchResult.data,
-        checkIn: hotelDetails.checkIn,
-        checkOut: hotelDetails.checkOut
-      }];
       
       // 2. Update itinerary with new hotel
       const result = await dispatch(updateItineraryHotel({
         itineraryToken: tokens.itinerary,
-        date: hotelDetails.checkIn,
-        newHotelDetails: newHotelDetails[0],
-        checkIn: hotelDetails.checkIn,
-        checkout: hotelDetails.checkOut,
+        date: hotelData.checkIn || hotelData.searchRequestLog.checkIn,
+        newHotelDetails: searchResult.data,
+        checkIn: hotelData.checkIn || hotelData.searchRequestLog.checkIn,
+        checkout: hotelData.checkOut || hotelData.searchRequestLog.checkOut,
         inquiryToken: tokens.inquiry
       })).unwrap();
-  
+
       if (result.success) {
-        // Pass the replaced hotel details to onReplaceSuccess
-        onReplaceSuccess(newHotelDetails[0]);
+        // Create a properly structured hotel object for removal comparison
+        const replacedHotel = {
+          id: searchResult.data.staticContent?.[0]?.id || hotelData.staticContent?.[0]?.id,
+          name: searchResult.data.hotelDetails?.name || hotelData.hotelDetails?.name
+        };
+        onReplaceSuccess(replacedHotel);
       } else {
         throw new Error('Failed to update itinerary with new hotel');
       }
-  
+
     } catch (error) {
       console.error('Error replacing hotel:', error);
     } finally {

@@ -442,37 +442,32 @@ const handleSubmit = async (e) => {
 };
 
 // Add new function for handling review confirmation
-
+const priceCheck = useSelector(state => state.priceCheck);
   // Separate function for the actual booking process
   const proceedWithBooking = async () => {
     try {
       setLoading(true);
       setError(null);
   
-      const transformedTravelersDetails = {
-        type: itinerary.travelersDetails.type,
-        rooms: formData.rooms.map((room) => {
-          const adults = room.travelers
-            .filter((t) => t.type === "adult")
-            .map((t) => t.age);
+      // Use the updated itinerary from price check if prices changed
+      const finalItinerary = priceCheck.priceSummary?.updatedItinerary || itinerary;
   
-          const children = room.travelers
-            .filter((t) => t.type === "child")
-            .map((t) => t.age);
-  
-          return {
-            adults,
-            children,
-          };
-        }),
-      };
-  
-      const bookingData = transformBookingData(itinerary, {
-        bookingId: generateBookingId(), // Regenerate booking ID for final booking
+      const bookingData = transformBookingData(finalItinerary, {
+        bookingId: generateBookingId(),
         travelers: formData.rooms.flatMap((room) => room.travelers),
         rooms: formData.rooms,
         specialRequirements: formData.specialRequirements,
-        travelersDetails: transformedTravelersDetails,
+        travelersDetails: {
+          type: finalItinerary.travelersDetails.type,
+          rooms: formData.rooms.map((room) => ({
+            adults: room.travelers
+              .filter((t) => t.type === "adult")
+              .map((t) => parseInt(t.age)),
+            children: room.travelers
+              .filter((t) => t.type === "child")
+              .map((t) => parseInt(t.age))
+          }))
+        }
       });
   
       const result = await dispatch(createBooking(bookingData)).unwrap();
@@ -484,7 +479,7 @@ const handleSubmit = async (e) => {
           state: {
             bookingId: result.data.bookingId,
             bookingData: result.data,
-            itinerary: itinerary,
+            itinerary: finalItinerary, // Use updated itinerary
           },
         });
       }, 1500);

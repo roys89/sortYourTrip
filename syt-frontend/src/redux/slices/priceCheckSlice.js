@@ -1,4 +1,3 @@
-// redux/slices/priceCheckSlice.js
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 
@@ -12,7 +11,6 @@ const extractFlightDetails = (flight) => ({
   originalPrice: flight.flightData.price || flight.flightData.fareDetails?.finalFare
 });
 
-// Thunks
 export const recheckFlightPrices = createAsyncThunk(
   'priceCheck/flights',
   async ({ itineraryToken, inquiryToken, flights }, { dispatch, rejectWithValue }) => {
@@ -47,16 +45,25 @@ export const recheckFlightPrices = createAsyncThunk(
             }
           );
 
+          // Extract flight data from the response
+          const flightData = response.data.data.details[0];
+          const newPrice = flightData.totalAmount;
+          const priceChanged = flightData.isPriceChanged;
+          const difference = newPrice - flightDetails.originalPrice;
+          const percentageChange = (difference / flightDetails.originalPrice) * 100;
+
           const flightResult = {
             ...flightDetails,
-            newPrice: response.data.data.newPrice,
-            priceChanged: response.data.data.priceChanged,
-            difference: response.data.data.difference,
-            percentageChange: response.data.data.percentageChange,
+            newPrice: newPrice,
+            priceChanged: priceChanged,
+            difference: difference,
+            percentageChange: percentageChange,
+            baseFare: flightData.details.baseFare,
+            taxAndSurcharge: flightData.details.taxAndSurcharge,
             status: 'completed'
           };
 
-          totalNewPrice += response.data.data.newPrice;
+          totalNewPrice += newPrice;
           results.push(flightResult);
 
           dispatch(updateFlightCheckProgress({
@@ -135,16 +142,25 @@ export const recheckHotelPrices = createAsyncThunk(
             }
           );
 
+          // Extract hotel data from the response
+          const hotelData = response.data.data.details[0];
+          const newPrice = hotelData.priceChangeData.currentTotalAmount;
+          const priceChanged = hotelData.priceChangeData.isPriceChanged;
+          const difference = newPrice - hotelDetails.originalPrice;
+          const percentageChange = (difference / hotelDetails.originalPrice) * 100;
+
           const hotelResult = {
             ...hotelDetails,
-            newPrice: response.data.data.newPrice,
-            priceChanged: response.data.data.priceChanged,
-            difference: response.data.data.difference,
-            percentageChange: response.data.data.percentageChange,
+            newPrice: newPrice,
+            priceChanged: priceChanged,
+            difference: difference,
+            percentageChange: percentageChange,
+            baseRate: hotelData.rateDetails.baseRate,
+            finalRate: hotelData.rateDetails.finalRate,
             status: 'completed'
           };
 
-          totalNewPrice += response.data.data.newPrice;
+          totalNewPrice += newPrice;
           results.push(hotelResult);
 
           dispatch(updateHotelCheckProgress({
@@ -180,10 +196,7 @@ export const recheckHotelPrices = createAsyncThunk(
     }
   }
 );
-
-
-
-// Initial state
+// Initial state with priceSummary
 const initialState = {
   flights: {
     loading: false,
@@ -208,6 +221,13 @@ const initialState = {
       completed: false,
       isChecking: false
     }
+  },
+  priceSummary: {
+    originalTotals: null,
+    newTotals: null,
+    difference: 0,
+    percentageChange: 0,
+    hasPriceChanged: false
   },
   overallStatus: 'idle' // idle, checking, completed, failed
 };
@@ -264,6 +284,14 @@ const priceCheckSlice = createSlice({
         error: error || null,
         completed: isCompleted || false
       };
+    },
+
+    // New reducer to update price summary
+    updatePriceSummary: (state, action) => {
+      state.priceSummary = {
+        ...state.priceSummary,
+        ...action.payload
+      };
     }
   },
   extraReducers: (builder) => {
@@ -312,7 +340,8 @@ export const {
   resetComponentState,
   incrementRetryCount,
   updateFlightCheckProgress,
-  updateHotelCheckProgress
+  updateHotelCheckProgress,
+  updatePriceSummary
 } = priceCheckSlice.actions;
 
 // Selectors

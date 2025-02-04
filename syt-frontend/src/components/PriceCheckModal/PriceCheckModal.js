@@ -1,4 +1,3 @@
-// components/PriceCheckModal/PriceCheckModal.js
 import {
   Alert,
   AlertTitle,
@@ -32,9 +31,12 @@ import {
   recheckHotelPrices,
   resetPriceCheck,
   selectFlightProgress,
-  selectHotelProgress
+  selectHotelProgress,
+  updatePriceSummary
 } from '../../redux/slices/priceCheckSlice';
+import { getPriceCheckSummary } from '../../utils/priceCalculations';
 
+// FlightProgressRow component
 const FlightProgressRow = ({ flight, isChecking, result, error, onRetry }) => (
   <Box className="flex justify-between items-center p-2 bg-gray-50 rounded-md mb-2">
     <Box className="flex items-center gap-2">
@@ -49,7 +51,7 @@ const FlightProgressRow = ({ flight, isChecking, result, error, onRetry }) => (
     ) : error ? (
       <Box className="flex items-center gap-2">
         <Typography color="error" variant="body2">
-          {error.response?.data?.error?.error?.errorCode === 6 
+          {error.response?.data?.error?.errorCode === 6 
             ? "Flight expired" 
             : "Error checking price"}
         </Typography>
@@ -80,6 +82,7 @@ const FlightProgressRow = ({ flight, isChecking, result, error, onRetry }) => (
   </Box>
 );
 
+// HotelProgressRow component
 const HotelProgressRow = ({ hotel, isChecking, result, error, onRetry }) => (
   <Box className="flex justify-between items-center p-2 bg-gray-50 rounded-md mb-2">
     <Box className="flex items-center gap-2">
@@ -128,6 +131,7 @@ const HotelProgressRow = ({ hotel, isChecking, result, error, onRetry }) => (
   </Box>
 );
 
+// PriceChangeRow component 
 const PriceChangeRow = ({ label, original = 0, current = 0, isLoading, error, onRetry, children }) => {
   const difference = (current || 0) - (original || 0);
   const percentageChange = original ? ((current - original) / original) * 100 : 0;
@@ -150,7 +154,7 @@ const PriceChangeRow = ({ label, original = 0, current = 0, isLoading, error, on
         {!isLoading && !error ? (
           <Box className="flex items-center gap-4">
             <Typography className="text-gray-600">
-              ₹{original.toLocaleString()}
+              ₹{(original || 0).toLocaleString()}
             </Typography>
             <ArrowRight className="text-gray-400" size={20} />
             <Typography 
@@ -158,7 +162,7 @@ const PriceChangeRow = ({ label, original = 0, current = 0, isLoading, error, on
                 difference > 0 ? 'text-red-500' : difference < 0 ? 'text-green-500' : 'text-gray-600'
               }`}
             >
-              ₹{current.toLocaleString()}
+              ₹{(current || 0).toLocaleString()}
               {difference !== 0 && (
                 <span className="ml-2 text-sm">
                   ({difference > 0 ? '+' : ''}{percentageChange.toFixed(1)}%)
@@ -186,15 +190,13 @@ const PriceCheckModal = ({
 }) => {
   const dispatch = useDispatch();
   const priceCheck = useSelector(state => state.priceCheck);
+  const { markups, tcsRates } = useSelector(state => state.markup);
   const flightProgress = useSelector(selectFlightProgress);
   const hotelProgress = useSelector(selectHotelProgress);
-  const originalPrices = itinerary?.priceTotals;
 
   // Initialize price checks when modal opens
   const initiatePriceChecks = useCallback(async () => {
     try {
-      console.log('Itinerary received:', itinerary);
-      
       // Extract all flights and hotels from the itinerary 
       const allFlights = itinerary.cities.flatMap(city => 
         city.days.flatMap(day => day.flights || [])
@@ -204,13 +206,8 @@ const PriceCheckModal = ({
         city.days.flatMap(day => day.hotels || [])
       );
       
-      console.log('Extracted hotels:', allHotels);
-      if(allHotels.length > 0) {
-        console.log('Sample hotel structure:', JSON.stringify(allHotels[0]));
-      }
-  
-      // Start price checks in parallel (removed activities)
-      await Promise.all([
+      // Start price checks in parallel
+      const [flightResults, hotelResults] = await Promise.all([
         dispatch(recheckFlightPrices({ 
           itineraryToken: itinerary.itineraryToken, 
           inquiryToken: tokens.inquiry,
@@ -222,11 +219,23 @@ const PriceCheckModal = ({
           hotels: allHotels
         }))
       ]);
+
+      // Calculate comprehensive price summary
+      const summary = getPriceCheckSummary(
+        itinerary, 
+        flightResults.payload, 
+        hotelResults.payload, 
+        markups, 
+        tcsRates
+      );
+
+      // Dispatch the price summary
+      dispatch(updatePriceSummary(summary));
+
     } catch (error) {
       console.error('Error checking prices:', error);
     }
-  }, [dispatch, itinerary, tokens.inquiry]);
-  
+  }, [dispatch, itinerary, tokens.inquiry, markups, tcsRates]);
 
   // Effect to handle modal open/close
   useEffect(() => {
@@ -239,42 +248,6 @@ const PriceCheckModal = ({
       }
     };
   }, [open, dispatch, initiatePriceChecks]);
-
-  // Calculate total changes in prices
-  const calculateTotalChanges = useCallback(() => {
-    if (!originalPrices) {
-      return {
-        newPrices: {
-          flights: 0,
-          hotels: 0
-        },
-        total: {
-          original: 0,
-          new: 0,
-          hasPriceChanges: false,
-          difference: 0,
-          percentageChange: 0
-        }
-      };
-    }
-  
-    const newPrices = {
-      flights: priceCheck.flights.data?.newPrice || originalPrices.flights || 0,
-      hotels: priceCheck.hotels.data?.total || originalPrices.hotels || 0
-    };
-  
-    const total = {
-      original: originalPrices.grandTotal || 0,
-      new: Object.values(newPrices).reduce((sum, val) => sum + (val || 0), 0),
-      hasPriceChanges: false
-    };
-  
-    total.difference = total.new - total.original;
-    total.percentageChange = total.original ? ((total.new - total.original) / total.original) * 100 : 0;
-    total.hasPriceChanges = total.difference !== 0;
-  
-    return { newPrices, total };
-  }, [originalPrices, priceCheck]);
 
   // Handle retries
   const handleRetry = async (type) => {
@@ -311,10 +284,17 @@ const PriceCheckModal = ({
   };
 
   const isLoading = priceCheck.flights.loading || priceCheck.hotels.loading;
-
   const hasErrors = priceCheck.flights.error || priceCheck.hotels.error;
 
-  const { newPrices, total } = calculateTotalChanges();
+  // Safe access to price summary
+  const priceSummary = priceCheck.priceSummary;
+  const total = {
+    original: priceSummary?.originalTotals?.grandTotal || 0,
+    new: priceSummary?.newTotals?.grandTotal || 0,
+    difference: priceSummary?.difference || 0,
+    percentageChange: priceSummary?.percentageChange || 0,
+    hasPriceChanges: priceSummary?.hasPriceChanged || false
+  };
 
   const canProceed = !isLoading && !hasErrors;
 
@@ -344,10 +324,10 @@ const PriceCheckModal = ({
           </IconButton>
         </Box>
       </DialogTitle>
-
+  
       <DialogContent>
         <Alert 
-          severity={isLoading ? "info" : total.difference > 0 ? "warning" : "success"}
+          severity={isLoading ? "info" : total.hasPriceChanges ? "warning" : "success"}
           className="mb-4"
         >
           <AlertTitle>
@@ -367,23 +347,23 @@ const PriceCheckModal = ({
               : "You can proceed with your booking at the same prices."
           }
         </Alert>
-
+  
         {hasErrors && (
           <Alert severity="error" className="mb-4">
             <AlertTitle>Some price checks failed</AlertTitle>
             Please retry or proceed with caution as some prices couldn't be verified.
           </Alert>
         )}
-
+  
         <Box className="space-y-2 mb-6">
-          <PriceChangeRow 
-            label="Flights"
-            original={originalPrices?.flights}
-            current={newPrices.flights}
-            isLoading={priceCheck.flights.loading}
-            error={priceCheck.flights.error}
-            onRetry={() => handleRetry('flights')}
-          >
+        <PriceChangeRow 
+      label="Flights"
+      original={priceCheck.flights.data?.results?.map(r => r.originalPrice)?.[0] || 0}
+      current={priceCheck.flights.data?.results?.map(r => r.newPrice)?.[0] || 0}
+      isLoading={priceCheck.flights.loading}
+      error={priceCheck.flights.error}
+      onRetry={() => handleRetry('flights')}
+    >
             {flightProgress.currentFlight && (
               <Box className="ml-4 border-l-2 pl-4 space-y-2">
                 <FlightProgressRow 
@@ -403,17 +383,17 @@ const PriceCheckModal = ({
               </Box>
             )}
           </PriceChangeRow>
-
+  
           <Divider />
-
+  
           <PriceChangeRow 
-            label="Hotels"
-            original={originalPrices?.hotels}
-            current={newPrices.hotels}
-            isLoading={priceCheck.hotels.loading}
-            error={priceCheck.hotels.error}
-            onRetry={() => handleRetry('hotels')}
-          >
+      label="Hotels"
+      original={priceCheck.hotels.data?.results?.map(r => r.originalPrice)?.[0] || 0}
+      current={priceCheck.hotels.data?.results?.map(r => r.newPrice)?.[0] || 0}
+      isLoading={priceCheck.hotels.loading}
+      error={priceCheck.hotels.error}
+      onRetry={() => handleRetry('hotels')}
+    >
             {hotelProgress.currentHotel && (
               <Box className="ml-4 border-l-2 pl-4 space-y-2">
                 <HotelProgressRow 
@@ -423,78 +403,123 @@ const PriceCheckModal = ({
                 />
                 {hotelProgress.results.map((result, idx) => (
                   <HotelProgressRow 
-                  key={`${result.traceId}-${idx}`}
-                  hotel={result}
-                  result={result}
-                  error={result.error}
-                  onRetry={handleRetry}
-                />
-              ))}
-            </Box>
-          )}
-        </PriceChangeRow>
-      </Box>
-
-      {!isLoading && (
-        <Box className="bg-gray-50 p-4 rounded-lg">
-          <Typography variant="h6" className="mb-2">
-            Total Price Summary
-          </Typography>
-          <Box className="flex justify-between items-center">
-            <Typography>Original Total:</Typography>
-            <Typography>₹{total.original.toLocaleString()}</Typography>
-          </Box>
-          <Box className="flex justify-between items-center mt-1">
-            <Typography>New Total:</Typography>
-            <Typography className="font-bold">
-              ₹{total.new.toLocaleString()}
-            </Typography>
-          </Box>
-          {total.hasPriceChanges && (
-            <Box className="flex justify-end mt-2">
-              <Typography 
-                className={`font-medium ${
-                  total.difference > 0 ? 'text-red-500' : 'text-green-500'
-                }`}
-              >
-                {total.difference > 0 ? <Plus size={16} /> : <Minus size={16} />}
-                ₹{Math.abs(total.difference).toLocaleString()}
-                <span className="ml-2">
-                  ({total.percentageChange > 0 ? '+' : ''}{total.percentageChange.toFixed(1)}%)
-                </span>
+                    key={`${result.traceId}-${idx}`}
+                    hotel={result}
+                    result={result}
+                    error={result.error}
+                    onRetry={handleRetry}
+                  />
+                ))}
+              </Box>
+            )}
+          </PriceChangeRow>
+  
+          {!isLoading && priceSummary && priceSummary.originalTotals?.segmentBaseTotals && (
+            <Box className="bg-gray-50 p-4 rounded-lg mt-4">
+              <Typography variant="h6" className="mb-3">
+                Detailed Segment Breakdown
               </Typography>
+              {Object.entries(priceSummary.originalTotals.segmentBaseTotals || {}).map(([segment, originalPrice]) => {
+                const newPrice = priceSummary.newTotals?.segmentBaseTotals?.[segment] || 0;
+                const percentageChange = originalPrice && originalPrice !== 0
+                  ? ((newPrice - originalPrice) / originalPrice * 100).toFixed(1)
+                  : '0';
+  
+                return (
+                  <Box 
+                    key={segment} 
+                    className="flex justify-between items-center p-2 bg-white rounded-md mb-2"
+                  >
+                    <Typography className="capitalize font-medium">
+                      {segment.replace('_', ' ')}
+                    </Typography>
+                    <Typography 
+                      className={`
+                        ${newPrice !== originalPrice 
+                          ? (newPrice > originalPrice 
+                            ? 'text-red-500' 
+                            : 'text-green-500') 
+                          : ''
+                        }
+                      `}
+                    >
+                      ₹{newPrice.toLocaleString()}
+                      {newPrice !== originalPrice && (
+                        <span className="ml-2 text-xs">
+                          ({newPrice > originalPrice ? '+' : ''}{percentageChange}%)
+                        </span>
+                      )}
+                    </Typography>
+                  </Box>
+                );
+              })}
             </Box>
           )}
         </Box>
-      )}
-    </DialogContent>
-
-    <DialogActions className="p-4">
-      <Button
-        variant="outlined"
-        onClick={onClose}
-        startIcon={<X size={18} />}
-        disabled={isLoading}
-      >
-        Cancel
-      </Button>
-      <Button
-        variant="contained"
-        onClick={onConfirm}
-        disabled={!canProceed || isLoading}
-        startIcon={<Check size={18} />}
-        color={total.difference > 0 ? "warning" : "primary"}
-      >
-        {isLoading
-          ? "Checking Prices..."
-          : total.hasPriceChanges 
-            ? `Proceed with New Prices (${total.difference > 0 ? '+' : ''}${total.percentageChange.toFixed(1)}%)`
-            : "Continue Booking"
-        }
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+  
+        {!isLoading && priceSummary && (
+          <Box className="bg-gray-50 p-4 rounded-lg">
+            <Typography variant="h6" className="mb-2">
+              Total Price Summary
+            </Typography>
+            <Box className="flex justify-between items-center">
+              <Typography>Original Total:</Typography>
+              <Typography>
+                ₹{(priceSummary.originalTotals?.grandTotal || 0).toLocaleString()}
+              </Typography>
+            </Box>
+            <Box className="flex justify-between items-center mt-1">
+              <Typography>New Total:</Typography>
+              <Typography className="font-bold">
+                ₹{(priceSummary.newTotals?.grandTotal || 0).toLocaleString()}
+              </Typography>
+            </Box>
+            {total.hasPriceChanges && (
+              <Box className="flex justify-end mt-2">
+                <Typography 
+                  className={`font-medium ${
+                    total.difference > 0 ? 'text-red-500' : 'text-green-500'
+                  }`}
+                >
+                  {total.difference > 0 ? <Plus size={16} /> : <Minus size={16} />}
+                  ₹{Math.abs(total.difference).toLocaleString()}
+                  <span className="ml-2">
+                    ({total.percentageChange > 0 ? '+' : ''}
+                    {total.percentageChange.toFixed(1)}%)
+                  </span>
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+  
+      <DialogActions className="p-4">
+        <Button
+          variant="outlined"
+          onClick={onClose}
+          startIcon={<X size={18} />}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={onConfirm}
+          disabled={!canProceed}
+          startIcon={<Check size={18} />}
+          color={total.hasPriceChanges ? "warning" : "primary"}
+        >
+          {isLoading
+            ? "Checking Prices..."
+            : total.hasPriceChanges 
+              ? `Proceed with New Prices (${total.difference > 0 ? '+' : ''}${total.percentageChange.toFixed(1)}%)`
+              : "Continue Booking"
+          }
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };
 
 export default PriceCheckModal;

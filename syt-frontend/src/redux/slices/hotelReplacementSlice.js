@@ -7,9 +7,6 @@ export const searchReplacementHotel = createAsyncThunk(
   async ({ failedHotel, itinerary, inquiryToken }, { rejectWithValue }) => {
     try {
 
-      console.log("Inside Thunk - Failed Hotel:", failedHotel); // Add here
-      console.log("Inside Thunk - Itinerary:", itinerary); // Add here too
-
       // Get hotel data from failed allocation
       const hotelData = failedHotel.details.data || failedHotel.details;
       const address = hotelData.hotelDetails?.address;

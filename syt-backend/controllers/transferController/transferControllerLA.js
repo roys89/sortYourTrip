@@ -1,5 +1,6 @@
 const TransferGetQuotesService = require('../../services/transferServices/transferGetQuoteSservice');
 const TransferQuoteDetailsService = require('../../services/transferServices/transferQuoteDetailsService');
+const CurrencyService = require('../../services/currencyService');
 
 // Helper function to format date
 const formatTransferDate = (dateStr) => {
@@ -107,20 +108,33 @@ exports.getGroundTransfer = async (transferData) => {
         );
 
         if (detailedQuoteResponse.success) {
-          return {
-            type: "ground",
-            transportationType: "transfer",
-            transferProvider: 'LeAmigo',
-            selectedQuote: detailedQuoteResponse.data,
-            totalTravelers,
-            origin: quoteParams.origin,
-            destination: quoteParams.destination,
-            quotation_id: quoteData.quotation_id,
-            distance: quoteData.distance,
-            duration: quoteData.duration,
-            flightNumber: transferData.flightNumber
-          };
-        }
+          const originalFare = detailedQuoteResponse.data.quote.fare;
+      const originalCurrency = detailedQuoteResponse.data.currency;
+       // Convert fare to INR
+       const fareInINR = await CurrencyService.convertToINR(originalFare, originalCurrency);
+      
+       return {
+        type: "ground",
+        transportationType: "transfer",
+        transferProvider: 'LeAmigo',
+        selectedQuote: {
+          ...detailedQuoteResponse.data,
+          quote: {
+            ...detailedQuoteResponse.data.quote,
+            fare: fareInINR,
+            currency: 'INR',
+            currency_symbol: '₹'
+          }
+        },
+        totalTravelers,
+        origin: quoteParams.origin,
+        destination: quoteParams.destination,
+        quotation_id: quoteData.quotation_id,
+        distance: quoteData.distance,
+        duration: quoteData.duration,
+        flightNumber: transferData.flightNumber
+      };
+    }
       }
     }
 

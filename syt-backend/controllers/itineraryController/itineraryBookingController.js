@@ -2,18 +2,34 @@ const mongoose = require('mongoose');
 const ItineraryBooking = require('../../models/ItineraryBooking');
 
 class BookingService {
-  /**
-   * Validate booking input
-   * @param {Object} data - Booking input data
-   * @throws {Error} If validation fails
-   */
   static validateBookingInput(data) {
-    const { rooms, itineraryToken, inquiryToken, userInfo } = data;
+    const { 
+      rooms, 
+      itineraryToken, 
+      inquiryToken, 
+      userInfo, 
+      totalAmount, 
+      tcsRate, 
+      tcsAmount 
+    } = data;
 
- // Check required tokens
- if (!itineraryToken || !inquiryToken) {
-  throw new Error('Missing required booking tokens');
-}
+    // Check required tokens
+    if (!itineraryToken || !inquiryToken) {
+      throw new Error('Missing required booking tokens');
+    }
+
+    // Payment validation
+    if (typeof totalAmount !== 'number' || totalAmount <= 0) {
+      throw new Error('Invalid total amount');
+    }
+
+    if (typeof tcsRate !== 'number' || tcsRate < 0) {
+      throw new Error('Invalid TCS rate');
+    }
+
+    if (typeof tcsAmount !== 'number' || tcsAmount < 0) {
+      throw new Error('Invalid TCS amount');
+    }
 
     // Validate userInfo
     if (!userInfo) {
@@ -42,7 +58,6 @@ class BookingService {
         throw new Error(`Room ${roomIndex + 1} must have at least one traveler`);
       }
 
-      // Validate each traveler
       room.travelers.forEach((traveler, travelerIndex) => {
         const requiredFields = [
           'firstName', 'lastName', 'email', 'phone', 
@@ -58,11 +73,6 @@ class BookingService {
     });
   }
 
-  /**
-   * Sanitize booking data
-   * @param {Object} data - Raw booking data
-   * @returns {Object} Sanitized booking data
-   */
   static sanitizeBookingData(data) {
     return {
       ...data,
@@ -76,7 +86,6 @@ class BookingService {
       rooms: data.rooms.map(room => ({
         ...room,
         travelers: room.travelers.map(traveler => {
-          // Existing traveler sanitization logic
           const sanitizedTraveler = Object.fromEntries(
             Object.entries(traveler).filter(([, v]) => 
               v !== null && 
@@ -84,7 +93,7 @@ class BookingService {
               v !== ''
             )
           );
-  
+
           return {
             type: sanitizedTraveler.type || 'adult',
             gender: sanitizedTraveler.gender || 'male',
@@ -92,40 +101,45 @@ class BookingService {
           };
         })
       })),
-      specialRequirements: data.specialRequirements?.trim() || null
+      specialRequirements: data.specialRequirements?.trim() || null,
+      totalAmount: Number(data.totalAmount),
+      tcsRate: Number(data.tcsRate || 0),
+      tcsAmount: Number(data.tcsAmount || 0),
+      paymentStatus: 'pending',
+      razorpay: {
+        orderId: null,
+        paymentId: null,
+        signature: null
+      }
     };
   }
 
-  /**
-   * Check for existing draft booking
-   * @param {String} itineraryToken 
-   * @param {String} userId 
-   * @returns {Object|null} Existing draft booking
-   */
   static async findExistingDraftBooking(itineraryToken, userId) {
     return ItineraryBooking.findOne({ 
       itineraryToken, 
       'userInfo.userId': userId,
-      status: 'draft'
+      status: 'draft',
+      paymentStatus: 'pending',
+      'razorpay.paymentId': null
     });
   }
 
-  /**
-   * Create booking transaction
-   * @param {Object} bookingData 
-   * @param {Object} user 
-   * @returns {Object} Created booking
-   */
   static async createBookingTransaction(bookingData, user) {
     const session = await mongoose.startSession();
     
     try {
       await session.startTransaction();
   
-      // Create booking document - removed bookingId generation since it comes from client
       const booking = new ItineraryBooking({
         ...bookingData,
         status: 'draft',
+        paymentStatus: 'pending',
+        paymentId: null,
+        razorpay: {
+          orderId: null,
+          paymentId: null,
+          signature: null
+        },
         bookingDate: new Date(),
         userInfo: bookingData.userInfo || {
           userId: user._id,
@@ -136,52 +150,38 @@ class BookingService {
         }
       });
   
-      // Save booking
       await booking.save({ session });
-  
-      // Commit transaction
       await session.commitTransaction();
-  
       return booking;
   
     } catch (error) {
-      // Rollback transaction
       await session.abortTransaction();
       throw error;
     } finally {
-      // End session
       session.endSession();
     }
   }
 }
 
 class ItineraryBookingController {
-  /**
-   * Create or update booking
-   * @param {Object} req - Express request 
-   * @param {Object} res - Express response
-   */
   static async createBooking(req, res) {
     try {
-      // Log the entire request body
       console.log('Full Request Body:', JSON.stringify(req.body, null, 2));
   
-      // Validate input
       BookingService.validateBookingInput(req.body);
-  
-      // Sanitize data
       const sanitizedData = BookingService.sanitizeBookingData(req.body);
   
-      // Check for existing draft booking
       const existingBooking = await BookingService.findExistingDraftBooking(
         sanitizedData.itineraryToken, 
         sanitizedData.userInfo.userId
       );
   
-      // If draft exists, update it
       if (existingBooking) {
         existingBooking.rooms = sanitizedData.rooms;
         existingBooking.specialRequirements = sanitizedData.specialRequirements;
+        existingBooking.totalAmount = sanitizedData.totalAmount;
+        existingBooking.tcsRate = sanitizedData.tcsRate;
+        existingBooking.tcsAmount = sanitizedData.tcsAmount;
         await existingBooking.save();
   
         return res.status(200).json({
@@ -191,7 +191,6 @@ class ItineraryBookingController {
         });
       }
   
-      // Create new booking
       const newBooking = await BookingService.createBookingTransaction(
         sanitizedData, 
         req.user
@@ -202,13 +201,13 @@ class ItineraryBookingController {
         userId: sanitizedData.userInfo.userId
       });
   
-      // Respond with success
       return res.status(201).json({
         success: true,
         message: "Booking created successfully",
         data: { 
           bookingId: newBooking.bookingId,
-          userInfo: newBooking.userInfo
+          userInfo: newBooking.userInfo,
+          totalAmount: newBooking.totalAmount
         }
       });
   
@@ -218,7 +217,6 @@ class ItineraryBookingController {
         stack: error.stack
       });
   
-      // Send error response
       return res.status(400).json({
         success: false,
         message: error.message || 'Booking creation failed',
@@ -227,22 +225,16 @@ class ItineraryBookingController {
     }
   }
 
-  /**
-   * Get booking by ID
-   * @param {Object} req - Express request
-   * @param {Object} res - Express response
-   */
   static async getBookingById(req, res) {
     try {
       const { bookingId } = req.params;
-
-      // Find booking for the current user
+      
+      // Added populate for payment details
       const booking = await ItineraryBooking.findOne({
         bookingId,
         'userInfo.userId': req.user._id
-      });
+      }).populate('paymentId');
 
-      // Check if booking exists
       if (!booking) {
         return res.status(404).json({
           success: false,
@@ -250,20 +242,12 @@ class ItineraryBookingController {
         });
       }
 
-      // Return booking details
       return res.status(200).json({
         success: true,
         data: booking
       });
     } catch (error) {
-      // Log error
-      logger.error('Get booking by ID failed', {
-        error: error.message,
-        userId: req.user?._id,
-        bookingId: req.params.bookingId
-      });
-
-      // Send error response
+      console.error('Get booking by ID failed:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to retrieve booking',
@@ -272,30 +256,27 @@ class ItineraryBookingController {
     }
   }
 
-  /**
-   * Get user's bookings
-   * @param {Object} req - Express request
-   * @param {Object} res - Express response
-   */
   static async getUserBookings(req, res) {
     try {
       const { 
         page = 1, 
         limit = 10, 
-        status, 
+        status,
+        paymentStatus,  // Added payment status filter
         startDate, 
         endDate 
       } = req.query;
 
-      // Build query
       const query = { 'userInfo.userId': req.user._id };
       
-      // Apply status filter
       if (status) {
         query.status = status;
       }
+
+      if (paymentStatus) {
+        query.paymentStatus = paymentStatus;
+      }
       
-      // Apply date range filter
       if (startDate && endDate) {
         query.bookingDate = {
           $gte: new Date(startDate),
@@ -303,16 +284,14 @@ class ItineraryBookingController {
         };
       }
 
-      // Fetch paginated bookings
       const bookings = await ItineraryBooking.find(query)
+        .populate('paymentId')
         .sort({ bookingDate: -1 })
         .skip((page - 1) * parseInt(limit))
         .limit(parseInt(limit));
 
-      // Count total matching documents
       const total = await ItineraryBooking.countDocuments(query);
 
-      // Return paginated results
       return res.status(200).json({
         success: true,
         data: bookings,
@@ -324,13 +303,7 @@ class ItineraryBookingController {
         }
       });
     } catch (error) {
-      // Log error
-      logger.error('Get user bookings failed', {
-        error: error.message,
-        userId: req.user?._id
-      });
-
-      // Send error response
+      console.error('Get user bookings failed:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to retrieve bookings',
@@ -339,11 +312,6 @@ class ItineraryBookingController {
     }
   }
 
-  /**
-   * Update booking status
-   * @param {Object} req - Express request
-   * @param {Object} res - Express response
-   */
   static async updateBookingStatus(req, res) {
     const session = await mongoose.startSession();
 
@@ -353,13 +321,11 @@ class ItineraryBookingController {
       const { bookingId } = req.params;
       const { status } = req.body;
 
-      // Find booking for the current user
       const booking = await ItineraryBooking.findOne({
         bookingId,
         'userInfo.userId': req.user._id
       }).session(session);
 
-      // Check if booking exists
       if (!booking) {
         await session.abortTransaction();
         return res.status(404).json({
@@ -368,7 +334,6 @@ class ItineraryBookingController {
         });
       }
 
-      // Validate status transition
       const validStatusTransitions = {
         'draft': ['pending', 'cancelled'],
         'pending': ['processing', 'cancelled'],
@@ -386,55 +351,29 @@ class ItineraryBookingController {
         });
       }
 
-      // Update status
       booking.status = status;
       await booking.save({ session });
-
-      // Commit transaction
       await session.commitTransaction();
 
-      // Log status change
-      logger.info('Booking status updated', {
-        bookingId,
-        oldStatus: currentStatus,
-        newStatus: status,
-        userId: req.user._id
-      });
-
-      // Return updated booking
       return res.status(200).json({
         success: true,
         message: 'Booking status updated successfully',
         data: booking
       });
+
     } catch (error) {
-      // Rollback transaction
       await session.abortTransaction();
-
-      // Log error
-      logger.error('Update booking status failed', {
-        error: error.message,
-        userId: req.user?._id,
-        bookingId: req.params.bookingId
-      });
-
-      // Send error response
+      console.error('Update booking status failed:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to update booking status',
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     } finally {
-      // End session
       session.endSession();
     }
   }
 
-  /**
-   * Cancel booking
-   * @param {Object} req - Express request
-   * @param {Object} res - Express response
-   */
   static async cancelBooking(req, res) {
     const session = await mongoose.startSession();
 
@@ -443,13 +382,11 @@ class ItineraryBookingController {
 
       const { bookingId } = req.params;
 
-      // Find booking for the current user
       const booking = await ItineraryBooking.findOne({
         bookingId,
         'userInfo.userId': req.user._id
       }).session(session);
 
-      // Check if booking exists
       if (!booking) {
         await session.abortTransaction();
         return res.status(404).json({
@@ -458,66 +395,43 @@ class ItineraryBookingController {
         });
       }
 
-      // Prevent cancellation of certain statuses
+      // Added payment status check
       const nonCancellableStatuses = ['confirmed', 'cancelled', 'failed'];
-      if (nonCancellableStatuses.includes(booking.status)) {
+      if (nonCancellableStatuses.includes(booking.status) || 
+          booking.paymentStatus === 'completed') {
         await session.abortTransaction();
         return res.status(400).json({
           success: false,
-          message: `Cannot cancel booking in ${booking.status} status`
+          message: `Cannot cancel booking in ${booking.status} status or after payment completion`
         });
       }
 
-      // Update status to cancelled
       booking.status = 'cancelled';
+      booking.paymentStatus = 'failed';  // Update payment status on cancellation
       await booking.save({ session });
-
-      // Commit transaction
       await session.commitTransaction();
 
-      // Log cancellation
-      logger.info('Booking cancelled', {
-        bookingId,
-        userId: req.user._id
-      });
-
-      // Return success response
       return res.status(200).json({
         success: true,
         message: 'Booking cancelled successfully',
         data: booking
       });
+
     } catch (error) {
-      // Rollback transaction
       await session.abortTransaction();
-
-      // Log error
-      logger.error('Cancel booking failed', {
-        error: error.message,
-        userId: req.user?._id,
-        bookingId: req.params.bookingId
-      });
-
-      // Send error response
+      console.error('Cancel booking failed:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to cancel booking',
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     } finally {
-      // End session
       session.endSession();
     }
   }
 
-  /**
-   * Get booking statistics
-   * @param {Object} req - Express request
-   * @param {Object} res - Express response
-   */
   static async getBookingStats(req, res) {
     try {
-      // Aggregate booking statistics
       const stats = await ItineraryBooking.aggregate([
         {
           $match: {
@@ -526,32 +440,31 @@ class ItineraryBookingController {
         },
         {
           $group: {
-            _id: "$status",
-            count: { $sum: 1 }
+            _id: {
+              status: "$status",
+              paymentStatus: "$paymentStatus"
+            },
+            count: { $sum: 1 },
+            totalAmount: { $sum: "$totalAmount" }
           }
         },
         {
           $project: {
-            status: "$_id",
+            status: "$_id.status",
+            paymentStatus: "$_id.paymentStatus",
             count: 1,
+            totalAmount: 1,
             _id: 0
           }
         }
       ]);
 
-      // Return statistics
       return res.status(200).json({
         success: true,
         data: stats
       });
     } catch (error) {
-      // Log error
-      logger.error('Get booking stats failed', {
-        error: error.message,
-        userId: req.user?._id
-      });
-
-      // Send error response
+      console.error('Get booking stats failed:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to retrieve booking statistics',

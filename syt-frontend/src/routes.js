@@ -20,6 +20,7 @@ const ActivitiesPage = lazy(() => import("./pages/ChangingPage/Activities"));
 const HotelsPage = lazy(() => import("./pages/ChangingPage/Hotels"));
 const FlightPage = lazy(() => import("./pages/ChangingPage/Flights"));
 const BookingForm = lazy(() => import("./pages/BookingForm/BookingForm"));
+const PaymentPage = lazy(() => import("./pages/Payment/PaymentPage"));
 const MarkupManagement = lazy(() =>
   import("./pages/MarkupManagement/MarkupManagement")
 );
@@ -45,6 +46,14 @@ const AppRoutes = () => {
         <Route path="/itinerary-inquiry" element={<ItineraryInquiryPage />} />
 
         {/* Protected Routes */}
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/profile"
           element={

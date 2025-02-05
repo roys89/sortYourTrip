@@ -11,6 +11,7 @@ import hotelReducer from './slices/hotelSlice';
 import itineraryReducer from './slices/itinerarySlice';
 import markupReducer from './slices/markupSlice';
 import notificationReducer from './slices/notificationsSlice';
+import paymentReducer from './slices/paymentSlice';
 import priceCheckReducer from './slices/priceCheckSlice';
 import priceReducer from './slices/priceSlice';
 import roomChangeReducer from './slices/roomChangeSlice';
@@ -33,5 +34,6 @@ export const store = configureStore({
     guestAllocation: guestAllocationSlice,
     flightReplacement: flightReplacementReducer,
     hotelReplacement: hotelReplacementReducer,
+    payment: paymentReducer  // Added the new payment reducer
   }
 });

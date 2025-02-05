@@ -1,3 +1,4 @@
+// models/ItineraryBooking.js
 const mongoose = require('mongoose');
 
 const travelerSchema = new mongoose.Schema({
@@ -55,10 +56,12 @@ const itineraryBookingSchema = new mongoose.Schema({
   bookingId: { 
     type: String, 
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
-  itineraryToken: { type: String, required: true },
+  itineraryToken: { 
+    type: String,
+    required: true 
+  },
   inquiryToken: { type: String, required: true },
   status: { 
     type: String, 
@@ -66,6 +69,37 @@ const itineraryBookingSchema = new mongoose.Schema({
     default: 'draft'
   },
   bookingDate: { type: Date, required: true },
+
+  // Payment fields
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'failed'],
+    default: 'pending'
+  },
+  paymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Payment',
+    default: null
+  },
+  totalAmount: {
+    type: Number,
+    required: true
+  },
+  tcsAmount: {
+    type: Number,
+    default: 0
+  },
+  tcsRate: {
+    type: Number,
+    default: 0
+  },
+
+  // Razorpay transaction details
+  razorpay: {
+    orderId: { type: String, default: null },
+    paymentId: { type: String, default: null },
+    signature: { type: String, default: null }
+  },
 
   rooms: { 
     type: [roomSchema], 
@@ -85,9 +119,14 @@ const itineraryBookingSchema = new mongoose.Schema({
   timestamps: true
 });
 
+
 itineraryBookingSchema.index({ 'userInfo.userId': 1, bookingDate: -1 });
 itineraryBookingSchema.index({ status: 1 });
-itineraryBookingSchema.index({ itineraryToken: 1 });
+itineraryBookingSchema.index({ paymentStatus: 1 });
+itineraryBookingSchema.index({ itineraryToken: 1 }, { unique: true });
+itineraryBookingSchema.index({ bookingId: 1 }, { unique: true });
+itineraryBookingSchema.index({ 'razorpay.orderId': 1 });
+itineraryBookingSchema.index({ 'razorpay.paymentId': 1 });
 
 const ItineraryBooking = mongoose.model('ItineraryBooking', itineraryBookingSchema);
 

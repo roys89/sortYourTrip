@@ -32,7 +32,6 @@ import PriceCheckModal from "../../components/PriceCheckModal/PriceCheckModal";
 import ReviewBookingModal from "../../components/ReviewBookingModal/ReviewBookingModal";
 import { createBooking } from "../../redux/slices/bookingSlice";
 import { resetPriceCheck } from "../../redux/slices/priceCheckSlice";
-import { transformBookingData } from "../../utils/bookingDataTransformer";
 
 const calculateAge = (birthDate) => {
   const today = new Date();
@@ -423,7 +422,11 @@ const handleSubmit = async (e) => {
       inquiryToken: tokens.inquiry,
       userInfo: itinerary?.userInfo || {},
       rooms: formData.rooms,
-      specialRequirements: formData.specialRequirements
+      specialRequirements: formData.specialRequirements,
+      // Add these fields
+      totalAmount: itinerary.priceTotals.grandTotal,
+      tcsAmount: itinerary.priceTotals.tcsAmount,
+      tcsRate: itinerary.priceTotals.tcsRate
     })).unwrap();
 
     if (result.success) {
@@ -444,52 +447,36 @@ const handleSubmit = async (e) => {
 // Add new function for handling review confirmation
 const priceCheck = useSelector(state => state.priceCheck);
   // Separate function for the actual booking process
-  const proceedWithBooking = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-  
-      // Use the updated itinerary from price check if prices changed
-      const finalItinerary = priceCheck.priceSummary?.updatedItinerary || itinerary;
-  
-      const bookingData = transformBookingData(finalItinerary, {
-        bookingId: generateBookingId(),
-        travelers: formData.rooms.flatMap((room) => room.travelers),
-        rooms: formData.rooms,
-        specialRequirements: formData.specialRequirements,
-        travelersDetails: {
-          type: finalItinerary.travelersDetails.type,
-          rooms: formData.rooms.map((room) => ({
-            adults: room.travelers
-              .filter((t) => t.type === "adult")
-              .map((t) => parseInt(t.age)),
-            children: room.travelers
-              .filter((t) => t.type === "child")
-              .map((t) => parseInt(t.age))
-          }))
-        }
-      });
-  
-      const result = await dispatch(createBooking(bookingData)).unwrap();
-  
-      setSuccess(true);
-  
-      setTimeout(() => {
-        navigate("/booking-confirmation", {
-          state: {
-            bookingId: result.data.bookingId,
-            bookingData: result.data,
-            itinerary: finalItinerary, // Use updated itinerary
-          },
-        });
-      }, 1500);
-    } catch (error) {
-      console.error("Booking failed:", error);
-      setError(error.message || "Failed to create booking. Please try again.");
-    } finally {
-      setLoading(false);
+const proceedWithBooking = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    // Use the updated itinerary if prices changed, otherwise use original
+    const finalItinerary = priceCheck.priceSummary?.updatedItinerary || itinerary;
+
+    // Navigate to payment with required data
+    navigate("/payment", {
+      state: {
+        bookingId: formData.bookingId, // Already generated and saved
+        bookingData: formData,         // Original form data
+        itinerary: finalItinerary      // Itinerary with final prices
+      }
+    });
+    const nevigatingState= {
+      bookingId: formData.bookingId, // Already generated and saved
+      bookingData: formData,         // Original form data
+      itinerary: finalItinerary  
     }
-  };
+    console.log(nevigatingState);
+
+  } catch (error) {
+    console.error("Navigation failed:", error);
+    setError("Failed to proceed to payment. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
   
   // Handle modal close
   const handleModalClose = () => {

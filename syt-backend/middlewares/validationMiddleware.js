@@ -52,9 +52,22 @@ const validateBooking = (req, res, next) => {
     bookingId: Joi.string().required(),
     itineraryToken: Joi.string().required(),
     inquiryToken: Joi.string().required(),
-    userInfo: userInfoSchema.required(), // Add userInfo validation
+    userInfo: userInfoSchema.required(),
     rooms: Joi.array().items(roomSchema).min(1).required(),
-    specialRequirements: Joi.string().allow('', null)
+    specialRequirements: Joi.string().allow('', null),
+    // Add payment-related validations
+    totalAmount: Joi.number().positive().required(),
+    tcsAmount: Joi.number().min(0).required(),
+    tcsRate: Joi.number().min(0).required(),
+    paymentStatus: Joi.string()
+      .valid('pending', 'processing', 'completed', 'failed')
+      .default('pending'),
+    // Add Razorpay-related fields as optional since they'll be updated later
+    razorpay: Joi.object({
+      orderId: Joi.string().allow(null),
+      paymentId: Joi.string().allow(null),
+      signature: Joi.string().allow(null)
+    }).allow(null)
   });
 
   const { error } = bookingSchema.validate(req.body, {
@@ -75,7 +88,6 @@ const validateBooking = (req, res, next) => {
 
   next();
 };
-
 module.exports = {
   validateBooking
 };

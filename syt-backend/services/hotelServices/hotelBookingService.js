@@ -49,7 +49,7 @@ class HotelBookingService {
 
       return {
         success: true,
-        data: response.data.response
+        data: response.data // Return complete response data
       };
 
     } catch (error) {
@@ -62,10 +62,7 @@ class HotelBookingService {
           traceId: params.traceId,
           itineraryCode: params.itineraryCode
         },
-        responseData: {
-          error: error.message,
-          details: error.response?.data || {}
-        }
+        responseData: error.response?.data || error
       };
 
       apiLogger.logApiData(errorLogData);
@@ -73,7 +70,7 @@ class HotelBookingService {
       return {
         success: false,
         error: error.message,
-        details: error.response?.data
+        data: error.response?.data || error // Return complete error response
       };
     }
   }

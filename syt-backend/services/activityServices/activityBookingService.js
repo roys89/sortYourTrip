@@ -66,13 +66,13 @@ class ActivityBookingService {
           }
         },
         responseData: response.data,
-        activityCode: transformedActivity.activityCode  // Add this
+        activityCode: transformedActivity.activityCode
       };
       
       apiLogger.logApiData(logData);
       return {
         success: true,
-        data: response.data.response || response.data
+        data: response.data // Return complete response data
       };
 
     } catch (error) {
@@ -85,11 +85,8 @@ class ActivityBookingService {
           activityCode: params.transformedActivity?.activityCode,
           searchId: params.transformedActivity?.searchId
         },
-        responseData: {
-          error: error.message,
-          details: error.response?.data || {}
-        },
-        activityCode: params.transformedActivity?.activityCode  // Add this
+        responseData: error.response?.data || error,
+        activityCode: params.transformedActivity?.activityCode
       };
 
       apiLogger.logApiData(errorLogData);
@@ -97,7 +94,7 @@ class ActivityBookingService {
       return {
         success: false,
         error: error.message,
-        details: error.response?.data
+        data: error.response?.data || error // Return complete error response
       };
     }
   }

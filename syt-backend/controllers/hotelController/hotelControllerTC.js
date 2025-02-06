@@ -454,26 +454,29 @@ module.exports = {
       };
     }
   },
+  
   bookHotel: async (req, res) => {
     try {
       const { bookingId } = req.params;
       const hotelData = req.body.hotel;
-
+  
       if (!hotelData) {
         return res.status(400).json({
           success: false,
-          error: 'Hotel data is required'
+          error: 'Hotel data is required',
+          data: null
         });
       }
-
+  
       // Validate booking ID match
       if (bookingId !== hotelData.bookingId) {
         return res.status(400).json({
           success: false,
-          error: 'Booking ID mismatch'
+          error: 'Booking ID mismatch',
+          data: null
         });
       }
-
+  
       // Get authentication token
       const authToken = await HotelTokenManager.getOrSetToken(
         async () => {
@@ -481,54 +484,49 @@ module.exports = {
           return authResponse.token;
         }
       );
-
+  
       if (!authToken) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication failed'
+          error: 'Authentication failed',
+          data: null
         });
       }
-
+  
       // Prepare booking parameters
       const bookingParams = {
         ...hotelData,
         token: authToken
       };
-
+  
       // Validate booking data
       try {
         await HotelBookingService.validateBookingData(bookingParams);
       } catch (validationError) {
         return res.status(400).json({
           success: false,
-          error: validationError.message
+          error: validationError.message,
+          data: null
         });
       }
-
+  
       // Book hotel
       const bookingResponse = await HotelBookingService.bookHotel(bookingParams);
-
-      if (!bookingResponse.success) {
-        return res.status(400).json({
-          success: false,
-          error: bookingResponse.error || 'Hotel booking failed',
-          details: bookingResponse.details
-        });
-      }
-
-      // Return successful booking response
+  
+      // Return complete response maintaining the success flag
       res.status(200).json({
-        success: true,
-        data: bookingResponse.data
+        success: bookingResponse.success,
+        data: bookingResponse.data,
+        error: bookingResponse.error
       });
-
+  
     } catch (error) {
       console.error('Error in bookHotel:', error);
       
       res.status(500).json({
         success: false,
         error: 'Internal server error',
-        details: error.message
+        data: error.response?.data || error // Include complete error response
       });
     }
   }

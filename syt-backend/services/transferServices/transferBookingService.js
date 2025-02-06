@@ -37,10 +37,8 @@ class TransferBookingService {
         date
       } = params;
 
-      // Use the first booking array item
       const bookingArrayItem = transformedTransfer.bookingArray[0];
 
-      // Prepare booking payload
       const bookingPayload = {
         booking_date: bookingArrayItem.booking_date,
         booking_time: bookingArrayItem.booking_time || '00:00',
@@ -49,12 +47,11 @@ class TransferBookingService {
         guest_details: bookingArrayItem.guest_details,
         quotation_id: String(bookingArrayItem.quotation_id),
         quotation_child_id: String(bookingArrayItem.quotation_child_id),
-        comments: bookingArrayItem.comments || '', // Convert null to empty string
+        comments: bookingArrayItem.comments || '',
         total_passenger: bookingArrayItem.total_passenger,
-        flight_number: bookingArrayItem.flight_number || '' // Convert null to empty string
+        flight_number: bookingArrayItem.flight_number || null
       };
 
-      // External API configuration
       const config = {
         method: 'post',
         url: 'https://api.leamigo.com/agent/booking/create-booking',
@@ -64,14 +61,12 @@ class TransferBookingService {
         }
       };
 
-      // Make external API call
       const response = await axios.post(
         config.url, 
         bookingPayload, 
         { headers: config.headers }
       );
 
-      // Log success case
       const logData = {
         inquiryToken: inquiryToken || 'unknown',
         cityName: cityName || 'unknown',
@@ -89,11 +84,10 @@ class TransferBookingService {
 
       return {
         success: true,
-        data: response.data
+        data: response.data // Return complete response data
       };
 
     } catch (error) {
-      // Log error case with consistent structure
       const errorLogData = {
         inquiryToken: params.inquiryToken || 'unknown',
         cityName: params.cityName || 'unknown',
@@ -103,19 +97,15 @@ class TransferBookingService {
           ...params,
           headers: { 'X-API-KEY': '[REDACTED]' }
         },
-        responseData: error.response?.data || error.message
+        responseData: error.response?.data || error
       };
 
       apiLogger.logApiData(errorLogData);
 
       return {
         success: false,
-        type: 'error',
-        message: 'Unable to book transfer',
-        error: {
-          message: error.message,
-          details: error.response?.data
-        }
+        error: error.message,
+        data: error.response?.data || error // Return complete error response
       };
     }
   }

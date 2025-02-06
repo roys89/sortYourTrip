@@ -854,7 +854,8 @@ const bookActivity = async (req, res) => {
     if (!activityData) {
       return res.status(400).json({
         success: false,
-        error: 'Activity data is required'
+        error: 'Activity data is required',
+        data: null
       });
     }
 
@@ -862,7 +863,8 @@ const bookActivity = async (req, res) => {
     if (bookingId !== activityData.bookingId) {
       return res.status(400).json({
         success: false,
-        error: 'Booking ID mismatch'
+        error: 'Booking ID mismatch',
+        data: null
       });
     }
 
@@ -872,32 +874,26 @@ const bookActivity = async (req, res) => {
     } catch (validationError) {
       return res.status(400).json({
         success: false,
-        error: validationError.message
+        error: validationError.message,
+        data: null
       });
     }
 
     // Prepare booking parameters
     const bookingParams = {
       ...activityData,
-      cityName: "Activity Booking", // Using surname as city placeholder
+      cityName: "Activity Booking",
       date: activityData.transformedActivity.fromDate,
-      inquiryToken: activityData.transformedActivity.inquiryToken || 'unknwon'
+      inquiryToken: activityData.transformedActivity.inquiryToken || 'unknown'
     };
 
     // Book activity
     const bookingResponse = await ActivityBookingService.bookActivity(bookingParams);
 
-    if (!bookingResponse.success) {
-      return res.status(400).json({
-        success: false,
-        error: bookingResponse.error || 'Activity booking failed',
-        details: bookingResponse.details
-      });
-    }
-
-    // Return successful booking response
+    // Return complete response maintaining the success flag
     res.status(200).json({
-      success: true,
+      success: bookingResponse.success,
+      error: bookingResponse.error,
       data: bookingResponse.data
     });
 
@@ -907,7 +903,7 @@ const bookActivity = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: error.message
+      data: error.response?.data || error // Include complete error response
     });
   }
 };

@@ -155,67 +155,63 @@ exports.getGroundTransfer = async (transferData) => {
 };
 
 exports.bookTransfer = async (req, res) => {
-    try {
-      const { bookingId } = req.params;
-      const transferData = req.body.transfer;
+  try {
+    const { bookingId } = req.params;
+    const transferData = req.body.transfer;
 
-      if (!transferData) {
-        return res.status(400).json({
-          success: false,
-          error: 'Transfer data is required'
-        });
-      }
-
-      // Validate booking ID match
-      if (bookingId !== transferData.bookingId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Booking ID mismatch'
-        });
-      }
-
-      // Validate booking data
-      try {
-        await TransferBookingService.validateBookingData({ transformedTransfer: transferData });
-      } catch (validationError) {
-        return res.status(400).json({
-          success: false,
-          error: validationError.message
-        });
-      }
-
-      // Prepare booking parameters
-      const bookingParams = {
-        transformedTransfer: transferData,
-        cityName: transferData.type || 'Unknown', // Adjust city extraction
-        date: transferData.bookingArray[0].booking_date,
-        inquiryToken: transferData.inquiryToken
-      };
-
-      // Book transfer
-      const bookingResponse = await TransferBookingService.bookTransfer(bookingParams);
-
-      if (!bookingResponse.success) {
-        return res.status(400).json({
-          success: false,
-          error: bookingResponse.error || 'Transfer booking failed',
-          details: bookingResponse.details
-        });
-      }
-
-      // Return successful booking response
-      res.status(200).json({
-        success: true,
-        data: bookingResponse.data
-      });
-
-    } catch (error) {
-      console.error('Error in bookTransfer:', error);
-      
-      res.status(500).json({
+    if (!transferData) {
+      return res.status(400).json({
         success: false,
-        error: 'Internal server error',
-        details: error.message
+        error: 'Transfer data is required',
+        data: null
       });
     }
-  };
+
+    // Validate booking ID match
+    if (bookingId !== transferData.bookingId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Booking ID mismatch',
+        data: null
+      });
+    }
+
+    // Validate booking data
+    try {
+      await TransferBookingService.validateBookingData({ transformedTransfer: transferData });
+    } catch (validationError) {
+      return res.status(400).json({
+        success: false,
+        error: validationError.message,
+        data: null
+      });
+    }
+
+    // Prepare booking parameters
+    const bookingParams = {
+      transformedTransfer: transferData,
+      cityName: transferData.type || 'Unknown',
+      date: transferData.bookingArray[0].booking_date,
+      inquiryToken: transferData.inquiryToken
+    };
+
+    // Book transfer
+    const bookingResponse = await TransferBookingService.bookTransfer(bookingParams);
+
+    // Return complete response maintaining the success flag
+    res.status(200).json({
+      success: bookingResponse.success,
+      error: bookingResponse.error,
+      data: bookingResponse.data
+    });
+
+  } catch (error) {
+    console.error('Error in bookTransfer:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      data: error.response?.data || error // Include complete error response
+    });
+  }
+};

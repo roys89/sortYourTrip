@@ -300,16 +300,16 @@ module.exports = {
     try {
       const { bookingId } = req.params;
       const flightData = req.body.flight;
-
+  
       if (!flightData) {
         throw new Error('Flight data is required');
       }
-
+  
       // Validate booking ID match
       if (bookingId !== flightData.bookingId) {
         throw new Error('Booking ID mismatch');
       }
-
+  
       // Get authentication token
       const authToken = await FlightTokenManager.getOrSetToken(
         async () => {
@@ -317,38 +317,36 @@ module.exports = {
           return authResponse.token;
         }
       );
-
+  
       if (!authToken) {
         throw new Error('Authentication failed');
       }
-
+  
       // Add token to flight data
       const bookingParams = {
         ...flightData,
         token: authToken
       };
-
+  
       // Validate booking data
       await FlightBookingService.validateBookingData(bookingParams);
-
+  
       // Book flight
       const bookingResponse = await FlightBookingService.bookFlight(bookingParams);
-
-      if (!bookingResponse.success) {
-        throw new Error(bookingResponse.error || 'Flight booking failed');
-      }
-
+  
+      // Send complete response, maintaining the success flag
       res.status(200).json({
-        success: true,
-        data: bookingResponse.data
+        success: bookingResponse.success,
+        data: bookingResponse.data,
+        error: bookingResponse.error
       });
-
+  
     } catch (error) {
       console.error('Error in bookFlight:', error);
       res.status(400).json({
         success: false,
         error: error.message,
-        details: error.response?.data || {}
+        data: error.response?.data || error // Include complete error response
       });
     }
   }

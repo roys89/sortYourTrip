@@ -197,32 +197,23 @@ const transformTransferBookings = (bookingItinerary, travelers) => {
         return {
           type: transfer.type,
           transferId: transfer.details.quotation_id,
-          bookingDate: day.date,
-          bookingTime: quote?.routeDetails?.pickup_date?.split(' ')[1] || "00:00",
-          returnDate: quote?.routeDetails?.return_date?.split(' ')[0] || null,
-          returnTime: quote?.routeDetails?.return_date?.split(' ')[1] || null,
+          bookingId: transfer.bookingId || null,
+          itineraryToken: bookingItinerary.itineraryToken, // Explicitly pass the itineraryToken
+          inquiryToken: bookingItinerary.inquiryToken,    // Explicitly pass the inquiryToken
           bookingArray: [{
-            booking_date: day.date,
+            booking_date: day.date, // Use the exact date from the day's itinerary
             booking_time: quote?.routeDetails?.pickup_date?.split(' ')[1] || "00:00",
             return_date: quote?.routeDetails?.return_date?.split(' ')[0] || null,
             return_time: quote?.routeDetails?.return_date?.split(' ')[1] || null,
             guest_details: {
-              title: leadTraveler.title,
               first_name: leadTraveler.firstName,
               last_name: leadTraveler.lastName,
               email: leadTraveler.email,
-              phone: `${leadTraveler.cellCountryCode}-${leadTraveler.phone}`,
-              nationality: leadTraveler.nationality,
-              gender: leadTraveler.gender,
-              addressLineOne: leadTraveler.addressLineOne,
-              addressLineTwo: leadTraveler.addressLineTwo || '',
-              city: leadTraveler.city,
-              country: leadTraveler.country,
-              countryCode: leadTraveler.countryCode
+              phone: `+${leadTraveler.cellCountryCode}-${leadTraveler.phone}`,
             },
             quotation_id: transfer.details.quotation_id,
             quotation_child_id: transfer.details.selectedQuote.quote.quote_id || null,
-            comments: transfer.specialRequirements || null,
+            comments: transfer.specialRequirements || "NA",
             total_passenger: travelers.length,
             flight_number: transfer.details.flightNumber || null
           }]
@@ -442,16 +433,8 @@ const transformActivityBookings = (bookingItinerary, travelers, specialRequireme
               title: travelers[0].title,
               name: travelers[0].firstName,
               surname: travelers[0].lastName,
-              clientNationality: travelers[0].nationality,
+              clientNationality: travelers[0].countryCode,
               age: parseInt(travelers[0].age),
-              gender: travelers[0].gender,
-              email: travelers[0].email,
-              phone: travelers[0].phone,
-              addressLineOne: travelers[0].addressLineOne,
-              addressLineTwo: travelers[0].addressLineTwo || '',
-              city: travelers[0].city,
-              country: travelers[0].country,
-              countryCode: travelers[0].countryCode
             },
             agentRef: generateAgentReference(),
             rateKey: rateKey,
@@ -470,16 +453,7 @@ const transformActivityBookings = (bookingItinerary, travelers, specialRequireme
               name: traveler.firstName,
               surname: traveler.lastName,
               type: determineAgeBand(traveler.age, activity.ageBands).toLowerCase(),
-              age: traveler.age,
-              gender: traveler.gender,
-              nationality: traveler.nationality,
-              email: traveler.email,
-              phone: traveler.phone,
-              addressLineOne: traveler.addressLineOne,
-              addressLineTwo: traveler.addressLineTwo || '',
-              city: traveler.city,
-              country: traveler.country,
-              countryCode: traveler.countryCode
+              age: traveler.age
             }))
           };
         })

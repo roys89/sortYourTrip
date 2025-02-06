@@ -36,9 +36,12 @@ const createOrder = async (req, res) => {
     } = req.body;
     const userId = req.userId;
 
+    // Convert amount to paise and ensure it's an integer
+    const amountInPaise = Math.round(amount * 100);
+
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: amount * 100, // Convert to paise
+      amount: amountInPaise, // Amount in paise as integer
       currency: 'INR',
       receipt: bookingId,
       notes: {
@@ -53,7 +56,7 @@ const createOrder = async (req, res) => {
       bookingId,
       itineraryToken,
       inquiryToken,
-      amount: totalAmount,
+      amount: totalAmount, // Store original amount in rupees
       status: 'pending',
       razorpay: {
         orderId: order.id,
@@ -75,7 +78,7 @@ const createOrder = async (req, res) => {
       data: {
         key_id: process.env.RAZORPAY_KEY_ID, 
         orderId: order.id,
-        amount: order.amount,
+        amount: amountInPaise, // Send amount in paise to frontend
         currency: order.currency
       }
     });
@@ -136,6 +139,7 @@ const verifyPayment = async (req, res) => {
     payment.status = 'completed';
     payment.razorpay.paymentId = paymentId;
     payment.razorpay.signature = signature;
+    payment.paymentId = paymentId;
     payment.paymentAttempts.push({
       timestamp: new Date(),
       status: 'completed'

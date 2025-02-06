@@ -6,6 +6,7 @@ const FlightFareRulesService = require("../../services/flightServices/flightFare
 const FlightCreateItineraryService = require("../../services/flightServices/flightCreateItineraryService");
 const FlightUtils = require("../../utils/flight/flightUtils");
 const FlightTokenManager = require('../../services/tokenManagers/flightTokenManager');
+const FlightBookingService = require("../../services/flightServices/flightBookingService");
 
 /**
  * Helper function to attempt booking a specific flight with retries
@@ -292,6 +293,63 @@ module.exports = {
         error: 'Failed to process flight itinerary',
         details: error.message
       };
+    }
+  },
+
+  bookFlight: async (req, res) => {
+    try {
+      const { bookingId } = req.params;
+      const flightData = req.body.flight;
+
+      if (!flightData) {
+        throw new Error('Flight data is required');
+      }
+
+      // Validate booking ID match
+      if (bookingId !== flightData.bookingId) {
+        throw new Error('Booking ID mismatch');
+      }
+
+      // Get authentication token
+      const authToken = await FlightTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await FlightAuthService.login();
+          return authResponse.token;
+        }
+      );
+
+      if (!authToken) {
+        throw new Error('Authentication failed');
+      }
+
+      // Add token to flight data
+      const bookingParams = {
+        ...flightData,
+        token: authToken
+      };
+
+      // Validate booking data
+      await FlightBookingService.validateBookingData(bookingParams);
+
+      // Book flight
+      const bookingResponse = await FlightBookingService.bookFlight(bookingParams);
+
+      if (!bookingResponse.success) {
+        throw new Error(bookingResponse.error || 'Flight booking failed');
+      }
+
+      res.status(200).json({
+        success: true,
+        data: bookingResponse.data
+      });
+
+    } catch (error) {
+      console.error('Error in bookFlight:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        details: error.response?.data || {}
+      });
     }
   }
 };

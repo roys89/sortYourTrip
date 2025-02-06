@@ -162,106 +162,111 @@ const PaymentPage = () => {
     },
   };
 
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+
   // Handle Razorpay payment
-  const handlePayment = useCallback(async () => {
-    if (!termsAccepted) {
-      setSnackbar({
-        open: true,
-        message: "Please accept the terms and conditions",
-        severity: "warning",
-      });
-      return;
+ const handlePayment = useCallback(async () => {
+  if (!termsAccepted) {
+    setSnackbar({
+      open: true,
+      message: "Please accept the terms and conditions",
+      severity: "warning",
+    });
+    return;
+  }
+
+  try {
+    // Wait for Razorpay to be available
+    if (!window.Razorpay) {
+      throw new Error("Payment gateway not loaded. Please try again.");
     }
-  
-    try {
-      const orderResult = await dispatch(
-        createPaymentOrder({
-          bookingId,
-          amount: itinerary.priceTotals.grandTotal,
-          itinerary
-        })
-      ).unwrap();
-  
-      // Configure Razorpay options
-      const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-        amount: orderResult.data.amount,
-        currency: orderResult.data.currency,
-        name: "Your Travel Company",
-        description: `Booking ID: ${bookingId}`,
-        order_id: orderResult.data.orderId,
-        prefill: {
-          name: `${itinerary.userInfo.firstName} ${itinerary.userInfo.lastName}`,
-          email: itinerary.userInfo.email,
-          contact: itinerary.userInfo.phoneNumber
-        },
-        handler: async (response) => {
-          try {
-            await dispatch(
-              verifyPayment({
+
+    const orderResult = await dispatch(
+      createPaymentOrder({
+        bookingId,
+        amount: itinerary.priceTotals.grandTotal,
+        itinerary
+      })
+    ).unwrap();
+
+    const rzp = new window.Razorpay({
+      key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+      amount: orderResult.data.amount,
+      currency: orderResult.data.currency,
+      name: "Your Travel Company",
+      description: `Booking ID: ${bookingId}`,
+      order_id: orderResult.data.orderId,
+      prefill: {
+        name: `${itinerary.userInfo.firstName} ${itinerary.userInfo.lastName}`,
+        email: itinerary.userInfo.email,
+        contact: itinerary.userInfo.phoneNumber
+      },
+      handler: async (response) => {
+        try {
+          await dispatch(
+            verifyPayment({
+              bookingId,
+              paymentId: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              signature: response.razorpay_signature,
+            })
+          ).unwrap();
+
+          setSnackbar({
+            open: true,
+            message: "Payment successful! Redirecting...",
+            severity: "success",
+          });
+
+          setTimeout(() => {
+            console.log('Navigating with booking data:', {
+              bookingId,
+              paymentSuccess: true,
+              itinerary,
+              bookingData
+            });
+            
+            navigate("/booking-confirmation", {
+              state: {
                 bookingId,
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                signature: response.razorpay_signature,
-              })
-            ).unwrap();
-  
-            setSnackbar({
-              open: true,
-              message: "Payment successful! Redirecting...",
-              severity: "success",
+                paymentSuccess: true,
+                itinerary,
+                bookingData
+              },
+              replace: true
             });
-  
-            setTimeout(() => {
-              navigate("/booking-confirmation", {
-                state: {
-                  bookingId,
-                  paymentSuccess: true,
-                }
-              });
-            }, 2000);
-  
-          } catch (error) {
-            setSnackbar({
-              open: true,
-              message: error.message || "Payment verification failed",
-              severity: "error",
-            });
-          }
-        },
-        modal: {
-          ondismiss: function() {
-            setSnackbar({
-              open: true,
-              message: "Payment cancelled",
-              severity: "info",
-            });
-          },
-        },
-        theme: {
-          color: theme.palette.primary.main,
-        },
-      };
-  
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-  
-    } catch (error) {
-      console.error("Payment initialization error:", error);
-      setSnackbar({
-        open: true,
-        message: error.message || "Failed to initialize payment",
-        severity: "error",
-      });
-    }
-  }, [
-    bookingId,
-    dispatch,
-    itinerary,
-    navigate,
-    termsAccepted,
-    theme.palette.primary.main,
-  ]);
+          }, 2000);
+
+        } catch (error) {
+          setSnackbar({
+            open: true,
+            message: error.message || "Payment verification failed",
+            severity: "error",
+          });
+        }
+      }
+    });
+    
+    rzp.open();
+
+  } catch (error) {
+    console.error("Payment error:", error);
+    setSnackbar({
+      open: true,
+      message: error.message || "Failed to initialize payment",
+      severity: "error",
+    });
+  }
+}, [bookingId, dispatch, itinerary, navigate, bookingData, termsAccepted]);
 
   useEffect(() => {
     if (!bookingId || !itinerary) {

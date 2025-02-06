@@ -66,7 +66,7 @@ const BookingForm = () => {
   const [itinerary, setItinerary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [success] = useState(false);
   const [formData, setFormData] = useState({
     travelers: [],
     rooms: [

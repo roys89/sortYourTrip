@@ -46,7 +46,7 @@ app.use('/api/cities-with-airports', cityAirportRoutes);
 app.use("/api/itineraryInquiry", itineraryInquiryRoutes);
 app.use("/api/itinerary", itineraryRoutes); 
 app.use("/api/markup", markupRoutes); 
-app.use("/api/booking/itinerary", itineraryBookingRoutes); 
+app.use("/api/booking", itineraryBookingRoutes); 
 app.use('/api/activities', activityRoutes);
 app.use('/api/guest-allocation', guestAllocationRoutes);
 app.use('/api/flights', flightRoutes);

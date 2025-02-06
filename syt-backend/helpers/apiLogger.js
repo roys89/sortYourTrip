@@ -41,16 +41,16 @@ class ApiLogger {
   generateFilename({ type, activityCode, hotelCode, quotationId }) {
     let prefix;
     if (activityCode) {
-      prefix = `activity_${activityCode}`;
+      prefix = `activity_${activityCode}_${type}`;
     } else if (hotelCode) {
-      prefix = `hotel_${hotelCode}`;
+      prefix = `hotel_${hotelCode}_${type}`;
     } else if (quotationId) {
-      prefix = `transfer_${quotationId}`;
+      prefix = `transfer_${quotationId}_${type}`;
     } else {
-      prefix = 'default';
+      prefix = `default_${type}`;
     }
-
-    return `${prefix}_${type}.json`;
+  
+    return `${prefix}.json`;
   }
 
   safeWriteFile(filePath, data) {

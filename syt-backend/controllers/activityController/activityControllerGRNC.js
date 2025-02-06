@@ -5,6 +5,7 @@ const apiLogger = require('../../helpers/apiLogger');
 const activityAvailabilityService = require('../../services/activityServices/activityAvailabilityService');
 const activityProductInfoService = require('../../services/activityServices/activityProductInfoService');
 const activityAvailabilityDetailService = require('../../services/activityServices/activityAvailabilityDetailService');
+const ActivityBookingService = require('../../services/activityServices/activityBookingService');
 const { createActivityReference } = require('../../services/activityServices/activityBookingReferenceService');
 
 // Constants
@@ -842,8 +843,76 @@ const createActivityBookingReference = async (req, res) => {
   }
 };
 
+
+const bookActivity = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const activityData = req.body.activity;
+
+    if (!activityData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Activity data is required'
+      });
+    }
+
+    // Validate booking ID match
+    if (bookingId !== activityData.bookingId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Booking ID mismatch'
+      });
+    }
+
+    // Validate booking data
+    try {
+      await ActivityBookingService.validateBookingData(activityData);
+    } catch (validationError) {
+      return res.status(400).json({
+        success: false,
+        error: validationError.message
+      });
+    }
+
+    // Prepare booking parameters
+    const bookingParams = {
+      ...activityData,
+      cityName: "Activity Booking", // Using surname as city placeholder
+      date: activityData.transformedActivity.fromDate,
+      inquiryToken: activityData.transformedActivity.inquiryToken || 'unknwon'
+    };
+
+    // Book activity
+    const bookingResponse = await ActivityBookingService.bookActivity(bookingParams);
+
+    if (!bookingResponse.success) {
+      return res.status(400).json({
+        success: false,
+        error: bookingResponse.error || 'Activity booking failed',
+        details: bookingResponse.details
+      });
+    }
+
+    // Return successful booking response
+    res.status(200).json({
+      success: true,
+      data: bookingResponse.data
+    });
+
+  } catch (error) {
+    console.error('Error in bookActivity:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+};
+
 // Export all functions
 module.exports = {
+  bookActivity,
   getCityActivities,
   getActivityCountsForCities,
   getActivityDetails,

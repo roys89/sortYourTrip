@@ -467,7 +467,8 @@ const extractOfflineActivityDetails = (activity) => {
       currency: 'INR',
     },
     availabilityDetails: null,
-    searchId: null
+    searchId: null,
+    bookingStatus: 'pending' 
   };
 };
 
@@ -531,6 +532,7 @@ const processOnlineActivity = async (
       activityType: 'online',
       activityProvider: 'GRNC',
       searchId,
+      bookingStatus: 'pending',  // Set initial booking status
       packageDetails: {
         amount: selectedOption?.amount || 0,
         currency: selectedOption?.currency || '',

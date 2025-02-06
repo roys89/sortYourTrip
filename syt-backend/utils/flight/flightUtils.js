@@ -202,7 +202,7 @@ function formatFlightResponse(itineraryData) {
       isSeatSelected: false,
       isBaggageSelected: false,
       isMealSelected: false,
-  
+      bookingStatus: 'pending',
       // Booking details
       bookingDetails: {
         itineraryCode: itineraryData.results.itineraryCode,

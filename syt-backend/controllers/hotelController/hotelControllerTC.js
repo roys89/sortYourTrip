@@ -436,6 +436,7 @@ module.exports = {
             reviews: staticContent?.reviews,
             address: staticContent?.contact?.address,
           },
+          bookingStatus: 'pending' // Added this line
         },
       };
 

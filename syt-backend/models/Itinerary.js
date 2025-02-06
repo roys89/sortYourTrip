@@ -157,6 +157,11 @@ const ActivitySchema = new Schema({
   isFlexibleTiming: Boolean,
   departureTime: DepartureTimeSchema,
   duration: Number,
+  bookingStatus: {    // Added bookingStatus field
+    type: String,
+    enum: ['pending', 'confirmed', 'cancelled', 'failed'],
+    default: 'pending'
+  },
   
   // Location details for offline activities
   street: String,

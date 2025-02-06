@@ -125,6 +125,7 @@ const HotelDetailModal = ({
           ...selectRoomResponse.data.data,
           checkIn: date,
           checkOut: dates.checkOut,
+          bookingStatus: 'pending',
           staticContent: [{
             id: selectRoomResponse.data.data.staticContent?.[0]?.id,
             name: selectRoomResponse.data.data.staticContent?.[0]?.name,

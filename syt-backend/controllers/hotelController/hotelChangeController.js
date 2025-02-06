@@ -202,6 +202,7 @@ const authToken = await HotelTokenManager.getOrSetToken(
               facilities: staticContent?.facilities,
               // nearByAttractions: staticContent?.nearByAttractions
             }],
+            bookingStatus: "pending",
             hotelDetails: {
               name: staticContent?.name,
               starRating: staticContent?.starRating,

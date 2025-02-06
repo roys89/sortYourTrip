@@ -101,6 +101,7 @@ const ActivityViewModal = ({
         activityName: activity.title,
         lat: activity.lat || null,
         long: activity.long || null,
+        bookingStatus: 'pending', 
         packageDetails: {
           amount: selectedOption.amount,
           currency: selectedOption.currency, 

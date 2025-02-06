@@ -118,6 +118,7 @@ exports.getGroundTransfer = async (transferData) => {
         type: "ground",
         transportationType: "transfer",
         transferProvider: 'LeAmigo',
+        bookingStatus: 'pending',
         selectedQuote: {
           ...detailedQuoteResponse.data,
           quote: {

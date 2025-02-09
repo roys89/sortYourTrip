@@ -2,6 +2,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import activityReducer from './slices/activitySlice';
 import authReducer from './slices/authSlice';
+import bookingConfirmationReducer from './slices/bookingConfirmationSlice'; // Add this import
 import bookingReducer from './slices/bookingSlice';
 import flightReplacementReducer from './slices/flightReplacementSlice';
 import flightReducer from './slices/flightSlice';
@@ -34,6 +35,7 @@ export const store = configureStore({
     guestAllocation: guestAllocationSlice,
     flightReplacement: flightReplacementReducer,
     hotelReplacement: hotelReplacementReducer,
-    payment: paymentReducer  // Added the new payment reducer
+    payment: paymentReducer,
+    bookingConfirmation: bookingConfirmationReducer  // Add this line
   }
 });

@@ -3,6 +3,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const ItineraryBooking = require('../models/ItineraryBooking');
+const Itinerary = require('../models/Itinerary'); // Added Itinerary model import
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -41,7 +42,7 @@ const createOrder = async (req, res) => {
 
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: amountInPaise, // Amount in paise as integer
+      amount: amountInPaise,
       currency: 'INR',
       receipt: bookingId,
       notes: {
@@ -50,13 +51,13 @@ const createOrder = async (req, res) => {
       }
     });
 
-    // Create payment record with data from frontend
+    // Create payment record
     const payment = new Payment({
       userId,
       bookingId,
       itineraryToken,
       inquiryToken,
-      amount: totalAmount, // Store original amount in rupees
+      amount: totalAmount,
       status: 'pending',
       razorpay: {
         orderId: order.id,
@@ -73,12 +74,24 @@ const createOrder = async (req, res) => {
 
     await payment.save();
 
+    // Update Itinerary and ItineraryBooking to processing status
+    await Promise.all([
+      Itinerary.findOneAndUpdate(
+        { itineraryToken },
+        { paymentStatus: 'processing' }
+      ),
+      ItineraryBooking.findOneAndUpdate(
+        { bookingId },
+        { paymentStatus: 'processing' }
+      )
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
-        key_id: process.env.RAZORPAY_KEY_ID, 
+        key_id: process.env.RAZORPAY_KEY_ID,
         orderId: order.id,
-        amount: amountInPaise, // Send amount in paise to frontend
+        amount: amountInPaise,
         currency: order.currency
       }
     });
@@ -129,13 +142,30 @@ const verifyPayment = async (req, res) => {
       });
       await payment.save();
 
+      // Update both Itinerary and ItineraryBooking
+      await Promise.all([
+        Itinerary.findOneAndUpdate(
+          { itineraryToken: payment.itineraryToken },
+          { paymentStatus: 'failed' }
+        ),
+        ItineraryBooking.findOneAndUpdate(
+          { bookingId },
+          { 
+            paymentStatus: 'failed',
+            'razorpay.paymentId': paymentId,
+            'razorpay.signature': signature,
+            status: 'failed'
+          }
+        )
+      ]);
+
       return res.status(400).json({
         success: false,
         message: 'Invalid payment signature'
       });
     }
 
-    // Update payment record
+    // Update payment record for success
     payment.status = 'completed';
     payment.razorpay.paymentId = paymentId;
     payment.razorpay.signature = signature;
@@ -146,16 +176,22 @@ const verifyPayment = async (req, res) => {
     });
     await payment.save();
 
-    // Update booking status
-    await ItineraryBooking.findOneAndUpdate(
-      { bookingId },
-      { 
-        paymentStatus: 'completed',
-        'razorpay.paymentId': paymentId,
-        'razorpay.signature': signature,
-        status: 'confirmed'  // Update main booking status
-      }
-    );
+    // Update both Itinerary and ItineraryBooking for success
+    await Promise.all([
+      Itinerary.findOneAndUpdate(
+        { itineraryToken: payment.itineraryToken },
+        { paymentStatus: 'completed' }
+      ),
+      ItineraryBooking.findOneAndUpdate(
+        { bookingId },
+        { 
+          paymentStatus: 'completed',
+          'razorpay.paymentId': paymentId,
+          'razorpay.signature': signature,
+          status: 'confirmed'
+        }
+      )
+    ]);
 
     res.status(200).json({
       success: true,
@@ -177,144 +213,129 @@ const verifyPayment = async (req, res) => {
 };
 
 // Handle Razorpay webhooks
-// Handle Razorpay webhooks
 const handleWebhook = async (req, res) => {
-    try {
-      // 1. Extract signature from Razorpay headers
-      const signature = req.headers['x-razorpay-signature'];
-      const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-      
-      // 2. Verify webhook signature
-      const shasum = crypto.createHmac('sha256', secret);
-      shasum.update(JSON.stringify(req.body));
-      const digest = shasum.digest('hex');
-  
-      // 3. Validate signature
-      if (signature !== digest) {
-        console.error('Invalid webhook signature');
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid webhook signature'
-        });
-      }
-  
-      // 4. Extract event and payment details
-      const { event, payload } = req.body;
-      const payment = payload.payment.entity;
-      
-      // 5. Log the incoming webhook event
-      console.log(`Received Razorpay Webhook Event: ${event}`);
-      console.log('Payment Details:', JSON.stringify(payment, null, 2));
-  
-      // 6. Find payment record by order ID
-      const paymentRecord = await Payment.findOne({
-        'razorpay.orderId': payment.order_id
+  try {
+    // Verify webhook signature
+    const signature = req.headers['x-razorpay-signature'];
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    
+    const shasum = crypto.createHmac('sha256', secret);
+    shasum.update(JSON.stringify(req.body));
+    const digest = shasum.digest('hex');
+
+    if (signature !== digest) {
+      console.error('Invalid webhook signature');
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid webhook signature'
       });
-  
-      // 7. If no payment record found, log and return
-      if (!paymentRecord) {
-        console.warn(`No payment record found for order ID: ${payment.order_id}`);
-        return res.status(404).json({
-          success: false,
-          message: 'Payment record not found'
-        });
-      }
-  
-      // 8. Determine status based on event
-      let status, bookingStatus, errorDescription = null;
-  
-      switch (event) {
-        case 'payment.authorized':
-          status = 'authorized';
-          bookingStatus = 'pending';
-          break;
-        
-        case 'payment.captured':
-          status = 'completed';
-          bookingStatus = 'confirmed';
-          break;
-        
-        case 'payment.failed':
-          status = 'failed';
-          bookingStatus = 'failed';
-          errorDescription = payment.error_description || 'Payment failed';
-          break;
-        
-        case 'payment.pending':
-          status = 'pending';
-          bookingStatus = 'pending';
-          break;
-        
-        case 'payment.dispute.created':
-          status = 'disputed';
-          bookingStatus = 'disputed';
-          break;
-        
-        default:
-          console.warn(`Unhandled event type: ${event}`);
-          return res.status(200).json({ 
-            success: true, 
-            message: 'Event type not processed' 
-          });
-      }
-  
-      // 9. Update payment record
-      paymentRecord.status = status;
-      paymentRecord.paymentAttempts.push({
-        timestamp: new Date(),
-        status,
-        error: errorDescription
+    }
+
+    const { event, payload } = req.body;
+    const payment = payload.payment.entity;
+    
+    console.log(`Received Razorpay Webhook Event: ${event}`);
+    console.log('Payment Details:', JSON.stringify(payment, null, 2));
+
+    // Find payment record
+    const paymentRecord = await Payment.findOne({
+      'razorpay.orderId': payment.order_id
+    });
+
+    if (!paymentRecord) {
+      console.warn(`No payment record found for order ID: ${payment.order_id}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Payment record not found'
       });
-  
-      // Update Razorpay-specific details
-      paymentRecord.razorpay.paymentId = payment.id;
-      paymentRecord.razorpay.status = status;
-  
-      await paymentRecord.save();
-  
-      // 10. Update booking status
-      await ItineraryBooking.findOneAndUpdate(
+    }
+
+    // Determine status based on event
+    let status, bookingStatus;
+    
+    switch (event) {
+      case 'payment.authorized':
+        status = 'authorized';
+        bookingStatus = 'pending';
+        break;
+      
+      case 'payment.captured':
+        status = 'completed';
+        bookingStatus = 'confirmed';
+        break;
+      
+      case 'payment.failed':
+        status = 'failed';
+        bookingStatus = 'failed';
+        break;
+      
+      case 'payment.pending':
+        status = 'pending';
+        bookingStatus = 'pending';
+        break;
+      
+      case 'payment.dispute.created':
+        status = 'disputed';
+        bookingStatus = 'disputed';
+        break;
+      
+      default:
+        console.warn(`Unhandled event type: ${event}`);
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Event type not processed' 
+        });
+    }
+
+    // Update all relevant records
+    await Promise.all([
+      // Update Payment record
+      Payment.findOneAndUpdate(
+        { 'razorpay.orderId': payment.order_id },
+        {
+          status,
+          'razorpay.paymentId': payment.id,
+          'razorpay.status': status,
+          $push: {
+            paymentAttempts: {
+              timestamp: new Date(),
+              status,
+              error: payment.error_description
+            }
+          }
+        }
+      ),
+      // Update Itinerary payment status
+      Itinerary.findOneAndUpdate(
+        { itineraryToken: paymentRecord.itineraryToken },
+        { paymentStatus: status }
+      ),
+      // Update ItineraryBooking status
+      ItineraryBooking.findOneAndUpdate(
         { bookingId: paymentRecord.bookingId },
         { 
           paymentStatus: status,
           status: bookingStatus,
-          'razorpay.paymentId': payment.id, 
+          'razorpay.paymentId': payment.id,
           'razorpay.status': status
         }
-      );
-  
-      // 11. Optional: Send notifications or trigger additional processes
-      if (status === 'completed') {
-        // Example: Send confirmation email
-        // await sendConfirmationEmail(paymentRecord);
-      }
-  
-      // 12. Respond to Razorpay
-      res.status(200).json({ 
-        success: true,
-        message: 'Webhook processed successfully' 
-      });
-  
-    } catch (error) {
-      // 13. Comprehensive error handling
-      console.error('Webhook handler error:', error);
-      
-      // Log error details
-      const errorLog = new ErrorLog({
-        service: 'RazorpayWebhook',
-        errorMessage: error.message,
-        errorStack: error.stack,
-        requestBody: JSON.stringify(req.body)
-      });
-      await errorLog.save();
-  
-      res.status(500).json({
-        success: false,
-        message: 'Webhook processing failed',
-        error: 'Internal server error'
-      });
-    }
-  };
+      )
+    ]);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Webhook processed successfully' 
+    });
+
+  } catch (error) {
+    console.error('Webhook handler error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Webhook processing failed',
+      error: 'Internal server error'
+    });
+  }
+};
 
 // Get payment details
 const getPaymentDetails = async (req, res) => {

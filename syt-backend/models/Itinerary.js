@@ -318,8 +318,13 @@ const ItinerarySchema = new Schema(
       },
       details: Schema.Types.Mixed,
       changedAt: { type: Date, default: Date.now }
-    }]
-  },
+    }],
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'processing', 'completed', 'failed'],
+      default: 'pending'
+    }
+  }, 
   {
     timestamps: true,
     toJSON: {

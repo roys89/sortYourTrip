@@ -22,7 +22,8 @@ const {
   updateActivityWithBookingRef,
   replaceRoom,
   replaceFlight,
-  updateFlightSeatsAndBaggage
+  updateFlightSeatsAndBaggage,
+  updateBookingStatus
 } = require("../../controllers/itineraryController/itineraryModificationController"); 
 
 const {
@@ -202,22 +203,15 @@ router.post(
   getFlights
 );
 
-// router.post(
-//   "/:itineraryToken/recheck-hotels",
-//   checkAuth,
-//   checkInquiryToken,
-//   recheckHotelPrices
-// );
-
-// router.post(
-//   "/:itineraryToken/recheck-activities",
-//   checkAuth,
-//   checkInquiryToken,
-//   recheckActivityPrices
-// );
-
 router.post('/:itineraryToken/recheck-hotels', checkAuth,
   checkInquiryToken,
   recheckHotelPrices);
+
+  router.put(
+    "/:itineraryToken/booking-status",
+    checkAuth,
+    checkInquiryToken,
+    updateBookingStatus
+  );
 
 module.exports = router;

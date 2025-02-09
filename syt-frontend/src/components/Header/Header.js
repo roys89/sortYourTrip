@@ -49,12 +49,14 @@ const Header = () => {
         sx={{
           textAlign: 'center',
           padding: {
-            xs: '3rem 1rem',
+            xs: '5rem 1rem 3rem',
             sm: '3rem 2rem',
             md: '2rem 5rem',
           },
           backgroundColor: theme.palette.background.default,
           color: theme.palette.text.primary,
+          position: 'relative',
+          zIndex: 10,
         }}
       >
         <Box sx={{ maxWidth: '1200px', margin: '0 auto' }}>

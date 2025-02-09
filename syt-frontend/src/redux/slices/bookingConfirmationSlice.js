@@ -1,65 +1,59 @@
-// src/redux/slices/bookingConfirmationSlice.js
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Async thunk for booking an activity
-export const bookActivity = createAsyncThunk(
-  'bookingConfirmation/bookActivity',
-  async ({ bookingId, activity, travelers, specialRequirements }, { rejectWithValue }) => {
+// Async thunk for updating booking status
+export const updateBookingStatus = createAsyncThunk(
+  'bookingConfirmation/updateBookingStatus',
+  async ({ 
+    itineraryToken, 
+    inquiryToken,
+    cityName, 
+    date, 
+    bookingType, 
+    bookingStatus,
+    activityCode,
+    itineraryCode,
+    code,
+    quotation_id
+  }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(
-        `http://localhost:5000/api/booking/${bookingId}/activity`,
-        { activity, travelers, specialRequirements },
+      const response = await axios.put(
+        `http://localhost:5000/api/itinerary/${itineraryToken}/booking-status`,
+        { 
+          itineraryToken,
+          inquiryToken,
+          cityName, 
+          date,
+          bookingType,
+          bookingStatus,
+          ...(bookingType === 'activity' && { activityCode }),
+          ...(bookingType === 'flight' && { itineraryCode }),
+          ...(bookingType === 'hotel' && { code }),
+          ...(bookingType === 'transfer' && { quotation_id })
+        },
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Inquiry-Token': inquiryToken
           }
         }
       );
-      return { activityId: activity.activityCode, ...response.data };
+      return response.data;
     } catch (error) {
-      return rejectWithValue({
-        activityId: activity.activityCode,
-        error: error.response?.data?.message || 'Failed to book activity'
-      });
+      return rejectWithValue(error.response?.data || { message: 'Status update failed' });
     }
   }
 );
 
-// Async thunk for booking a hotel
-export const bookHotel = createAsyncThunk(
-  'bookingConfirmation/bookHotel',
-  async ({ bookingId, hotel, travelers }, { rejectWithValue }) => {
-    try {
-      const response = await axios.post(
-        `http://localhost:5000/api/booking/${bookingId}/hotel`,
-        { hotel, travelers },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return { hotelId: hotel.traceId, ...response.data };
-    } catch (error) {
-      return rejectWithValue({
-        hotelId: hotel.traceId,
-        error: error.response?.data?.message || 'Failed to book hotel'
-      });
-    }
-  }
-);
-
-// Async thunk for booking a flight
+// Flight Booking Thunk
 export const bookFlight = createAsyncThunk(
   'bookingConfirmation/bookFlight',
-  async ({ bookingId, flight, travelers }, { rejectWithValue }) => {
+  async ({ bookingId, flight }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(
         `http://localhost:5000/api/booking/${bookingId}/flight`,
-        { flight, travelers },
+        { flight },
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -67,24 +61,168 @@ export const bookFlight = createAsyncThunk(
           }
         }
       );
-      return { flightId: flight.flightCode, ...response.data };
+
+      if (response.data.success) {
+        // If booking successful, update status
+        await dispatch(updateBookingStatus({
+          itineraryToken: flight.itineraryToken,
+          inquiryToken: flight.inquiryToken,
+          cityName: flight.city,
+          date: flight.date,
+          bookingType: 'flight',
+          bookingStatus: 'confirmed',
+          itineraryCode: flight.itineraryCode
+        }));
+        
+        // Set final state after updateBookingStatus
+        dispatch(setBookingStatus({
+          type: 'flight',
+          id: flight.flightData.flightCode,
+          status: 'confirmed'
+        }));
+        
+        return response.data;
+      } else {
+        // If booking fails, just set failed state (don't call updateBookingStatus)
+        dispatch(setBookingStatus({
+          type: 'flight',
+          id: flight.flightData.flightCode,
+          status: 'failed'
+        }));
+        
+        throw new Error('Booking unsuccessful');
+      }
     } catch (error) {
-      return rejectWithValue({
-        flightId: flight.flightCode,
-        error: error.response?.data?.message || 'Failed to book flight'
-      });
+      // For any error, set failed state (don't call updateBookingStatus)
+      dispatch(setBookingStatus({
+        type: 'flight',
+        id: flight.flightData.flightCode,
+        status: 'failed'
+      }));
+      
+      return rejectWithValue(error.response?.data || { message: 'Flight booking failed' });
     }
   }
 );
 
-// Async thunk for booking a transfer
+// Hotel Booking Thunk
+export const bookHotel = createAsyncThunk(
+  'bookingConfirmation/bookHotel',
+  async ({ bookingId, hotel }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axios.post(
+        `http://localhost:5000/api/booking/${bookingId}/hotel`,
+        { hotel },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        await dispatch(updateBookingStatus({
+          itineraryToken: hotel.itineraryToken,
+          inquiryToken: hotel.inquiryToken,
+          cityName: hotel.city,
+          date: hotel.date,
+          bookingType: 'hotel',
+          bookingStatus: 'confirmed',
+          code: hotel.code
+        }));
+
+        dispatch(setBookingStatus({
+          type: 'hotel',
+          id: hotel.traceId,
+          status: 'confirmed'
+        }));
+
+        return response.data;
+      } else {
+        dispatch(setBookingStatus({
+          type: 'hotel',
+          id: hotel.traceId,
+          status: 'failed'
+        }));
+
+        throw new Error('Booking unsuccessful');
+      }
+    } catch (error) {
+      dispatch(setBookingStatus({
+        type: 'hotel',
+        id: hotel.traceId,
+        status: 'failed'
+      }));
+
+      return rejectWithValue(error.response?.data || { message: 'Hotel booking failed' });
+    }
+  }
+);
+
+// Activity Booking Thunk
+export const bookActivity = createAsyncThunk(
+  'bookingConfirmation/bookActivity',
+  async ({ bookingId, activity }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axios.post(
+        `http://localhost:5000/api/booking/${bookingId}/activity`,
+        { activity },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        await dispatch(updateBookingStatus({
+          itineraryToken: activity.transformedActivity.itineraryToken,
+          inquiryToken: activity.transformedActivity.inquiryToken,
+          cityName: activity.transformedActivity.cityName,
+          date: activity.transformedActivity.fromDate,
+          bookingType: 'activity',
+          bookingStatus: 'confirmed',
+          activityCode: activity.transformedActivity.activityCode
+        }));
+
+        dispatch(setBookingStatus({
+          type: 'activity',
+          id: activity.transformedActivity.activityCode,
+          status: 'confirmed'
+        }));
+
+        return response.data;
+      } else {
+        dispatch(setBookingStatus({
+          type: 'activity',
+          id: activity.transformedActivity.activityCode,
+          status: 'failed'
+        }));
+
+        throw new Error('Booking unsuccessful');
+      }
+    } catch (error) {
+      dispatch(setBookingStatus({
+        type: 'activity',
+        id: activity.transformedActivity.activityCode,
+        status: 'failed'
+      }));
+
+      return rejectWithValue(error.response?.data || { message: 'Activity booking failed' });
+    }
+  }
+);
+
+// Transfer Booking Thunk
 export const bookTransfer = createAsyncThunk(
   'bookingConfirmation/bookTransfer',
-  async ({ bookingId, transfer, travelers }, { rejectWithValue }) => {
+  async ({ bookingId, transfer }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(
         `http://localhost:5000/api/booking/${bookingId}/transfer`,
-        { transfer, travelers },
+        { transfer },
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -92,116 +230,138 @@ export const bookTransfer = createAsyncThunk(
           }
         }
       );
-      return { transferId: transfer.transferId, ...response.data };
+
+      if (response.data.success) {
+        await dispatch(updateBookingStatus({
+          itineraryToken: transfer.itineraryToken,
+          inquiryToken: transfer.inquiryToken,
+          cityName: transfer.cityName,
+          date: transfer.bookingArray[0].booking_date,
+          bookingType: 'transfer',
+          bookingStatus: 'confirmed',
+          quotation_id: transfer.quotationId
+        }));
+
+        dispatch(setBookingStatus({
+          type: 'transfer',
+          id: transfer.quotationId,
+          status: 'confirmed'
+        }));
+
+        return response.data;
+      } else {
+        dispatch(setBookingStatus({
+          type: 'transfer',
+          id: transfer.quotationId,
+          status: 'failed'
+        }));
+
+        throw new Error('Booking unsuccessful');
+      }
     } catch (error) {
-      return rejectWithValue({
-        transferId: transfer.transferId,
-        error: error.response?.data?.message || 'Failed to book transfer'
-      });
+      dispatch(setBookingStatus({
+        type: 'transfer',
+        id: transfer.quotationId,
+        status: 'failed'
+      }));
+
+      return rejectWithValue(error.response?.data || { message: 'Transfer booking failed' });
     }
   }
 );
 
-const initialState = {
-  bookingStatuses: {},  // Stores status for each booking item
-  errors: {},           // Stores errors for each booking item
-  loading: false,
-  vouchers: {},         // Stores voucher download statuses
-  overallStatus: 'pending' // Overall booking status
-};
-
+// Booking Confirmation Slice
 const bookingConfirmationSlice = createSlice({
   name: 'bookingConfirmation',
-  initialState,
+  initialState: {
+    bookingStatuses: {},
+    errors: {},
+    loading: false,
+    bookingLoading: {}
+  },
   reducers: {
-    resetBookingStatus: () => initialState,
-    setVoucherStatus: (state, action) => {
-      const { itemId, status } = action.payload;
-      state.vouchers[itemId] = status;
+    resetBookingStatus: (state) => {
+      state.bookingStatuses = {};
+      state.errors = {};
+      state.loading = false;
+      state.bookingLoading = {};
     },
     setBookingStatus: (state, action) => {
       const { type, id, status } = action.payload;
-      state.bookingStatuses[`${type}-${id}`] = status;
+      const bookingKey = `${type}-${id}`;
+      
+      // Update both status and loading based on the status
+      state.bookingStatuses[bookingKey] = status;
+      state.bookingLoading[bookingKey] = status === 'loading';
     }
   },
   extraReducers: (builder) => {
-    // Activity booking
     builder
-      .addCase(bookActivity.pending, (state, action) => {
-        const activityId = action.meta.arg.activity.activityCode;
-        state.bookingStatuses[`activity-${activityId}`] = 'loading';
+      // Update Booking Status Reducers
+      .addCase(updateBookingStatus.pending, (state) => {
         state.loading = true;
       })
-      .addCase(bookActivity.fulfilled, (state, action) => {
-        const activityId = action.meta.arg.activity.activityCode;
-        state.bookingStatuses[`activity-${activityId}`] = 'confirmed';
+      .addCase(updateBookingStatus.fulfilled, (state) => {
         state.loading = false;
       })
-      .addCase(bookActivity.rejected, (state, action) => {
-        const activityId = action.meta.arg.activity.activityCode;
-        state.bookingStatuses[`activity-${activityId}`] = 'failed';
-        state.errors[`activity-${activityId}`] = action.error.message;
+      .addCase(updateBookingStatus.rejected, (state, action) => {
         state.loading = false;
+        state.errors = action.payload;
       })
 
-    // Hotel booking
-    builder
-      .addCase(bookHotel.pending, (state, action) => {
-        const hotelId = action.meta.arg.hotel.traceId;
-        state.bookingStatuses[`hotel-${hotelId}`] = 'loading';
-        state.loading = true;
-      })
-      .addCase(bookHotel.fulfilled, (state, action) => {
-        const hotelId = action.meta.arg.hotel.traceId;
-        state.bookingStatuses[`hotel-${hotelId}`] = 'confirmed';
-        state.loading = false;
-      })
-      .addCase(bookHotel.rejected, (state, action) => {
-        const hotelId = action.meta.arg.hotel.traceId;
-        state.bookingStatuses[`hotel-${hotelId}`] = 'failed';
-        state.errors[`hotel-${hotelId}`] = action.error.message;
-        state.loading = false;
-      })
-
-    // Flight booking
-    builder
+      // Flight Booking Reducers
       .addCase(bookFlight.pending, (state, action) => {
-        const flightId = action.meta.arg.flight.flightCode;
-        state.bookingStatuses[`flight-${flightId}`] = 'loading';
-        state.loading = true;
-      })
-      .addCase(bookFlight.fulfilled, (state, action) => {
-        const flightId = action.meta.arg.flight.flightCode;
-        state.bookingStatuses[`flight-${flightId}`] = 'confirmed';
-        state.loading = false;
+        const flightCode = action.meta.arg.flight.flightData?.flightCode;
+        const bookingKey = `flight-${flightCode}`;
+        state.errors[bookingKey] = null;
       })
       .addCase(bookFlight.rejected, (state, action) => {
-        const flightId = action.meta.arg.flight.flightCode;
-        state.bookingStatuses[`flight-${flightId}`] = 'failed';
-        state.errors[`flight-${flightId}`] = action.error.message;
-        state.loading = false;
+        const flightCode = action.meta.arg.flight.flightData?.flightCode;
+        const bookingKey = `flight-${flightCode}`;
+        state.errors[bookingKey] = action.error.message;
       })
 
-    // Transfer booking
-    builder
-      .addCase(bookTransfer.pending, (state, action) => {
-        const transferId = action.meta.arg.transfer.transferId;
-        state.bookingStatuses[`transfer-${transferId}`] = 'loading';
-        state.loading = true;
+      // Hotel Booking Reducers
+      .addCase(bookHotel.pending, (state, action) => {
+        const traceId = action.meta.arg.hotel.traceId;
+        const bookingKey = `hotel-${traceId}`;
+        state.errors[bookingKey] = null;
       })
-      .addCase(bookTransfer.fulfilled, (state, action) => {
-        const transferId = action.meta.arg.transfer.transferId;
-        state.bookingStatuses[`transfer-${transferId}`] = 'confirmed';
-        state.loading = false;
+      .addCase(bookHotel.rejected, (state, action) => {
+        const traceId = action.meta.arg.hotel.traceId;
+        const bookingKey = `hotel-${traceId}`;
+        state.errors[bookingKey] = action.error.message;
+      })
+
+      // Activity Booking Reducers
+      .addCase(bookActivity.pending, (state, action) => {
+        const activityCode = action.meta.arg.activity.transformedActivity.activityCode;
+        const bookingKey = `activity-${activityCode}`;
+        state.errors[bookingKey] = null;
+      })
+      .addCase(bookActivity.rejected, (state, action) => {
+        const activityCode = action.meta.arg.activity.transformedActivity.activityCode;
+        const bookingKey = `activity-${activityCode}`;
+        state.errors[bookingKey] = action.error.message;
+      })
+
+      // Transfer Booking Reducers
+      .addCase(bookTransfer.pending, (state, action) => {
+        const quotationId = action.meta.arg.transfer.quotationId;
+        const bookingKey = `transfer-${quotationId}`;
+        state.errors[bookingKey] = null;
       })
       .addCase(bookTransfer.rejected, (state, action) => {
-        const transferId = action.meta.arg.transfer.transferId;
-        state.bookingStatuses[`transfer-${transferId}`] = 'failed';
-        state.errors[`transfer-${transferId}`] = action.error.message;
-        state.loading = false;
+        const quotationId = action.meta.arg.transfer.quotationId;
+        const bookingKey = `transfer-${quotationId}`;
+        state.errors[bookingKey] = action.error.message;
       });
   }
 });
 
-export const { resetBookingStatus, setVoucherStatus, setBookingStatus } = bookingConfirmationSlice.actions;
+export const {
+  resetBookingStatus,
+  setBookingStatus
+} = bookingConfirmationSlice.actions;
+
 export default bookingConfirmationSlice.reducer;

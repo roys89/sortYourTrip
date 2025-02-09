@@ -803,3 +803,161 @@ exports.updateFlightSeatsAndBaggage = async (req, res) => {
     });
   }
 };
+
+exports.updateBookingStatus = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { 
+    cityName, 
+    date, 
+    bookingType, 
+    bookingStatus,
+    bookingResponse,
+    // Top-level parameters for each booking type
+    activityCode,
+    itineraryCode,
+    code,
+    quotation_id
+  } = req.body;
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    const itinerary = await Itinerary.findOne({ 
+      itineraryToken,
+      inquiryToken 
+    });
+
+    if (!itinerary) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Itinerary not found'
+      });
+    }
+
+    // Find the city and day
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'City not found in itinerary'
+      });
+    }
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Day not found in itinerary'
+      });
+    }
+
+    const day = itinerary.cities[cityIndex].days[dayIndex];
+
+    // Update booking status based on type
+    switch (bookingType) {
+      case 'flight': {
+        // Find flight by itineraryCode
+        const flightIndex = day.flights.findIndex(
+          flight => flight.flightData?.bookingDetails?.itineraryCode === itineraryCode
+        );
+        
+        if (flightIndex === -1) {
+          return res.status(404).json({
+            success: false,
+            message: 'Flight not found with provided itineraryCode'
+          });
+        }
+
+        day.flights[flightIndex].flightData.bookingStatus = bookingStatus;
+        if (bookingResponse?.success) {
+          day.flights[flightIndex].flightData.bookingDetails = {
+            ...day.flights[flightIndex].flightData.bookingDetails,
+            ...bookingResponse.data.results[0]
+          };
+        }
+        break;
+      }
+
+      case 'hotel': {
+        // Find hotel by code
+        const hotelIndex = day.hotels.findIndex(
+          hotel => hotel.data.code === code
+        );
+
+        if (hotelIndex === -1) {
+          return res.status(404).json({
+            success: false,
+            message: 'Hotel not found with provided code'
+          });
+        }
+
+        day.hotels[hotelIndex].data.bookingStatus = bookingStatus;
+        if (bookingResponse?.success) {
+          day.hotels[hotelIndex].data.bookingDetails = bookingResponse.data.results[0];
+        }
+        break;
+      }
+
+      case 'transfer': {
+        // Find transfer by quotation_id
+        const transferIndex = day.transfers.findIndex(
+          transfer => transfer.details.quotation_id === quotation_id
+        );
+
+        if (transferIndex === -1) {
+          return res.status(404).json({
+            success: false,
+            message: 'Transfer not found with provided quotation_id'
+          });
+        }
+
+        day.transfers[transferIndex].details.bookingStatus = bookingStatus;
+        if (bookingResponse?.success) {
+          day.transfers[transferIndex].details.bookingId = bookingResponse.data.booking_id;
+        }
+        break;
+      }
+
+      case 'activity': {
+        // Find activity by activityCode
+        const activityIndex = day.activities.findIndex(
+          activity => activity.activityCode === activityCode
+        );
+
+        if (activityIndex === -1) {
+          return res.status(404).json({
+            success: false,
+            message: 'Activity not found with provided activityCode'
+          });
+        }
+
+        day.activities[activityIndex].bookingStatus = bookingStatus;
+        if (bookingResponse?.success) {
+          day.activities[activityIndex].bookingReference = bookingResponse.data;
+        }
+        break;
+      }
+
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid booking type'
+        });
+    }
+
+    // Save the updated itinerary
+    await itinerary.save();
+
+    res.json({
+      success: true,
+      message: `${bookingType} booking status updated successfully`,
+    });
+
+  } catch (error) {
+    console.error(`Error updating ${bookingType} booking status:`, error);
+    res.status(500).json({
+      success: false,
+      message: `Error updating ${bookingType} booking status`,
+      error: error.message
+    });
+  }
+};

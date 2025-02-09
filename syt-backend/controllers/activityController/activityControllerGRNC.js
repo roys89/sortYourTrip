@@ -890,12 +890,18 @@ const bookActivity = async (req, res) => {
     // Book activity
     const bookingResponse = await ActivityBookingService.bookActivity(bookingParams);
 
-    // Return complete response maintaining the success flag
-    res.status(200).json({
-      success: bookingResponse.success,
-      error: bookingResponse.error,
-      data: bookingResponse.data
-    });
+    // Modify the success flag based on error conditions
+    const modifiedResponse = {
+      ...bookingResponse,
+      success: bookingResponse.success && 
+               (!bookingResponse.data.errorCodes || 
+                bookingResponse.data.errorCodes.length === 0) &&
+               (!bookingResponse.data.errorMessages || 
+                bookingResponse.data.errorMessages.length === 0)
+    };
+
+    // Return complete response
+    res.status(200).json(modifiedResponse);
 
   } catch (error) {
     console.error('Error in bookActivity:', error);
@@ -903,7 +909,7 @@ const bookActivity = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      data: error.response?.data || error // Include complete error response
+      data: error.response?.data || error
     });
   }
 };

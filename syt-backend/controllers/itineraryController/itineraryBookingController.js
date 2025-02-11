@@ -472,6 +472,37 @@ class ItineraryBookingController {
       });
     }
   }
+
+  static async getBookingByItineraryToken(req, res) {
+    try {
+      const { itineraryToken } = req.params;
+      
+      const booking = await ItineraryBooking.findOne({
+        itineraryToken,
+        'userInfo.userId': req.user._id
+      }).select('bookingId paymentStatus rooms specialRequirements');
+  
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'No booking found for this itinerary'
+        });
+      }
+  
+      return res.status(200).json({
+        success: true,
+        data: booking
+      });
+    } catch (error) {
+      console.error('Get booking by itinerary token failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve booking',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  }
+  
 }
 
 module.exports = ItineraryBookingController;

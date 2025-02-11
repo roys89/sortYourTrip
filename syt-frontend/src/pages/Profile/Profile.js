@@ -8,6 +8,7 @@ import {
   Visibility as ViewIcon
 } from '@mui/icons-material';
 import {
+  Alert,
   Avatar,
   Box,
   Button,
@@ -18,6 +19,7 @@ import {
   Grid,
   Paper,
   Skeleton,
+  Snackbar,
   Typography,
   useTheme
 } from '@mui/material';
@@ -36,6 +38,14 @@ const Profile = () => {
   const [itineraries, setItineraries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState({});
+  const [error, setError] = useState(null);
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
 
   useEffect(() => {
     const fetchItineraries = async () => {
@@ -50,11 +60,17 @@ const Profile = () => {
         });
         
         if (response.data.success) {
-          console.log('Itineraries:', response.data);  // Debug log
+          console.log('Itineraries:', response.data);
           setItineraries(response.data.itineraries);
         }
       } catch (error) {
         console.error('Error fetching itineraries:', error.response || error);
+        setError(error.response?.data?.message || 'Failed to fetch itineraries');
+        setSnackbar({
+          open: true,
+          message: 'Failed to fetch itineraries',
+          severity: 'error'
+        });
       } finally {
         setLoading(false);
       }
@@ -69,6 +85,151 @@ const Profile = () => {
 
   const handleLogout = () => {
     dispatch(logout());
+    navigate('/auth/login');
+  };
+
+  const handleViewItinerary = async (itinerary) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://localhost:5000/api/booking/by-itinerary/${itinerary.itineraryToken}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const bookingData = response.data.data;
+      
+      if (!bookingData) {
+        // If no booking exists, proceed to itinerary page
+        navigate('/itinerary', {
+          state: {
+            itineraryInquiryToken: itinerary.inquiryToken,
+            origin: 'profile'
+          },
+          replace: true
+        });
+        return;
+      }
+
+      switch (bookingData.paymentStatus) {
+        case 'completed':
+          try {
+            // Fetch complete itinerary details
+            const itineraryResponse = await axios.get(
+              `http://localhost:5000/api/itinerary/${itinerary.itineraryToken}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'x-inquiry-token': itinerary.inquiryToken
+                }
+              }
+            );
+
+            const completeItinerary = itineraryResponse.data;
+            
+            console.log('Navigating to booking confirmation with data:', {
+              bookingId: bookingData.bookingId,
+              paymentSuccess: true,
+              itinerary: completeItinerary,
+              bookingData
+            });
+
+            navigate('/booking-confirmation', {
+              state: {
+                bookingId: bookingData.bookingId,
+                paymentSuccess: true,
+                itinerary: completeItinerary,
+                bookingData
+              },
+              replace: true
+            });
+          } catch (error) {
+            console.error('Error fetching complete itinerary:', error);
+            setSnackbar({
+              open: true,
+              message: 'Error fetching itinerary details',
+              severity: 'error'
+            });
+            // Still navigate but with limited itinerary data
+            navigate('/booking-confirmation', {
+              state: {
+                bookingId: bookingData.bookingId,
+                paymentSuccess: true,
+                itinerary,
+                bookingData
+              },
+              replace: true
+            });
+          }
+          break;
+
+        case 'failed':
+          navigate('/payment', {
+            state: {
+              bookingId: bookingData.bookingId,
+              bookingData,
+              itinerary
+            },
+            replace: true
+          });
+          break;
+
+        case 'pending':
+        default:
+          navigate('/itinerary', {
+            state: {
+              itineraryInquiryToken: itinerary.inquiryToken,
+              origin: 'profile'
+            },
+            replace: true
+          });
+          break;
+      }
+    } catch (error) {
+      console.error('Error checking booking status:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error checking booking status. Redirecting to itinerary page.',
+        severity: 'error'
+      });
+      // In case of error, default to itinerary page
+      navigate('/itinerary', {
+        state: {
+          itineraryInquiryToken: itinerary.inquiryToken,
+          origin: 'profile'
+        },
+        replace: true
+      });
+    }
+  };
+
+  const handleDelete = async (inquiryToken) => {
+    try {
+      setDeleteLoading(prev => ({ ...prev, [inquiryToken]: true }));
+      const token = localStorage.getItem('token');
+      
+      await axios.delete(`http://localhost:5000/api/itinerary/${inquiryToken}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      setItineraries(prev => prev.filter(itinerary => itinerary.inquiryToken !== inquiryToken));
+      setSnackbar({
+        open: true,
+        message: 'Itinerary deleted successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting itinerary:', error.response || error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete itinerary',
+        severity: 'error'
+      });
+    } finally {
+      setDeleteLoading(prev => ({ ...prev, [inquiryToken]: false }));
+    }
   };
 
   const InfoItem = ({ icon, label, value }) => (
@@ -212,26 +373,6 @@ const Profile = () => {
     </Paper>
   );
 
-  const handleDelete = async (inquiryToken) => {
-    try {
-      setDeleteLoading(prev => ({ ...prev, [inquiryToken]: true }));
-      const token = localStorage.getItem('token');
-      
-      await axios.delete(`http://localhost:5000/api/itinerary/${inquiryToken}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      // Update local state to remove the deleted itinerary
-      setItineraries(prev => prev.filter(itinerary => itinerary.inquiryToken !== inquiryToken));
-    } catch (error) {
-      console.error('Error deleting itinerary:', error.response || error);
-    } finally {
-      setDeleteLoading(prev => ({ ...prev, [inquiryToken]: false }));
-    }
-  };
-
   const ItineraryCard = ({ itinerary }) => (
     <Card 
       sx={{ 
@@ -257,13 +398,7 @@ const Profile = () => {
               <Button
                 variant="contained"
                 startIcon={<ViewIcon sx={{ fontSize: 18 }} />}
-                onClick={() => navigate('/itinerary', { 
-                  state: { 
-                    itineraryInquiryToken: itinerary.inquiryToken,
-                    origin: 'profile'
-                  },
-                  replace: true
-                })}
+                onClick={() => handleViewItinerary(itinerary)}
                 sx={{
                   borderRadius: 2,
                   textTransform: 'none',
@@ -356,6 +491,22 @@ const Profile = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

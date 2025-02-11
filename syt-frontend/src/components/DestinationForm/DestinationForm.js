@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material';
 import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,8 +12,8 @@ const DestinationForm = () => {
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
+  const theme = useTheme();
 
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
@@ -103,62 +104,65 @@ const DestinationForm = () => {
     setOpen(false);
   };
 
-  return (
-    <div className="w-full max-w-2xl mx-auto px-4">
-      <div className="relative w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 
-                    backdrop-blur-md bg-opacity-50 dark:bg-opacity-50">
-        <div className="relative" ref={inputRef}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search cities, countries, or continents..."
-            value={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            onFocus={() => setOpen(true)}
-            className="w-full h-12 pl-10 pr-4 text-base rounded-xl border-2 border-gray-200 
-                     dark:border-gray-700 bg-transparent
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                     hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors
-                     placeholder-gray-400 dark:placeholder-gray-500
-                     text-gray-900 dark:text-gray-100"
-          />
-        </div>
+  const styles = {
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#ffffff',
+    color: theme.palette.text.primary,
+  };
 
-        {open && (
-          <div 
-            ref={dropdownRef}
-            className="absolute left-0 right-0 mt-2 max-h-96 overflow-y-auto rounded-xl
-                     border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800
-                     shadow-lg z-50"
-          >
-            {loading ? (
-              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                Searching...
-              </div>
-            ) : (searchResults.length > 0 || promotedCountries.length > 0) ? (
-              <ul className="py-2">
-                {(searchResults.length > 0 ? searchResults : promotedCountries).map((option) => (
-                  <li
-                    key={option.name}
-                    onClick={() => handleSelect(option)}
-                    className="px-4 py-3 flex items-center justify-between cursor-pointer
-                             hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                  >
-                    <span className="text-gray-900 dark:text-gray-100">{option.name}</span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 capitalize">
-                      {option.type}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                No results found
-              </div>
-            )}
-          </div>
-        )}
+  return (
+    <div className="w-full max-w-2xl mx-auto relative">
+      <div className="relative w-full" ref={inputRef}>
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search cities, countries, or continents..."
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+          onFocus={() => setOpen(true)}
+          style={styles}
+          className="w-full h-12 pl-10 pr-4 text-base rounded-xl 
+                   border border-gray-200 dark:border-gray-700
+                   focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent
+                   placeholder-gray-400 dark:placeholder-gray-500"
+        />
       </div>
+
+      {open && (
+        <div 
+          ref={dropdownRef}
+          style={styles}
+          className="w-full absolute mt-2 max-h-96 overflow-y-auto rounded-xl
+                   border border-gray-200 dark:border-gray-700 
+                   shadow-lg z-50"
+        >
+          {loading ? (
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+              Searching...
+            </div>
+          ) : (searchResults.length > 0 || promotedCountries.length > 0) ? (
+            <ul className="py-2">
+              {(searchResults.length > 0 ? searchResults : promotedCountries).map((option) => (
+                <li
+                  key={option.name}
+                  onClick={() => handleSelect(option)}
+                  style={styles}
+                  className="px-4 py-3 flex items-center justify-between cursor-pointer
+                           hover:bg-gray-50/80 dark:hover:bg-gray-700/50"
+                >
+                  <span>{option.name}</span>
+                  <span className="text-sm text-gray-500 capitalize ml-4">
+                    {option.type}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+              No results found
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

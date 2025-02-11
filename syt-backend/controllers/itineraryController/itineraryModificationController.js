@@ -812,7 +812,7 @@ exports.updateBookingStatus = async (req, res) => {
     bookingType, 
     bookingStatus,
     bookingResponse,
-    // Top-level parameters for each booking type
+    // Identifiers for each type
     activityCode,
     itineraryCode,
     code,
@@ -821,6 +821,7 @@ exports.updateBookingStatus = async (req, res) => {
   const inquiryToken = req.headers['x-inquiry-token'];
 
   try {
+    // Fetch the current document
     const itinerary = await Itinerary.findOne({ 
       itineraryToken,
       inquiryToken 
@@ -833,7 +834,7 @@ exports.updateBookingStatus = async (req, res) => {
       });
     }
 
-    // Find the city and day
+    // Find the exact city and day
     const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
     if (cityIndex === -1) {
       return res.status(404).json({
@@ -851,11 +852,12 @@ exports.updateBookingStatus = async (req, res) => {
     }
 
     const day = itinerary.cities[cityIndex].days[dayIndex];
+    let updatePath;
+    let updated = false;
 
     // Update booking status based on type
     switch (bookingType) {
       case 'flight': {
-        // Find flight by itineraryCode
         const flightIndex = day.flights.findIndex(
           flight => flight.flightData?.bookingDetails?.itineraryCode === itineraryCode
         );
@@ -874,11 +876,12 @@ exports.updateBookingStatus = async (req, res) => {
             ...bookingResponse.data.results[0]
           };
         }
+        updatePath = `cities.${cityIndex}.days.${dayIndex}.flights.${flightIndex}.flightData`;
+        updated = true;
         break;
       }
 
       case 'hotel': {
-        // Find hotel by code
         const hotelIndex = day.hotels.findIndex(
           hotel => hotel.data.code === code
         );
@@ -894,11 +897,12 @@ exports.updateBookingStatus = async (req, res) => {
         if (bookingResponse?.success) {
           day.hotels[hotelIndex].data.bookingDetails = bookingResponse.data.results[0];
         }
+        updatePath = `cities.${cityIndex}.days.${dayIndex}.hotels.${hotelIndex}.data`;
+        updated = true;
         break;
       }
 
       case 'transfer': {
-        // Find transfer by quotation_id
         const transferIndex = day.transfers.findIndex(
           transfer => transfer.details.quotation_id === quotation_id
         );
@@ -914,11 +918,12 @@ exports.updateBookingStatus = async (req, res) => {
         if (bookingResponse?.success) {
           day.transfers[transferIndex].details.bookingId = bookingResponse.data.booking_id;
         }
+        updatePath = `cities.${cityIndex}.days.${dayIndex}.transfers.${transferIndex}.details`;
+        updated = true;
         break;
       }
 
       case 'activity': {
-        // Find activity by activityCode
         const activityIndex = day.activities.findIndex(
           activity => activity.activityCode === activityCode
         );
@@ -934,6 +939,8 @@ exports.updateBookingStatus = async (req, res) => {
         if (bookingResponse?.success) {
           day.activities[activityIndex].bookingReference = bookingResponse.data;
         }
+        updatePath = `cities.${cityIndex}.days.${dayIndex}.activities.${activityIndex}`;
+        updated = true;
         break;
       }
 
@@ -944,12 +951,59 @@ exports.updateBookingStatus = async (req, res) => {
         });
     }
 
-    // Save the updated itinerary
-    await itinerary.save();
+    if (!updated) {
+      throw new Error('Update operation did not complete');
+    }
+
+    // Mark the specific path as modified
+    itinerary.markModified(updatePath);
+
+    // Save the document
+    await itinerary.save({ timestamps: true });
+
+    // Verify the update
+    const verificationQuery = await Itinerary.findOne({
+      itineraryToken,
+      inquiryToken
+    });
+
+    let verificationSuccessful = false;
+    const verifiedDay = verificationQuery.cities[cityIndex]?.days[dayIndex];
+
+    switch (bookingType) {
+      case 'flight':
+        verificationSuccessful = verifiedDay.flights.some(
+          flight => flight.flightData?.bookingDetails?.itineraryCode === itineraryCode && 
+                   flight.flightData?.bookingStatus === bookingStatus
+        );
+        break;
+      case 'hotel':
+        verificationSuccessful = verifiedDay.hotels.some(
+          hotel => hotel.data?.code === code && 
+                   hotel.data?.bookingStatus === bookingStatus
+        );
+        break;
+      case 'transfer':
+        verificationSuccessful = verifiedDay.transfers.some(
+          transfer => transfer.details?.quotation_id === quotation_id && 
+                     transfer.details?.bookingStatus === bookingStatus
+        );
+        break;
+      case 'activity':
+        verificationSuccessful = verifiedDay.activities.some(
+          activity => activity.activityCode === activityCode && 
+                     activity.bookingStatus === bookingStatus
+        );
+        break;
+    }
+
+    if (!verificationSuccessful) {
+      throw new Error('Update verification failed');
+    }
 
     res.json({
       success: true,
-      message: `${bookingType} booking status updated successfully`,
+      message: `${bookingType} booking status updated successfully to ${bookingStatus}`,
     });
 
   } catch (error) {

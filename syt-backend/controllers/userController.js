@@ -394,38 +394,53 @@ class UserController {
   }
 
   // Get User's Itineraries
-async getUserItineraries(req, res) {
-  try {
-    const itineraries = await Itinerary.find({ 'userInfo.userId': req.userId.toString() })
-      .select('itineraryToken inquiryToken cities.city cities.startDate cities.endDate travelersDetails createdAt updatedAt')
-      .lean();
-
-    const simplifiedItineraries = itineraries.map(itinerary => ({
-      itineraryToken: itinerary.itineraryToken,
-      inquiryToken: itinerary.inquiryToken,
-      createdAt: itinerary.createdAt,
-      updatedAt: itinerary.updatedAt,
-      travelersDetails: itinerary.travelersDetails,
-      cities: itinerary.cities.map(city => ({
-        city: city.city,
-        startDate: city.startDate,
-        endDate: city.endDate
-      }))
-    }));
-
-    res.status(200).json({
-      success: true,
-      itineraries: simplifiedItineraries
-    });
-  } catch (error) {
-    console.error('Get User Itineraries Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching user itineraries',
-      error: error.message
-    });
+  async getUserItineraries(req, res) {
+    try {
+      const itineraries = await Itinerary.find({ 'userInfo.userId': req.userId.toString() })
+        .select(`
+          itineraryToken 
+          inquiryToken 
+          cities.city 
+          cities.startDate 
+          cities.endDate 
+          travelersDetails 
+          createdAt 
+          updatedAt
+          changeHistory
+          paymentStatus
+          priceTotals
+        `)
+        .lean();
+  
+      const simplifiedItineraries = itineraries.map(itinerary => ({
+        itineraryToken: itinerary.itineraryToken,
+        inquiryToken: itinerary.inquiryToken,
+        createdAt: itinerary.createdAt,
+        updatedAt: itinerary.updatedAt,
+        travelersDetails: itinerary.travelersDetails,
+        cities: itinerary.cities.map(city => ({
+          city: city.city,
+          startDate: city.startDate,
+          endDate: city.endDate
+        })),
+        changeHistory: itinerary.changeHistory || [], // Ensure default empty array
+        paymentStatus: itinerary.paymentStatus || 'pending', // Ensure default status
+        priceTotals: itinerary.priceTotals || null // Include price totals as well
+      }));
+  
+      res.status(200).json({
+        success: true,
+        itineraries: simplifiedItineraries
+      });
+    } catch (error) {
+      console.error('Get User Itineraries Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching user itineraries',
+        error: error.message
+      });
+    }
   }
-}
 
 }
 

@@ -652,6 +652,8 @@ exports.createItinerary = async (req, res) => {
       cities: savedItinerary.cities,
       travelersDetails: savedItinerary.travelersDetails,
       preferences: savedItinerary.preferences,
+       changeHistory: savedItinerary.changeHistory || [],  
+  paymentStatus: savedItinerary.paymentStatus || 'pending'
     };
 
     // Save debug file
@@ -711,6 +713,8 @@ exports.getItinerary = async (req, res) => {
       travelersDetails: itinerary.travelersDetails,
       preferences: itinerary.preferences,
       priceTotals: itinerary.priceTotals || null,
+      changeHistory: itinerary.changeHistory || null,
+      paymentStatus: itinerary.paymentStatus || null,
     };
 
     res.json(formattedResponse);
@@ -750,6 +754,8 @@ exports.getItineraryByInquiryToken = async (req, res) => {
       travelersDetails: itinerary.travelersDetails,
       preferences: itinerary.preferences,
       priceTotals: itinerary.priceTotals || null,
+      changeHistory: itinerary.changeHistory || null,
+      paymentStatus: itinerary.paymentStatus || null,
     });
   } catch (error) {
     console.error("Error fetching itinerary by inquiry token:", error);

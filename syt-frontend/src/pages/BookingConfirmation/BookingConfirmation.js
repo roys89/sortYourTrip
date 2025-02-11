@@ -22,7 +22,8 @@ import {
   bookFlight,
   bookHotel,
   bookTransfer,
-  setBookingStatus
+  setBookingStatus,
+  updateBookingStatus
 } from '../../redux/slices/bookingConfirmationSlice';
 import {
   transformActivityBookings,
@@ -91,15 +92,21 @@ const BookingItem = memo(({ type, item, status, error, onVoucherDownload, isLoad
             )}
           </div>
         </div>
-        {status === "confirmed" && (
-          <Button
-            variant="outlined"
-            startIcon={<Download size={20} />}
-            onClick={() => onVoucherDownload(type, item)}
-          >
-            View Voucher
-          </Button>
-        )}
+        <Button
+          variant="outlined"
+          startIcon={<Download size={20} />}
+          onClick={() => status === "confirmed" && onVoucherDownload(type, item)}
+          disabled={status !== "confirmed"}
+          sx={{
+            opacity: status === "confirmed" ? 1 : 0.5,
+            '&.Mui-disabled': {
+              color: 'rgba(0, 0, 0, 0.26)',
+              borderColor: 'rgba(0, 0, 0, 0.12)'
+            }
+          }}
+        >
+          View Voucher
+        </Button>
       </div>
     </Box>
   );
@@ -179,6 +186,29 @@ const BookingConfirmation = () => {
           if (day.flights?.length > 0) {
             for (const flight of day.flights) {
               const flightId = flight.flightData.flightCode;
+              console.log('Processing flight:', flight);
+              console.log('Flight booking status:', flight.flightData.bookingStatus);
+
+              if (flight.flightData.bookingStatus === 'confirmed') {
+                console.log('Flight already booked, setting confirmed status');
+                dispatch(setBookingStatus({
+                  type: 'flight',
+                  id: flightId,
+                  status: 'confirmed'
+                }));
+                continue;
+              }
+
+              if (flight.flightData.bookingStatus === 'failed') {
+                console.log('Flight booking previously failed');
+                dispatch(setBookingStatus({
+                  type: 'flight',
+                  id: flightId,
+                  status: 'failed'
+                }));
+                continue;
+              }
+
               try {
                 dispatch(setBookingStatus({
                   type: 'flight',
@@ -215,6 +245,29 @@ const BookingConfirmation = () => {
           if (day.hotels?.length > 0) {
             for (const hotel of day.hotels) {
               const hotelId = hotel.data.traceId;
+              console.log('Processing hotel:', hotel);
+              console.log('Hotel booking status:', hotel.data.bookingStatus);
+
+              if (hotel.data.bookingStatus === 'confirmed') {
+                console.log('Hotel already booked, setting confirmed status');
+                dispatch(setBookingStatus({
+                  type: 'hotel',
+                  id: hotelId,
+                  status: 'confirmed'
+                }));
+                continue;
+              }
+
+              if (hotel.data.bookingStatus === 'failed') {
+                console.log('Hotel booking previously failed');
+                dispatch(setBookingStatus({
+                  type: 'hotel',
+                  id: hotelId,
+                  status: 'failed'
+                }));
+                continue;
+              }
+
               try {
                 dispatch(setBookingStatus({
                   type: 'hotel',
@@ -248,71 +301,129 @@ const BookingConfirmation = () => {
           }
 
           // Process Activities
-if (day.activities?.length > 0) {
-  for (const activity of day.activities) {
-    const activityId = activity.activityCode;
-    try {
-      dispatch(setBookingStatus({
-        type: 'activity',
-        id: activityId,
-        status: 'loading'
-      }));
+          if (day.activities?.length > 0) {
+            for (const activity of day.activities) {
+              const activityId = activity.activityCode;
+              console.log('Processing activity:', activity);
+              console.log('Activity booking status:', activity.bookingStatus);
+              console.log('Activity type:', activity.activityType);
 
-      if (activity.activityType === 'offline') {
-        // For offline activities, directly set as confirmed without API call
-        dispatch(setBookingStatus({
-          type: 'activity',
-          id: activityId,
-          status: 'confirmed'
-        }));
-        continue; // Skip the rest of this iteration
-      }
+              if (activity.bookingStatus === 'confirmed') {
+                console.log('Activity already booked, setting confirmed status');
+                dispatch(setBookingStatus({
+                  type: 'activity',
+                  id: activityId,
+                  status: 'confirmed'
+                }));
+                continue;
+              }
 
-      const activityContext = {
-        cities: [{
-          days: [{
-            date: day.date,
-            activities: [activity]
-          }]
-        }],
-        itineraryToken: itinerary.itineraryToken,
-        inquiryToken: itinerary.inquiryToken
-      };
+              if (activity.bookingStatus === 'failed') {
+                console.log('Activity booking previously failed');
+                dispatch(setBookingStatus({
+                  type: 'activity',
+                  id: activityId,
+                  status: 'failed'
+                }));
+                continue;
+              }
 
-      const transformedActivity = transformActivityBookings(
-        activityContext,
-        allTravelers,
-        bookingData.specialRequirements
-      )[0];
+              try {
+                dispatch(setBookingStatus({
+                  type: 'activity',
+                  id: activityId,
+                  status: 'loading'
+                }));
 
-      const bookingResponse = await dispatch(
-        bookActivity({
-          bookingId,
-          activity: {
-            bookingId,
-            transformedActivity: {
-              ...transformedActivity,
-              itineraryToken: itinerary.itineraryToken,
-              inquiryToken: itinerary.inquiryToken,
-              cityName: city.city
+                if (activity.activityType === 'offline') {
+                  console.log('Processing offline activity');
+                  // For offline activities, only update the booking status
+                  await dispatch(updateBookingStatus({
+                    itineraryToken: itinerary.itineraryToken,
+                    inquiryToken: itinerary.inquiryToken,
+                    cityName: city.city,
+                    date: day.date,
+                    bookingType: 'activity',
+                    bookingStatus: 'confirmed',
+                    activityCode: activityId
+                  }));
+
+                  dispatch(setBookingStatus({
+                    type: 'activity',
+                    id: activityId,
+                    status: 'confirmed'
+                  }));
+                  continue;
+                }
+
+                const activityContext = {
+                  cities: [{
+                    days: [{
+                      date: day.date,
+                      activities: [activity]
+                    }]
+                  }],
+                  itineraryToken: itinerary.itineraryToken,
+                  inquiryToken: itinerary.inquiryToken
+                };
+
+                const transformedActivity = transformActivityBookings(
+                  activityContext,
+                  allTravelers,
+                  bookingData.specialRequirements
+                )[0];
+
+                const bookingResponse = await dispatch(
+                  bookActivity({
+                    bookingId,
+                    activity: {
+                      bookingId,
+                      transformedActivity: {
+                        ...transformedActivity,
+                        itineraryToken: itinerary.itineraryToken,
+                        inquiryToken: itinerary.inquiryToken,
+                        cityName: city.city
+                      }
+                    }
+                  })
+                ).unwrap();
+
+                if (!bookingResponse.success) {
+                  handleBookingError('activity', activityId, bookingResponse);
+                }
+              } catch (error) {
+                handleBookingError('activity', activityId, error);
+              }
             }
           }
-        })
-      ).unwrap();
-
-      if (!bookingResponse.success) {
-        handleBookingError('activity', activityId, bookingResponse);
-      }
-    } catch (error) {
-      handleBookingError('activity', activityId, error);
-    }
-  }
-}
 
           // Process Transfers
           if (day.transfers?.length > 0) {
             for (const transfer of day.transfers) {
               const quotationId = transfer.details.quotation_id;
+              console.log('Processing transfer:', transfer);
+              console.log('Transfer booking status:', transfer.details.bookingStatus);
+
+              if (transfer.details.bookingStatus === 'confirmed') {
+                console.log('Transfer already booked, setting confirmed status');
+                dispatch(setBookingStatus({
+                  type: 'transfer',
+                  id: quotationId,
+                  status: 'confirmed'
+                }));
+                continue;
+              }
+
+              if (transfer.details.bookingStatus === 'failed') {
+                console.log('Transfer booking previously failed');
+                dispatch(setBookingStatus({
+                  type: 'transfer',
+                  id: quotationId,
+                  status: 'failed'
+                }));
+                continue;
+              }
+
               try {
                 dispatch(setBookingStatus({
                   type: 'transfer',

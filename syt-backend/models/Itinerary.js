@@ -303,7 +303,7 @@ const ItinerarySchema = new Schema(
       type: String,
       required: true
     },
-    userInfo: UserInfoSchema,  // Add this field
+    userInfo: UserInfoSchema,
     travelersDetails: TravelersDetailsSchema,
     preferences: Schema.Types.Mixed,
     cities: [CitySchema],
@@ -346,6 +346,13 @@ const ItinerarySchema = new Schema(
             }
           }
         }
+
+        // Ensure these fields are always present with default values
+        ret.changeHistory = ret.changeHistory || [];
+        ret.paymentStatus = ret.paymentStatus || 'pending';
+        ret.priceTotals = ret.priceTotals || null;
+
+        return ret;
       }
     }
   }

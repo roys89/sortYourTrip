@@ -188,6 +188,21 @@ const ItineraryPage = () => {
         return;
       }
 
+      // Check payment status first
+      if (itinerary.paymentStatus === 'completed') {
+        // If payment is completed, navigate directly to booking confirmation
+        navigate("/booking-confirmation", {
+          state: {
+            bookingId: itinerary.bookingId,
+            paymentSuccess: true,
+            itinerary,
+          },
+          replace: true
+        });
+        return;
+      }
+
+      // If payment is pending, continue with booking process
       if (!itinerary || !markups || !tcsRates) {
         console.error("Missing required data for booking:", {
           hasItinerary: !!itinerary,
@@ -434,7 +449,7 @@ const ItineraryPage = () => {
                 }}
               >
                 <div
-                  className="button-group"
+                 className="button-group"
                   style={{
                     width: "100%",
                     display: "flex",

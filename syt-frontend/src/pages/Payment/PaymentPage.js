@@ -8,6 +8,7 @@ import {
   CircularProgress,
   Container,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -21,15 +22,150 @@ import {
 } from "@mui/material";
 import { CreditCard, Lock, Shield, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import ReactDOM from 'react-dom/client';
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSummary from "../../components/BookingSummary/BookingSummary";
 import {
+  searchReplacementFlight, updateItineraryFlight
+} from '../../redux/slices/flightReplacementSlice';
+import {
+  searchReplacementHotel, updateItineraryHotel
+} from '../../redux/slices/hotelReplacementSlice';
+import {
   createPaymentOrder,
+  setPaymentLoading,
   setTermsAccepted,
-  verifyPayment,
+  validateItineraryComponents,
+  verifyPayment
 } from "../../redux/slices/paymentSlice";
 import "./PaymentPage.css";
+
+// Dialog Components
+const ErrorDialog = ({ components, onClose }) => (
+  <Dialog open={true} maxWidth="sm" fullWidth>
+    <DialogTitle>Components Need Reallocation</DialogTitle>
+    <DialogContent>
+      <Typography variant="body1" gutterBottom>
+        Some components require immediate reallocation due to errors:
+      </Typography>
+      {components.map((component, index) => (
+        <Typography key={index} variant="body2" color="error" gutterBottom>
+          {component.type === 'flight' 
+            ? `Flight: ${component.flight.flightData.origin} → ${component.flight.flightData.destination}` 
+            : `Hotel: ${component.hotel.data.hotelDetails.name}`}
+          <br />
+          {component.error?.message || 'Validation error occurred'}
+        </Typography>
+      ))}
+    </DialogContent>
+    <DialogActions>
+      <Button 
+        variant="contained" 
+        color="primary"
+        onClick={() => onClose(true)}
+      >
+        Proceed to Reallocation
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
+const ImmediateDialog = ({ components, onClose }) => (
+  <Dialog open={true} maxWidth="sm" fullWidth>
+    <DialogTitle>Immediate Reallocation Required</DialogTitle>
+    <DialogContent>
+      <Typography variant="body1" gutterBottom>
+        These components need immediate reallocation (less than 2 minutes remaining):
+      </Typography>
+      {components.map((component, index) => (
+        <Typography key={index} variant="body2" color="error" gutterBottom>
+          {component.type === 'flight' 
+            ? `Flight: ${component.origin} → ${component.destination}` 
+            : `Hotel: ${component.name}`}
+          {component.remainingTime !== null && (
+            <> - {component.remainingTime} minute{component.remainingTime !== 1 ? 's' : ''} remaining</>
+          )}
+        </Typography>
+      ))}
+    </DialogContent>
+    <DialogActions>
+      <Button 
+        variant="contained" 
+        color="primary"
+        onClick={() => onClose(true)}
+      >
+        Proceed to Reallocation
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
+const WarningDialog = ({ components, onClose }) => (
+  <Dialog open={true} maxWidth="sm" fullWidth>
+    <DialogTitle>Limited Time Warning</DialogTitle>
+    <DialogContent>
+      <Typography variant="body1" gutterBottom>
+        These components have limited time remaining:
+      </Typography>
+      {components.map((component, index) => (
+        <Typography key={index} variant="body2" color="warning.main" gutterBottom>
+          {component.type === 'flight' 
+            ? `Flight: ${component.origin} → ${component.destination}` 
+            : `Hotel: ${component.name}`}
+           - {component.remainingTime} minutes remaining
+        </Typography>
+      ))}
+      <Typography variant="body1" sx={{ mt: 2 }}>
+        Can you complete the payment within 2 minutes?
+      </Typography>
+    </DialogContent>
+    <DialogActions>
+      <Button 
+        variant="outlined" 
+        color="secondary"
+        onClick={() => onClose(false)}
+      >
+        No, Reallocate
+      </Button>
+      <Button 
+        variant="contained" 
+        color="primary"
+        onClick={() => onClose(true)}
+      >
+        Yes, Continue
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
+const InfoDialog = ({ components, onClose }) => (
+  <Dialog open={true} maxWidth="sm" fullWidth>
+    <DialogTitle>Time Information</DialogTitle>
+    <DialogContent>
+      <Typography variant="body1" gutterBottom>
+        Please note the remaining time for these components:
+      </Typography>
+      {components.map((component, index) => (
+        <Typography key={index} variant="body2" gutterBottom>
+          {component.type === 'flight' 
+            ? `Flight: ${component.origin} → ${component.destination}` 
+            : `Hotel: ${component.name}`}
+           - {component.remainingTime} minutes remaining
+        </Typography>
+      ))}
+    </DialogContent>
+    <DialogActions>
+      <Button 
+        variant="contained" 
+        color="primary"
+        onClick={() => onClose(true)}
+      >
+        Proceed with Payment
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
 
 const PaymentPage = () => {
   const theme = useTheme();
@@ -48,7 +184,308 @@ const PaymentPage = () => {
 
   const { bookingId, bookingData, itinerary } = location.state || {};
 
-  // Style definitions using MUI's latest patterns
+  const handleReallocation = useCallback(async (components) => {
+    try {
+      const reallocationResults = [];
+      
+      // Process components sequentially
+      for (const component of components) {
+        try {
+          if (component.type === 'flight') {
+            // 1. Search for replacement flight
+            const searchResult = await dispatch(
+              searchReplacementFlight({
+                expiredFlight: component.flight.flightData,
+                itinerary,
+                inquiryToken: itinerary.inquiryToken
+              })
+            ).unwrap();
+
+            if (!searchResult || !Array.isArray(searchResult) || searchResult.length === 0) {
+              throw new Error('No replacement flights found');
+            }
+
+            // 2. Update itinerary with new flight
+            const cityName = component.flight.flightData.type === 'return_flight' 
+              ? component.flight.flightData.origin 
+              : component.flight.flightData.destination;
+
+            const updateResult = await dispatch(
+              updateItineraryFlight({
+                itineraryToken: itinerary.itineraryToken,
+                cityName,
+                date: component.flight.flightData.departureDate,
+                newFlightDetails: searchResult[0],
+                type: component.flight.flightData.type || 'departure_flight',
+                inquiryToken: itinerary.inquiryToken
+              })
+            ).unwrap();
+
+            reallocationResults.push({
+              type: 'flight',
+              searchResult,
+              updateResult
+            });
+
+          } else if (component.type === 'hotel') {
+            // 1. Search for replacement hotel
+            const searchResult = await dispatch(
+              searchReplacementHotel({
+                failedHotel: { 
+                  details: component.hotel.data 
+                },
+                itinerary,
+                inquiryToken: itinerary.inquiryToken
+              })
+            ).unwrap();
+
+            if (!searchResult || !searchResult.data) {
+              throw new Error('No replacement hotels found');
+            }
+
+            // 2. Update itinerary with new hotel
+            const updateResult = await dispatch(
+              updateItineraryHotel({
+                itineraryToken: itinerary.itineraryToken,
+                date: component.hotel.data.searchRequestLog.checkIn || component.hotel.data.hotelDetails.checkIn,
+                newHotelDetails: searchResult.data,
+                checkIn: component.hotel.data.checkIn || component.hotel.data.hotelDetails.checkIn,
+                checkout: component.hotel.data.checkOut || component.hotel.data.hotelDetails.checkOut,
+                inquiryToken: itinerary.inquiryToken
+              })
+            ).unwrap();
+
+            reallocationResults.push({
+              type: 'hotel',
+              searchResult,
+              updateResult
+            });
+          }
+        } catch (error) {
+          console.error(`Reallocation error for ${component.type}:`, error);
+          reallocationResults.push({
+            type: component.type,
+            error: error.message || 'Reallocation failed',
+            component
+          });
+        }
+      }
+
+      // Filter out successful reallocations and errors
+      const successfulReallocations = reallocationResults.filter(result => !result.error);
+      const failedReallocations = reallocationResults.filter(result => result.error);
+
+      // If there are any failures, show them in a snackbar
+      if (failedReallocations.length > 0) {
+        setSnackbar({
+          open: true,
+          message: `Failed to reallocate ${failedReallocations.length} component(s). Please try again.`,
+          severity: "error",
+        });
+      }
+
+      // Navigate to itinerary page with results
+      navigate("/itinerary", {
+        state: {
+          itineraryToken: itinerary.itineraryToken,
+          itineraryInquiryToken: itinerary.inquiryToken,
+          reason: "Components need reallocation",
+          reallocationResults: successfulReallocations,
+          failedReallocations: failedReallocations
+        }
+      });
+    } catch (error) {
+      console.error("Reallocation error:", error);
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to reallocate components. Please try again.",
+        severity: "error",
+      });
+    }
+  }, [dispatch, itinerary, navigate]);
+
+  const renderDialog = (DialogComponent) => {
+    const dialogRoot = document.getElementById('dialog-root') || (() => {
+      const newDialogRoot = document.createElement('div');
+      newDialogRoot.id = 'dialog-root';
+      document.body.appendChild(newDialogRoot);
+      return newDialogRoot;
+    })();
+
+    return new Promise((resolve) => {
+      const root = ReactDOM.createRoot(dialogRoot);
+      const handleClose = (result) => {
+        root.unmount();
+        resolve(result);
+      };
+      root.render(<DialogComponent onClose={handleClose} />);
+    });
+  };
+
+  const handlePayment = useCallback(async () => {
+    if (!termsAccepted) {
+      setSnackbar({
+        open: true,
+        message: "Please accept the terms and conditions",
+        severity: "warning",
+      });
+      return;
+    }
+
+    dispatch(setPaymentLoading(true));
+
+    try {
+      const validationResult = await dispatch(
+        validateItineraryComponents({
+          itinerary,
+          itineraryToken: itinerary.itineraryToken
+        })
+      ).unwrap();
+
+      const { componentsToCheck } = validationResult;
+
+      // Handle components with errors first (API failures)
+      if (componentsToCheck.error.length > 0) {
+        const dialogResult = await renderDialog(({ onClose }) => (
+          <ErrorDialog components={componentsToCheck.error} onClose={onClose} />
+        ));
+
+        if (dialogResult) {
+          await handleReallocation(componentsToCheck.error);
+          return;
+        }
+      }
+
+      // Handle components needing immediate reallocation (< 2 mins or null time)
+      if (componentsToCheck.immediate.length > 0) {
+        const dialogResult = await renderDialog(({ onClose }) => (
+          <ImmediateDialog components={componentsToCheck.immediate} onClose={onClose} />
+        ));
+
+        if (dialogResult) {
+          await handleReallocation(componentsToCheck.immediate);
+          return;
+        }
+      }
+
+      // Handle components with warning (2-3 mins)
+      if (componentsToCheck.warning.length > 0) {
+        const shouldProceed = await renderDialog(({ onClose }) => (
+          <WarningDialog components={componentsToCheck.warning} onClose={onClose} />
+        ));
+
+        if (!shouldProceed) {
+          await handleReallocation(componentsToCheck.warning);
+          return;
+        }
+      }
+
+      // Show info for components with > 3 mins remaining
+      if (componentsToCheck.info.length > 0) {
+        await renderDialog(({ onClose }) => (
+          <InfoDialog components={componentsToCheck.info} onClose={onClose} />
+        ));
+      }
+
+      // Proceed with payment if all checks pass
+      if (!window.Razorpay) {
+        throw new Error("Payment gateway not loaded. Please try again.");
+      }
+
+      const orderResult = await dispatch(
+        createPaymentOrder({
+          bookingId,
+          amount: itinerary.priceTotals.grandTotal,
+          itinerary
+        })
+      ).unwrap();
+
+      const rzp = new window.Razorpay({
+        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+        amount: orderResult.data.amount,
+        currency: orderResult.data.currency,
+        name: "Your Travel Company",
+        description: `Booking ID: ${bookingId}`,
+        order_id: orderResult.data.orderId,
+        prefill: {
+          name: `${itinerary.userInfo.firstName} ${itinerary.userInfo.lastName}`,
+          email: itinerary.userInfo.email,
+          contact: itinerary.userInfo.phoneNumber
+        },
+        handler: async (response) => {
+          try {
+            await dispatch(
+              verifyPayment({
+                bookingId,
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                signature: response.razorpay_signature,
+              })
+            ).unwrap();
+
+            setSnackbar({
+              open: true,
+              message: "Payment successful! Redirecting...",
+              severity: "success",
+            });
+
+            setTimeout(() => {
+              navigate("/booking-confirmation", {
+                state: {
+                  bookingId,
+                  paymentSuccess: true,
+                  itinerary,
+                  bookingData
+                },replace: true
+              });
+            }, 2000);
+
+          } catch (error) {
+            setSnackbar({
+              open: true,
+              message: error.message || "Payment verification failed",
+              severity: "error",
+            });
+          } finally {
+            dispatch(setPaymentLoading(false));
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            dispatch(setPaymentLoading(false));
+          }
+        }
+      });
+      
+      rzp.open();
+
+    } catch (error) {
+      console.error("Payment process error:", error);
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to process payment. Please try again.",
+        severity: "error",
+      });
+      dispatch(setPaymentLoading(false));
+    }
+  }, [bookingId, dispatch, itinerary, navigate, bookingData, termsAccepted, handleReallocation]);
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!bookingId || !itinerary) {
+      navigate("/booking-form");
+    }
+  }, [bookingId, itinerary, navigate]);
+
   const styles = {
     pageContainer: {
       minHeight: "100vh",
@@ -98,7 +535,6 @@ const PaymentPage = () => {
       backdropFilter: "blur(10px)",
       position: "relative",
       overflow: "hidden",
-      // Only add margin on desktop
       marginRight: { xs: 0, lg: "24px" },
       "&::before": {
         content: '""',
@@ -117,8 +553,7 @@ const PaymentPage = () => {
       background: alpha(theme.palette.background.paper, 0.8),
       backdropFilter: "blur(10px)",
       border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-      mb: { xs: 3, lg: 0 }, // Add bottom margin on mobile
-      // Fixed positioning only on desktop
+      mb: { xs: 3, lg: 0 },
       position: { xs: "static", lg: "fixed" },
       top: { lg: "100px" },
       right: { lg: "calc((100% - 1200px) / 12 + 24px)" },
@@ -127,7 +562,6 @@ const PaymentPage = () => {
       overflowY: { lg: "auto" },
       zIndex: { lg: 998 },
     },
-
     securityBadge: {
       display: "flex",
       alignItems: "center",
@@ -162,118 +596,6 @@ const PaymentPage = () => {
     },
   };
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    document.body.appendChild(script);
-    
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-
-  // Handle Razorpay payment
- const handlePayment = useCallback(async () => {
-  if (!termsAccepted) {
-    setSnackbar({
-      open: true,
-      message: "Please accept the terms and conditions",
-      severity: "warning",
-    });
-    return;
-  }
-
-  try {
-    // Wait for Razorpay to be available
-    if (!window.Razorpay) {
-      throw new Error("Payment gateway not loaded. Please try again.");
-    }
-
-    const orderResult = await dispatch(
-      createPaymentOrder({
-        bookingId,
-        amount: itinerary.priceTotals.grandTotal,
-        itinerary
-      })
-    ).unwrap();
-
-    const rzp = new window.Razorpay({
-      key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-      amount: orderResult.data.amount,
-      currency: orderResult.data.currency,
-      name: "Your Travel Company",
-      description: `Booking ID: ${bookingId}`,
-      order_id: orderResult.data.orderId,
-      prefill: {
-        name: `${itinerary.userInfo.firstName} ${itinerary.userInfo.lastName}`,
-        email: itinerary.userInfo.email,
-        contact: itinerary.userInfo.phoneNumber
-      },
-      handler: async (response) => {
-        try {
-          await dispatch(
-            verifyPayment({
-              bookingId,
-              paymentId: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-              signature: response.razorpay_signature,
-            })
-          ).unwrap();
-
-          setSnackbar({
-            open: true,
-            message: "Payment successful! Redirecting...",
-            severity: "success",
-          });
-
-          setTimeout(() => {
-            console.log('Navigating with booking data:', {
-              bookingId,
-              paymentSuccess: true,
-              itinerary,
-              bookingData
-            });
-            
-            navigate("/booking-confirmation", {
-              state: {
-                bookingId,
-                paymentSuccess: true,
-                itinerary,
-                bookingData
-              },
-              replace: true
-            });
-          }, 2000);
-
-        } catch (error) {
-          setSnackbar({
-            open: true,
-            message: error.message || "Payment verification failed",
-            severity: "error",
-          });
-        }
-      }
-    });
-    
-    rzp.open();
-
-  } catch (error) {
-    console.error("Payment error:", error);
-    setSnackbar({
-      open: true,
-      message: error.message || "Failed to initialize payment",
-      severity: "error",
-    });
-  }
-}, [bookingId, dispatch, itinerary, navigate, bookingData, termsAccepted]);
-
-  useEffect(() => {
-    if (!bookingId || !itinerary) {
-      navigate("/booking-form");
-    }
-  }, [bookingId, itinerary, navigate]);
-
   if (!bookingId || !itinerary) {
     return null;
   }
@@ -286,7 +608,7 @@ const PaymentPage = () => {
           <Box flex={1} sx={{ 
             pr: { 
               xs: 0,
-              lg: '424px' // 380px (card width) + 24px (gap)
+              lg: '424px' 
             } 
           }}>
             <Card sx={styles.mainCard}>

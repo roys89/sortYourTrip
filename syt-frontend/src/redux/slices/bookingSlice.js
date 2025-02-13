@@ -9,7 +9,7 @@ export const createBooking = createAsyncThunk(
   async (formData, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        'http://localhost:5000/api/booking',
+        'http://localhost:5000/api/booking/itinerary',
         formData,
         {
           headers: {

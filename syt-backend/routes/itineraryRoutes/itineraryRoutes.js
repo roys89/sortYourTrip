@@ -31,12 +31,14 @@ const {
   getHotelDetails,
   selectHotelRoom,
   getHotelRooms,
+  getItineraryDetails
 } = require("../../controllers/hotelController/hotelChangeController");
 
 const {
   searchAvailableFlights,
   getFareRules,
-  selectFlight
+  selectFlight,
+  getFlightItineraryDetails
 } = require("../../controllers/flightController/flightChangeController");
 
 const {
@@ -121,6 +123,14 @@ router.post(
   selectFlight
 );
 
+router.post(
+  "/:itineraryToken/flight-details", 
+  checkAuth, 
+  checkInquiryToken, 
+  getFlightItineraryDetails
+);
+
+
 // Hotel Change Routes
 router.get(
   "/hotels/:inquiryToken/:cityName/:checkIn/:checkOut",
@@ -147,6 +157,13 @@ router.post(
   checkAuth,
   checkInquiryToken,
   selectHotelRoom
+);
+
+router.post(
+  "/:itineraryToken/hotel-details",
+  checkAuth,
+  checkInquiryToken,
+  getItineraryDetails
 );
 
 // Activity Routes

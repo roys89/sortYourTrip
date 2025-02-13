@@ -292,5 +292,64 @@ module.exports = {
         details: error.message
       });
     }
+  },
+
+  // Add this method to the existing exports
+getFlightItineraryDetails: async (req, res) => {
+  const {
+    inquiryToken,
+    cityName, 
+    date, 
+    itineraryCode, 
+    traceId 
+  } = req.body;
+
+  try {
+    // Validate input
+    if (!itineraryCode || !traceId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required parameters: itineraryCode or traceId"
+      });
+    }
+
+
+    // Get auth token
+    const authToken = await FlightTokenManager.getOrSetToken(
+      async () => {
+        const authResponse = await FlightAuthService.login();
+        return authResponse.token;
+      }
+    );
+
+    // Call service method to get itinerary details
+    const itineraryDetails = await FlightCreateItineraryService.getItineraryDetails(
+      itineraryCode,
+      traceId,
+      authToken,
+      inquiryToken,
+      cityName,
+      date
+    );
+
+    // Log the details for additional tracking if needed
+    logger.info('Flight Itinerary Details:', JSON.stringify(itineraryDetails, null, 2));
+    const data = itineraryDetails.data
+    // Return the response
+    res.json({
+      success: true,
+      data,
+
+    });
+
+  } catch (error) {
+    logger.error('Error fetching flight itinerary details:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch flight itinerary details',
+      details: error.details || {}
+    });
   }
+}
 };

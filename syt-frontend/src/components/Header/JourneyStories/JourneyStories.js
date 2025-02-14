@@ -60,7 +60,7 @@ const FeaturedBlog = () => {
       setActiveSlide((prev) => (prev + 1) % blogPosts.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [blogPosts.length]);
 
   const getVisibleIndexes = () => {
     const indexes = [];

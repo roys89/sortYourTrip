@@ -178,8 +178,8 @@ export const validateItineraryComponents = createAsyncThunk(
                   })
                 ).unwrap();
               }
-
-              // Comprehensive error checking
+      
+              // Check for API success
               if (!details.success) {
                 const errorComponent = {
                   type,
@@ -190,49 +190,58 @@ export const validateItineraryComponents = createAsyncThunk(
                   }
                 };
                 componentsToCheck.error.push(errorComponent);
-                componentsToCheck.immediate.push(errorComponent);
                 return { valid: false, error: errorComponent };
               }
-
-              // Extract remaining time with multiple fallback paths
-              const remainingTime = 
-                details.data?.results?.traceIdDetails?.remainingTime ||
-                details.data?.results?.remainingTime ||
-                details.results?.remainingTime ||
-                details.remainingTime;
-
+      
+              // Extract remaining time with proper path traversal for hotel response
+              let remainingTime;
+              if (type === 'hotel') {
+                // For hotel, traverse through results array
+                remainingTime = details.results?.[0]?.traceIdDetail?.remainingTime;
+              } else {
+                // For flight, use existing paths
+                remainingTime = details.data?.results?.traceIdDetails?.remainingTime ||
+                               details.data?.results?.remainingTime ||
+                               details.results?.remainingTime ||
+                               details.remainingTime;
+              }
+      
               const remainingMinutes = remainingTime !== null && remainingTime !== undefined 
                 ? Math.floor(remainingTime / 60) 
                 : null;
-
+      
               const componentInfo = {
                 type,
                 [type]: component,
                 remainingTime: remainingMinutes,
+                name: type === 'hotel' 
+                  ? component.data.hotelDetails.name 
+                  : undefined,
                 origin: type === 'flight' 
                   ? component.flightData.origin 
-                  : component.data.hotelDetails.name,
+                  : undefined,
                 destination: type === 'flight' 
                   ? component.flightData.destination 
-                  : component.data.hotelDetails.cityName
+                  : undefined
               };
-
-              // Categorize components based on remaining time
-              if (remainingMinutes === null || remainingMinutes < 2) {
-                componentsToCheck.immediate.push(componentInfo);
+      
+              // Update categorization logic
+              if (remainingMinutes === null) {
                 componentsToCheck.error.push({
                   ...componentInfo,
                   error: { 
-                    message: 'Remaining time is critically low', 
+                    message: 'Unable to determine remaining time',
                     details: { remainingTime, remainingMinutes }
                   }
                 });
+              } else if (remainingMinutes < 2) {
+                componentsToCheck.immediate.push(componentInfo);
               } else if (remainingMinutes < 3) {
                 componentsToCheck.warning.push(componentInfo);
               } else {
                 componentsToCheck.info.push(componentInfo);
               }
-
+      
               return { valid: true, details, remainingTime: remainingMinutes };
             } catch (error) {
               console.error(`${type} validation error:`, error);
@@ -245,12 +254,11 @@ export const validateItineraryComponents = createAsyncThunk(
                 }
               };
               componentsToCheck.error.push(errorComponent);
-              componentsToCheck.immediate.push(errorComponent);
               return { valid: false, error };
             }
           })
         );
-
+      
         return checks;
       };
 

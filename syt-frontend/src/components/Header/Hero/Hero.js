@@ -1,11 +1,12 @@
 import React from 'react';
-import DestinationForm from '../DestinationForm/DestinationForm';
-import SortyourtripReview from '../Header/SortyourtripReview/SortyourtripReview';
+import DestinationForm from '../../DestinationForm/DestinationForm';
+import SortyourtripReview from '../SortyourtripReview/SortyourtripReview';
+import TestimonialCarousel from '../TestimonialCarousel/TestimonialCarousel';
 
 const Hero = () => {
   return (
     <div className="relative">
-      {/* Hero Section */}
+      {/* Hero Section with Video */}
       <div className="relative h-[85vh] w-full overflow-hidden">
         {/* Video Background */}
         <div className="absolute inset-0">
@@ -18,7 +19,7 @@ const Hero = () => {
           >
             <source src="/assets/images/hero/79806-570766597.mp4" type="video/mp4" />
           </video>
-          {/* Overlay to ensure text readability */}
+          {/* Overlay */}
           <div className="absolute inset-0 bg-black/40" />
         </div>
 
@@ -42,8 +43,18 @@ const Hero = () => {
         </div>
       </div>
       
-      {/* Review Section - Positioned to overlap */}
-      <SortyourtripReview />
+      {/* Container for Review and Testimonial */}
+      <div className="relative">
+        {/* Review Section - Positioned to overlap */}
+        <div className="absolute -top-12 left-0 right-0 z-50">
+          <SortyourtripReview />
+        </div>
+        
+        {/* Testimonial Section */}
+        <div className="relative pt-12">
+          <TestimonialCarousel />
+        </div>
+      </div>
     </div>
   );
 };

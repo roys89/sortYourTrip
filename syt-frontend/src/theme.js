@@ -16,7 +16,7 @@ const lightTheme = createTheme({
       paper: '#ffffff',
     },
     text: {
-      primary: '#000000',
+      primary: '#093923',
       secondary: '#016b36',
       special: '#025033',
     },

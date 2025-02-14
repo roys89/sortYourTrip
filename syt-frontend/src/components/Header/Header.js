@@ -57,6 +57,19 @@ const Header = () => {
           color: theme.palette.text.primary,
           position: 'relative',
           zIndex: 10,
+          backgroundImage: 'url("/assets/h1-bckg-05.png")',
+          backgroundSize: 'fit',
+          backgroundPosition: 'center',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            
+            zIndex: -1
+          }
         }}
       >
         <Box sx={{ maxWidth: '1200px', margin: '0 auto' }}>

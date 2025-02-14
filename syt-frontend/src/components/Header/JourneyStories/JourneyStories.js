@@ -1,142 +1,183 @@
-import { Box, Button, Grid, Typography, useTheme } from '@mui/material';
-import { motion } from 'framer-motion';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-const JourneyStories = () => {
-  const theme = useTheme();
+const FeaturedBlog = () => {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const cardRefs = useRef(Array(6).fill().map(() => React.createRef()));
   
-  const destinations = [
+  const blogPosts = [
     {
+      title: "PRE-TRIP READING & TRAVEL",
+      date: "October 8, 2019",
+      author: "Alisa Michaels",
+      category: "Adventure",
       image: "/assets/testimony/images/029.jpg",
       alt: "Thailand temple at sunset with light trails"
     },
     {
+      title: "THE ULTIMATE GRAND CANYON",
+      date: "October 8, 2019",
+      author: "Alisa Michaels",
+      category: "Adventure",
       image: "/assets/testimony/images/030.jpg",
       alt: "Overwater bungalows in turquoise waters"
     },
     {
+      title: "GUIDED HIKES IN ICELAND",
+      date: "October 8, 2019",
+      author: "Alisa Michaels",
+      category: "Adventure",
       image: "/assets/testimony/images/031.jpg",
       alt: "Traditional long-tail boat in Thailand"
     },
     {
+      title: "EXPLORING DUBAI",
+      date: "October 8, 2019",
+      author: "Alisa Michaels",
+      category: "Adventure", 
       image: "/assets/testimony/images/032.jpg",
       alt: "Dubai skyline with Burj Khalifa"
     },
     {
+      title: "SYDNEY HARBOUR VIEWS",
+      date: "October 8, 2019",
+      author: "Alisa Michaels",
+      category: "Adventure",
       image: "/assets/testimony/images/033.jpg",
       alt: "Sydney Opera House and Harbour Bridge"
     },
     {
+      title: "VOLCANIC INDONESIA",
+      date: "October 8, 2019",
+      author: "Alisa Michaels",
+      category: "Adventure",
       image: "/assets/testimony/images/034.jpg",
       alt: "Mount Bromo volcano in Indonesia"
     }
   ];
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % blogPosts.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getVisibleIndexes = () => {
+    const indexes = [];
+    for (let i = 0; i < 3; i++) {
+      indexes.push((activeSlide + i) % blogPosts.length);
+    }
+    return indexes;
+  };
+
+  const handleMouseMove = (e, cardRef) => {
+    if (!cardRef.current) return;
+    
+    const rect = cardRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Calculate movement based on mouse position
+    const moveX = (mouseX - rect.width / 2) / 20;
+    const moveY = (mouseY - rect.height / 2) / 20;
+    
+    const image = cardRef.current.querySelector('img');
+    if (image) {
+      image.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.1)`;
+    }
+  };
+
+  const handleMouseLeave = (cardRef) => {
+    if (!cardRef.current) return;
+    
+    const image = cardRef.current.querySelector('img');
+    if (image) {
+      image.style.transform = 'translate(0, 0) scale(1)';
+    }
+  };
+
   return (
-    <Box
-      component={motion.div}
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6 }}
-      sx={{
-        width: '100%',
-        py: { xs: 6, md: 8 },
-        px: { xs: 2, md: 4, lg: 8 },
-        backgroundColor: theme.palette.background.default
-      }}
-    >
-      <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
-        <Typography 
-          variant="h2"
-          component="h2"
-          sx={{
-            textAlign: 'center',
-            mb: 2,
-            fontWeight: 'bold',
-            fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' },
-            color: theme.palette.text.special
-          }}
-        >
-          Journey Stories Captured In Travel Diaries
-        </Typography>
-        
-        <Typography 
-          variant="h5"
-          sx={{
-            textAlign: 'center',
-            mb: 6,
-            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
-            color: theme.palette.text.special
-          }}
-        >
-          Experience the best with our customized tour packages for every need.
-        </Typography>
-
-        <Grid container spacing={3}>
-          {destinations.map((dest, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+    <div className="w-[1200px] mx-auto py-16">
+      <h1 className="text-center text-5xl font-bold mb-16">
+        FEATURED BLOG <span className="text-green-600">POSTS</span>
+      </h1>
+      
+      <div className="relative w-[1160px] mx-auto overflow-hidden">
+        <div className="flex gap-5">
+          {blogPosts.map((post, index) => {
+            const visibleIndexes = getVisibleIndexes();
+            const isVisible = visibleIndexes.includes(index);
+            
+            return (
+              <div
+                key={index}
+                className={`w-[370px] flex-shrink-0 transition-all duration-700 ease-in-out transform ${
+                  isVisible ? 'opacity-100 translate-x-0' : 
+                  index < activeSlide ? 'opacity-0 -translate-x-full' : 
+                  'opacity-0 translate-x-full'
+                }`}
+                style={{
+                  transform: `translateX(-${activeSlide * (370 + 20)}px)`
+                }}
               >
-                <Box
-                  sx={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                    borderRadius: 2,
-                    bgcolor: theme.palette.background.paper,
-                    boxShadow: theme.shadows[1],
-                    transition: 'all 0.3s ease-in-out',
-                    '&:hover': {
-                      transform: 'scale(1.03)',
-                      boxShadow: theme.shadows[4]
-                    }
-                  }}
+                <div 
+                  ref={cardRefs.current[index]}
+                  className="group relative overflow-hidden rounded-lg shadow-lg"
+                  onMouseMove={(e) => handleMouseMove(e, cardRefs.current[index])}
+                  onMouseLeave={() => handleMouseLeave(cardRefs.current[index])}
                 >
-                  <img
-                    src={dest.image}
-                    alt={dest.alt}
-                    style={{
-                      width: '100%',
-                      height: '250px',
-                      objectFit: 'cover',
-                      display: 'block'
-                    }}
-                  />
-                </Box>
-              </motion.div>
-            </Grid>
+                  <div className="absolute top-4 left-4 z-10 bg-white/80 px-4 py-1 rounded-full">
+                    <span className="text-gray-600 italic text-sm">{post.category}</span>
+                  </div>
+                  
+                  <div className="relative h-[500px] overflow-hidden">
+                    <img
+                      src={post.image}
+                      alt={post.alt}
+                      className="w-full h-[600px] object-cover absolute top-0 left-0 transition-transform duration-300 ease-out"
+                      style={{
+                        transform: 'translate(0, 0) scale(1)',
+                        objectPosition: '50% 50%'
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 text-center">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center text-white/80 text-sm space-x-2">
+                        <span>{post.date}</span>
+                        <span>•</span>
+                        <span>by {post.author}</span>
+                      </div>
+                      <h3 className="text-white text-xl font-bold px-4">{post.title}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+          {blogPosts.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setActiveSlide(index)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                index === activeSlide ? 'bg-white' : 'bg-white/50'
+              }`}
+            />
           ))}
-        </Grid>
-
-        <Box sx={{ textAlign: 'center', mt: 6 }}>
-          <Button
-            variant="contained"
-            sx={{
-              backgroundColor: theme.palette.primary.main,
-              color: theme.palette.common.white,
-              px: 4,
-              py: 1.5,
-              borderRadius: '50px',
-              fontSize: '1rem',
-              fontWeight: 600,
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                background: theme.palette.button.hoverGradient,
-                animation: theme.palette.button.hoverAnimation,
-                backgroundSize: '200% 100%'
-              }
-            }}
-          >
-            VIEW ALL
-          </Button>
-        </Box>
-      </Box>
-    </Box>
+        </div>
+      </div>
+      
+      <div className="mt-12 text-center">
+        <button className="px-8 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 transition-colors duration-300 transform hover:scale-105">
+          View More
+        </button>
+      </div>
+    </div>
   );
 };
 
-export default JourneyStories;
+export default FeaturedBlog;

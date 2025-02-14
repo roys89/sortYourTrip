@@ -2,8 +2,8 @@ import React from 'react';
 
 const SortyourtripReview = () => {
   return (
-    <div className="relative -mt-16 mx-auto max-w-md px-4 z-30">
-      <div className="w-full bg-white py-6 px-6 rounded-xl shadow-lg">
+    <div className="relative mx-auto max-w-md px-4">
+      <div className="w-full bg-white py-4 px-4 rounded-xl shadow-lg">
         <div className="flex flex-col items-center gap-4">
           {/* Rating Row */}
           <div className="flex items-center gap-2">

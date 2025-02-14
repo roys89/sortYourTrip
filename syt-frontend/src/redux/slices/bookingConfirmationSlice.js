@@ -52,7 +52,7 @@ export const bookFlight = createAsyncThunk(
   async ({ bookingId, flight }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/booking/${bookingId}/flight`,
+        `http://localhost:5000/api/booking/itinerary/${bookingId}/flight`,
         { flight },
         {
           headers: {
@@ -111,7 +111,7 @@ export const bookHotel = createAsyncThunk(
   async ({ bookingId, hotel }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/booking/${bookingId}/hotel`,
+        `http://localhost:5000/api/booking/itinerary/${bookingId}/hotel`,
         { hotel },
         {
           headers: {
@@ -166,7 +166,7 @@ export const bookActivity = createAsyncThunk(
   async ({ bookingId, activity }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/booking/${bookingId}/activity`,
+        `http://localhost:5000/api/booking/itinerary/${bookingId}/activity`,
         { activity },
         {
           headers: {
@@ -221,7 +221,7 @@ export const bookTransfer = createAsyncThunk(
   async ({ bookingId, transfer }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/booking/${bookingId}/transfer`,
+        `http://localhost:5000/api/booking/itinerary/${bookingId}/transfer`,
         { transfer },
         {
           headers: {

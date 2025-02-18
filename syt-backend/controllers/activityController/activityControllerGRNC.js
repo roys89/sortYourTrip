@@ -914,6 +914,34 @@ const bookActivity = async (req, res) => {
   }
 };
 
+const getActivityBookingDetails = async (req, res) => {
+  const { bookingReference } = req.params;
+  const inquiryToken = req.headers['x-inquiry-token'];
+  const { city, date } = req.body;
+
+  try {
+    if (!bookingReference) {
+      throw new Error('Booking reference is required');
+    }
+
+    const response = await ActivityBookingDetailsService.getBookingDetails({
+      bookingReference,
+      inquiryToken,
+      city,
+      date
+    });
+
+    if (!response.success) {
+      throw new Error('Failed to get booking details');
+    }
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching activity booking details:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Export all functions
 module.exports = {
   bookActivity,
@@ -927,5 +955,6 @@ module.exports = {
   validateAndNormalizeTime,
   calculateEndTime,
   assignTimeSlots,
-  selectActivities
+  selectActivities,
+  getActivityBookingDetails
 };

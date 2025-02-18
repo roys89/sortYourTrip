@@ -17,6 +17,7 @@ import priceCheckReducer from './slices/priceCheckSlice';
 import priceReducer from './slices/priceSlice';
 import roomChangeReducer from './slices/roomChangeSlice';
 import transferReducer from './slices/transferSlice';
+import voucherReducer from './slices/voucherSlice';
 
 export const store = configureStore({
   reducer: {
@@ -36,6 +37,7 @@ export const store = configureStore({
     flightReplacement: flightReplacementReducer,
     hotelReplacement: hotelReplacementReducer,
     payment: paymentReducer,
-    bookingConfirmation: bookingConfirmationReducer  // Add this line
+    bookingConfirmation: bookingConfirmationReducer,
+    voucher: voucherReducer
   }
 });

@@ -5,7 +5,7 @@ const HotelRoomRatesService = require('../../services/hotelServices/hotelRoomRat
 const  HotelTokenManager = require('../../services/tokenManagers/hotelTokenManager');
 const HotelAuthService = require('../../services/hotelServices/hotelAuthService');
 const HotelBookingService = require('../../services/hotelServices/hotelBookingService');
-
+const HotelBookingDetailsService = require("../../services/hotelServices/hotelBookingDetailsService")
 /**
  * Helper function to format room occupancy for API request
  */
@@ -527,6 +527,45 @@ module.exports = {
         success: false,
         error: 'Internal server error',
         data: error.response?.data || error // Include complete error response
+      });
+    }
+  },
+  getHotelBookingDetails: async (req, res) => {
+    try {
+      const { bookingCode } = req.params;
+      const { inquiryToken, date, city } = req.body;
+  
+      if (!bookingCode) {
+        throw new Error('Booking code is required');
+      }
+  
+      const authToken = await HotelTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await HotelAuthService.getAuthToken();
+          return authResponse.token;
+        }
+      );
+  
+      if (!authToken) {
+        throw new Error('Authentication failed');
+      }
+  
+      const response = await HotelBookingDetailsService.getBookingDetails({
+        bookingCode,
+        token: authToken,
+        inquiryToken,
+        date,
+        city
+      });
+  
+      res.status(200).json(response);
+  
+    } catch (error) {
+      console.error('Error in getHotelBookingDetails:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        data: error.response?.data || error
       });
     }
   }

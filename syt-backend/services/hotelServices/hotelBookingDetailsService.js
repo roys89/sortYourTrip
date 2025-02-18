@@ -1,24 +1,17 @@
+// services/hotelServices/hotelBookingDetailsService.js
 const axios = require('axios');
 const apiLogger = require('../../helpers/apiLogger');
 
-class HotelBookingService {
-  static async bookHotel(params) {
+class HotelBookingDetailsService {
+  static async getBookingDetails(params) {
     try {
       const {
-        traceId,
-        code, // Changed from itineraryCode
+        bookingCode,
         token,
         inquiryToken,
         date,
         city
       } = params;
-
-      // Use code as itineraryCode
-      const itineraryCode = code;
-
-      const requestBody = {
-        traceId
-      };
 
       const config = {
         headers: {
@@ -29,9 +22,8 @@ class HotelBookingService {
         }
       };
 
-      const response = await axios.post(
-        `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/${itineraryCode}/book`,
-        requestBody,
+      const response = await axios.get(
+        `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/bookings/${bookingCode}`,
         config
       );
 
@@ -40,10 +32,9 @@ class HotelBookingService {
         inquiryToken,
         cityName: city,
         date,
-        apiType: 'hotel_booking',
+        apiType: 'hotel_booking_details',
         requestData: {
-          ...requestBody,
-          itineraryCode
+          bookingCode
         },
         responseData: response.data
       };
@@ -60,10 +51,9 @@ class HotelBookingService {
         inquiryToken: params.inquiryToken || 'unknown',
         cityName: params.city || 'unknown',
         date: params.date,
-        apiType: 'hotel_booking_error',
+        apiType: 'hotel_booking_details_error',
         requestData: {
-          traceId: params.traceId,
-          itineraryCode: params.code // Changed to code
+          bookingCode: params.bookingCode
         },
         responseData: error.response?.data || error
       };
@@ -77,18 +67,6 @@ class HotelBookingService {
       };
     }
   }
-
-  static async validateBookingData(bookingData) {
-    // Updated required fields to include code instead of itineraryCode
-    const requiredFields = ['traceId', 'code', 'inquiryToken', 'date', 'city'];
-    const missingFields = requiredFields.filter(field => !bookingData[field]);
-    
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-    }
-    
-    return true;
-  }
 }
 
-module.exports = HotelBookingService;
+module.exports = HotelBookingDetailsService;

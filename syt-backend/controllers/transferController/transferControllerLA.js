@@ -215,3 +215,31 @@ exports.bookTransfer = async (req, res) => {
     });
   }
 };
+
+exports.getTransferBookingDetails = async (req, res) => {
+  try {
+    const { booking_id } = req.params;
+    const { inquiryToken, date, city } = req.body;
+
+    if (!booking_id) {
+      throw new Error('Booking ID is required');
+    }
+
+    const response = await TransferBookingDetailsService.getBookingDetails({
+      booking_id,
+      inquiryToken,
+      date,
+      city
+    });
+
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('Error in getTransferBookingDetails:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      data: error.response?.data || error
+    });
+  }
+};

@@ -7,6 +7,7 @@ const FlightCreateItineraryService = require("../../services/flightServices/flig
 const FlightUtils = require("../../utils/flight/flightUtils");
 const FlightTokenManager = require('../../services/tokenManagers/flightTokenManager');
 const FlightBookingService = require("../../services/flightServices/flightBookingService");
+const FlightBookingDetailsService = require("../../services/flightServices/FlightBookingDetailsService");
 
 /**
  * Helper function to attempt booking a specific flight with retries
@@ -349,5 +350,46 @@ module.exports = {
         data: error.response?.data || error // Include complete error response
       });
     }
+  },
+
+  getFlightBookingDetails: async (req, res) => {
+    try {
+      const { bmsBookingCode } = req.params;
+      const { inquiryToken, date, city } = req.body;
+  
+      if (!bmsBookingCode) {
+        throw new Error('BMS Booking code is required');
+      }
+  
+      const authToken = await FlightTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await FlightAuthService.login();
+          return authResponse.token;
+        }
+      );
+  
+      if (!authToken) {
+        throw new Error('Authentication failed');
+      }
+  
+      const response = await FlightBookingDetailsService.getBookingDetails({
+        bmsBookingCode,
+        token: authToken,
+        inquiryToken,
+        date,
+        city
+      });
+  
+      res.status(200).json(response);
+  
+    } catch (error) {
+      console.error('Error in getFlightBookingDetails:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        data: error.response?.data || error
+      });
+    }
   }
+
 };

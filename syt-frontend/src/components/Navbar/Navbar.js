@@ -183,7 +183,7 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
         color: theme.palette.text.primary,
         mx: 1,
         "&.active": {
-          borderBottom: `2px solid ${theme.palette.primary.main}`,
+          color: theme.palette.secondary.main,
         },
       }}
       className={location.pathname === to ? "active" : ""}
@@ -341,76 +341,130 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
         })}
       </Menu>
 
-      {/* Auth Modals */}
       <Modal
-        open={signInOpen}
-        onClose={handleSignInClose}
-        aria-labelledby="sign-in-modal"
-        aria-describedby="sign-in-form"
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+  open={signInOpen}
+  onClose={handleSignInClose}
+  aria-labelledby="sign-in-modal"
+  aria-describedby="sign-in-form"
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <Box
+    sx={{
+      width: "90%",
+      maxWidth: "500px",
+      position: "relative",
+      backgroundColor: theme.palette.background.paper,
+      boxShadow: theme.palette.mode === "dark" 
+        ? "0 8px 32px rgba(0, 0, 0, 0.5)" 
+        : "0 8px 32px rgba(0, 0, 0, 0.15)",
+      borderRadius: "16px",
+      p: 3,
+      outline: "none",
+    }}
+  >
+    {/* Modal Header */}
+    <Box sx={{ mb: 3, textAlign: "center" }}>
+      <Typography 
+        variant="h5" 
+        component="h2" 
+        sx={{ 
+          fontWeight: 600, 
+          mb: 1,
+          color: theme.palette.text.primary,
+          fontFamily: theme.typography.h5.fontFamily
         }}
       >
-        <Box
-          sx={{
-            width: "90%",
-            maxWidth: "400px",
-            position: "relative",
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? "rgba(46, 46, 46)"
-                : "rgba(255, 239, 226)",
-            boxShadow: 24,
-            borderRadius: "12px",
-            p: 0,
-          }}
-        >
-          <SignIn handleClose={handleSignInClose} />
-        </Box>
-      </Modal>
+        Welcome Back
+      </Typography>
+      <Typography 
+        variant="body2"
+        sx={{ 
+          color: theme.palette.text.secondary,
+          fontFamily: theme.typography.body2.fontFamily
+        }}
+      >
+        Sign in to continue your adventure
+      </Typography>
+    </Box>
+    
+    {/* Sign In Component */}
+    <SignIn handleClose={handleSignInClose} />
+  </Box>
+</Modal>
 
-      <Modal
-        open={signUpOpen}
-        onClose={handleSignUpClose}
-        aria-labelledby="sign-up-modal"
-        aria-describedby="sign-up-form"
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          p: { xs: 1, sm: 2, md: 3 },
+{/* Sign Up Modal */}
+<Modal
+  open={signUpOpen}
+  onClose={handleSignUpClose}
+  aria-labelledby="sign-up-modal"
+  aria-describedby="sign-up-form"
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    p: { xs: 1, sm: 2, md: 3 },
+  }}
+>
+  <Box
+    sx={{
+      width: "95%",
+      maxWidth: "800px",
+      position: "relative",
+      backgroundColor: theme.palette.background.paper,
+      boxShadow: theme.palette.mode === "dark" 
+        ? "0 8px 32px rgba(0, 0, 0, 0.5)" 
+        : "0 8px 32px rgba(0, 0, 0, 0.15)",
+      borderRadius: "16px",
+      p: 3,
+      maxHeight: "90vh",
+      overflowY: "auto",
+      "&:focus": {
+        outline: "none",
+      },
+      "&::-webkit-scrollbar": {
+        width: "8px",
+      },
+      "&::-webkit-scrollbar-thumb": {
+        backgroundColor: theme.palette.mode === "dark" 
+          ? "rgba(255, 255, 255, 0.2)" 
+          : "rgba(0, 0, 0, 0.2)",
+        borderRadius: "4px",
+      },
+    }}
+  >
+    {/* Modal Header */}
+    <Box sx={{ mb: 3, textAlign: "center" }}>
+      <Typography 
+        variant="h5" 
+        component="h2" 
+        sx={{ 
+          fontWeight: 600, 
+          mb: 1,
+          color: theme.palette.text.primary,
+          fontFamily: theme.typography.h5.fontFamily
         }}
       >
-        <Box
-          sx={{
-            width: "95%",
-            maxWidth: "800px",
-            position: "relative",
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? "rgba(46, 46, 46)"
-                : "rgba(255, 239, 226)",
-            boxShadow: 24,
-            borderRadius: "12px",
-            maxHeight: "90vh",
-            overflowY: "auto",
-            "&:focus": {
-              outline: "none",
-            },
-            "&::-webkit-scrollbar": {
-              width: "8px",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: "rgba(0,0,0,0.2)",
-              borderRadius: "4px",
-            },
-          }}
-        >
-          <SignUp handleClose={handleSignUpClose} />
-        </Box>
-      </Modal>
+        Join the Adventure
+      </Typography>
+      <Typography 
+        variant="body2"
+        sx={{ 
+          color: theme.palette.text.secondary,
+          fontFamily: theme.typography.body2.fontFamily
+        }}
+      >
+        Create an account to plan your perfect trip
+      </Typography>
+    </Box>
+    
+    {/* Sign Up Component */}
+    <SignUp handleClose={handleSignUpClose} />
+  </Box>
+</Modal>
     </>
   );
 };

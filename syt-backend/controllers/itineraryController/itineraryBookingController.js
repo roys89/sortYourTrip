@@ -160,7 +160,7 @@ class BookingService {
     } finally {
       session.endSession();
     }
-  }
+}
 }
 
 class ItineraryBookingController {
@@ -480,7 +480,7 @@ class ItineraryBookingController {
       const booking = await ItineraryBooking.findOne({
         itineraryToken,
         'userInfo.userId': req.user._id
-      }).select('bookingId paymentStatus rooms specialRequirements');
+      }).select('bookingId paymentStatus rooms specialRequirements razorpay');
   
       if (!booking) {
         return res.status(404).json({
@@ -503,6 +503,139 @@ class ItineraryBookingController {
     }
   }
   
+  static async getBookingeDetails(req, res) {
+    try {
+      const { bookingId, type, itemId } = req.params;
+  
+      // Find the booking first
+      const booking = await ItineraryBooking.findOne({
+        bookingId,
+        'userInfo.userId': req.user._id
+      });
+  
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+  
+      let bookingDetails;
+  
+      // Find specific booking response details based on type
+      switch (type) {
+        case 'flight': {
+          const flight = booking.flights.find(f => f.itineraryCode === itemId);
+          if (!flight) {
+            return res.status(404).json({
+              success: false,
+              message: 'Flight booking not found'
+            });
+          }
+          bookingDetails = {
+            bmsBookingCode: flight.bmsBookingCode,
+            pnr: flight.pnr,
+            bookingStatus: flight.bookingStatus,
+            traceId: flight.traceId,
+            itineraryCode: flight.itineraryCode,
+            pnrDetails: flight.pnrDetails,
+            date: flight.date,
+            city: flight.city
+          };
+          break;
+        }
+  
+        case 'hotel': {
+          const hotel = booking.hotels.find(h => h.code === itemId);
+          if (!hotel) {
+            return res.status(404).json({
+              success: false,
+              message: 'Hotel booking not found'
+            });
+          }
+          bookingDetails = {
+            bookingRefId: hotel.bookingRefId, 
+            providerConfirmationNumber: hotel.providerConfirmationNumber,
+            traceId: hotel.traceId,
+            code: hotel.code,
+            status: hotel.status,
+            date: hotel.date,
+            city: hotel.city,
+            roomConfirmations: hotel.roomConfirmations
+          };
+          break;
+        }
+  
+        case 'activity': {
+          const activity = booking.activities.find(a => a.activityCode === itemId);
+          if (!activity) {
+            return res.status(404).json({
+              success: false,
+              message: 'Activity booking not found'
+            });
+          }
+          bookingDetails = {
+            bookingReference: activity.bookingReference,
+            bookingStatus: activity.bookingStatus,
+            activityCode: activity.activityCode,
+            searchId: activity.searchId,
+            amount: activity.amount,
+            date: activity.date,
+            city: activity.city,
+            selectedTime: activity.selectedTime,
+            endTime: activity.endTime,
+            timeSlot: activity.timeSlot,
+            departureTime: activity.departureTime,
+            duration: activity.duration
+          };
+          break;
+        }
+  
+        case 'transfer': {
+          const transfer = booking.transfers.find(t => t.quotationId === itemId);
+          if (!transfer) {
+            return res.status(404).json({
+              success: false,
+              message: 'Transfer booking not found'
+            });
+          }
+          bookingDetails = {
+            booking_id: transfer.booking_id,
+            quotationId: transfer.quotationId,
+            status: transfer.status,
+            date: transfer.date,
+            city: transfer.city
+          };
+          break;
+        }
+  
+        default:
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid booking type'
+          });
+      }
+  
+      // Return complete booking details with tokens
+      return res.status(200).json({
+        success: true,
+        data: {
+          type,
+          ...bookingDetails,
+          itineraryToken: booking.itineraryToken, 
+          inquiryToken: booking.inquiryToken
+        }
+      });
+  
+    } catch (error) {
+      console.error('Get booking response details failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve booking response details',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  }
 }
 
 module.exports = ItineraryBookingController;

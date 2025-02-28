@@ -14,6 +14,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   Container,
   Divider,
   Grid,
@@ -24,7 +25,7 @@ import {
   useTheme
 } from '@mui/material';
 import axios from 'axios';
-import { Trash2 } from 'lucide-react';
+import { CreditCard, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -61,7 +62,37 @@ const Profile = () => {
         
         if (response.data.success) {
           console.log('Itineraries:', response.data);
-          setItineraries(response.data.itineraries);
+          const itinerariesData = response.data.itineraries;
+          
+          // Fetch booking status for each itinerary
+          const itinerariesWithBookingStatus = await Promise.all(
+            itinerariesData.map(async (itinerary) => {
+              try {
+                const bookingResponse = await axios.get(
+                  `http://localhost:5000/api/booking/itinerary/by-itinerary/${itinerary.itineraryToken}`,
+                  {
+                    headers: {
+                      'Authorization': `Bearer ${token}`
+                    }
+                  }
+                );
+                
+                if (bookingResponse.data.data) {
+                  return {
+                    ...itinerary,
+                    bookingData: bookingResponse.data.data
+                  };
+                }
+                
+                return itinerary;
+              } catch (error) {
+                console.error('Error fetching booking for itinerary:', itinerary.itineraryToken, error);
+                return itinerary;
+              }
+            })
+          );
+          
+          setItineraries(itinerariesWithBookingStatus);
         }
       } catch (error) {
         console.error('Error fetching itineraries:', error.response || error);
@@ -91,16 +122,10 @@ const Profile = () => {
   const handleViewItinerary = async (itinerary) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/booking/by-itinerary/${itinerary.itineraryToken}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const bookingData = response.data.data;
+      let bookingData;
       
-      if (!bookingData) {
-        // If no booking exists, proceed to itinerary page
+      // Helper function to navigate to itinerary page (used in multiple places)
+      const navigateToItinerary = () => {
         navigate('/itinerary', {
           state: {
             itineraryInquiryToken: itinerary.inquiryToken,
@@ -108,11 +133,57 @@ const Profile = () => {
           },
           replace: true
         });
+      };
+      
+      // Use booking data if we already have it from initial fetch, otherwise fetch it
+      if (itinerary.bookingData) {
+        bookingData = itinerary.bookingData;
+      } else {
+        // Fetch booking data if not already available
+        const response = await axios.get(`http://localhost:5000/api/booking/itinerary/by-itinerary/${itinerary.itineraryToken}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        bookingData = response.data.data;
+      }
+      
+      // If no booking data exists, proceed to itinerary page
+      if (!bookingData) {
+        navigateToItinerary();
         return;
       }
 
+      // Handle different payment statuses
       switch (bookingData.paymentStatus) {
         case 'completed':
+          // For completed payments, navigate to booking confirmation
+          console.log('Navigating to booking confirmation with data:', {
+            bookingId: bookingData.bookingId,
+            paymentSuccess: true,
+            itinerary: {
+              itineraryToken: itinerary.itineraryToken,
+              inquiryToken: itinerary.inquiryToken
+            },
+            bookingData
+          });
+
+          navigate('/booking-confirmation', {
+            state: {
+              bookingId: bookingData.bookingId, 
+              paymentSuccess: true,
+              itinerary: {
+                itineraryToken: itinerary.itineraryToken,
+                inquiryToken: itinerary.inquiryToken
+              },
+              bookingData
+            },
+            replace: true
+          });
+          break;
+
+        case 'pending':
+          // For pending payments, fetch complete itinerary and navigate to payment
           try {
             // Fetch complete itinerary details
             const itineraryResponse = await axios.get(
@@ -127,65 +198,40 @@ const Profile = () => {
 
             const completeItinerary = itineraryResponse.data;
             
-            console.log('Navigating to booking confirmation with data:', {
+            console.log('Navigating to payment with data:', {
               bookingId: bookingData.bookingId,
-              paymentSuccess: true,
+              bookingData,
               itinerary: completeItinerary,
-              bookingData
             });
 
-            navigate('/booking-confirmation', {
+            navigate('/payment', {
               state: {
                 bookingId: bookingData.bookingId,
-                paymentSuccess: true,
+                bookingData,
                 itinerary: completeItinerary,
-                bookingData
               },
               replace: true
             });
           } catch (error) {
+            // If error fetching complete itinerary, show error and fall back to itinerary page
             console.error('Error fetching complete itinerary:', error);
             setSnackbar({
               open: true,
               message: 'Error fetching itinerary details',
               severity: 'error'
             });
-            // Still navigate but with limited itinerary data
-            navigate('/booking-confirmation', {
-              state: {
-                bookingId: bookingData.bookingId,
-                paymentSuccess: true,
-                itinerary,
-                bookingData
-              },
-              replace: true
-            });
+            navigateToItinerary();
           }
           break;
-
+            
         case 'failed':
-          navigate('/payment', {
-            state: {
-              bookingId: bookingData.bookingId,
-              bookingData,
-              itinerary
-            },
-            replace: true
-          });
-          break;
-
-        case 'pending':
         default:
-          navigate('/itinerary', {
-            state: {
-              itineraryInquiryToken: itinerary.inquiryToken,
-              origin: 'profile'
-            },
-            replace: true
-          });
+          // For failed payments or default case, go to itinerary page
+          navigateToItinerary();
           break;
       }
     } catch (error) {
+      // Handle any other errors
       console.error('Error checking booking status:', error);
       setSnackbar({
         open: true,
@@ -373,80 +419,174 @@ const Profile = () => {
     </Paper>
   );
 
-  const ItineraryCard = ({ itinerary }) => (
-    <Card 
-      sx={{ 
-        mb: 2,
-        borderRadius: 2,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-        transition: 'transform 0.3s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-5px)',
-        }
-      }}
-    >
-      <CardContent sx={{ pb: 1 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={2}>
-            <Box display="flex" alignItems="center" gap={1} flex={1}>
-              <LocationIcon sx={{ fontSize: 20 }} />
-              <Typography variant="h6" component="div" sx={{ flex: 1 }}>
-                {itinerary.cities.map(city => city.city).join(' → ')}
-              </Typography>
-            </Box>
-            <Box display="flex" gap={1}>
-              <Button
-                variant="contained"
-                startIcon={<ViewIcon sx={{ fontSize: 18 }} />}
-                onClick={() => handleViewItinerary(itinerary)}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  height: '100%',
-                  bgcolor: theme.palette.primary.main,
-                }}
-              >
-                View Itinerary
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<Trash2 size={18} />}
-                onClick={() => handleDelete(itinerary.inquiryToken)}
-                disabled={deleteLoading[itinerary.inquiryToken]}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  height: '100%',
-                  borderColor: theme.palette.error.main,
-                  color: theme.palette.error.main,
-                  '&:hover': {
-                    backgroundColor: theme.palette.error.main,
-                    color: 'white',
-                  },
-                }}
-              >
-                Delete
-              </Button>
-            </Box>
+  const ItineraryCard = ({ itinerary }) => {
+    // Get payment status and booking ID if available
+    const bookingData = itinerary.bookingData;
+    const paymentStatus = bookingData?.paymentStatus;
+    const bookingId = bookingData?.bookingId;
+    
+    // Determine button text and icon based on payment status
+    let buttonText = "View Itinerary";
+    let buttonIcon = <ViewIcon sx={{ fontSize: 18 }} />;
+    
+    switch (paymentStatus) {
+      case 'completed':
+        buttonText = "View Booking";
+        buttonIcon = <ViewIcon sx={{ fontSize: 18 }} />;
+        break;
+      case 'pending':
+        buttonText = "Pay Now";
+        buttonIcon = <CreditCard size={18} />;
+        break;
+      case 'failed':
+        buttonText = "Retry Itinerary";
+        buttonIcon = <RefreshCw size={18} />;
+        break;
+      default:
+        // Default already set
+        break;
+    }
+    
+    // Determine chip color and text based on payment status
+    let chipColor = "default";
+    let chipText = "";
+    
+    switch (paymentStatus) {
+      case 'completed':
+        chipColor = "success";
+        chipText = "PAID";
+        break;
+      case 'pending':
+        chipColor = "warning";
+        chipText = "PAYMENT PENDING";
+        break;
+      case 'failed':
+        chipColor = "error";
+        chipText = "FAILED";
+        break;
+      default:
+        // No chip for default case
+        break;
+    }
+    
+    return (
+      <Card 
+        sx={{ 
+          mb: 2,
+          borderRadius: 2,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          transition: 'transform 0.3s ease-in-out',
+          '&:hover': {
+            transform: 'translateY(-5px)',
+          },
+          position: 'relative'
+        }}
+      >
+        {chipText && (
+          <Box 
+            sx={{ 
+              position: 'absolute', 
+              top: '50%', 
+              left: '50%', 
+              transform: 'translate(-50%, -50%)',
+              zIndex: 2,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+          >
+            <Chip 
+              label={chipText} 
+              color={chipColor} 
+              sx={{ 
+                fontWeight: 'bold', 
+                fontSize: '0.9rem',
+                padding: '20px 16px',
+                height: 'auto',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                border: '2px solid',
+                borderColor: theme => theme.palette[chipColor].main
+              }} 
+            />
+          </Box>
+        )}
+        <CardContent sx={{ pb: 1, pt: 2, position: 'relative', zIndex: 1 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={2}>
+              <Box display="flex" alignItems="center" gap={1} flex={1}>
+                <LocationIcon sx={{ fontSize: 20 }} />
+                <Typography variant="h6" component="div" sx={{ flex: 1 }}>
+                  {itinerary.cities.map(city => city.city).join(' → ')}
+                </Typography>
+              </Box>
+              <Box display="flex" gap={1}>
+                <Button
+                  variant="contained"
+                  startIcon={buttonIcon}
+                  onClick={() => handleViewItinerary(itinerary)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    height: '100%',
+                    bgcolor: theme.palette.primary.main,
+                  }}
+                >
+                  {buttonText}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Trash2 size={18} />}
+                  onClick={() => handleDelete(itinerary.inquiryToken)}
+                  disabled={deleteLoading[itinerary.inquiryToken]}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    height: '100%',
+                    borderColor: theme.palette.error.main,
+                    color: theme.palette.error.main,
+                    '&:hover': {
+                      backgroundColor: theme.palette.error.main,
+                      color: 'white',
+                    },
+                  }}
+                >
+                  Delete
+                </Button>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={1}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <CalendarIcon sx={{ fontSize: 20 }} />
+                <Typography color="textSecondary">
+                  {new Date(itinerary.cities[0].startDate).toLocaleDateString()} - {' '}
+                  {new Date(itinerary.cities[itinerary.cities.length - 1].endDate).toLocaleDateString()}
+                </Typography>
+              </Box>
+              <Box>
+                {/* Show booking ID for all cases where it exists */}
+                {bookingId && (
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                    Booking ID: {bookingId}
+                  </Typography>
+                )}
+                
+                {/* Show payment ID if it exists (checking multiple possible paths) */}
+                {(bookingData?.razorpay?.paymentId) && (
+                  
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                    Payment ID: {bookingData?.razorpay?.id || bookingData?.razorpay?.paymentId || bookingData?.payment?.id}
+                  </Typography>
+                )}
+                
+              </Box>
+            </Grid>
           </Grid>
-          
-          <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={1}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <CalendarIcon sx={{ fontSize: 20 }} />
-              <Typography color="textSecondary">
-                {new Date(itinerary.cities[0].startDate).toLocaleDateString()} - {' '}
-                {new Date(itinerary.cities[itinerary.cities.length - 1].endDate).toLocaleDateString()}
-              </Typography>
-            </Box>
-            <Typography variant="caption" color="textSecondary">
-              Itinerary Token: {itinerary.itineraryToken}
-            </Typography>
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <Container maxWidth="xl" sx={{ mt: '2rem', py: 4, px: { xs: 1, sm: 2, md: 4 } }}>

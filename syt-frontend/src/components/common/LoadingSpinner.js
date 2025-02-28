@@ -5,7 +5,7 @@ const LoadingSpinner = ({
   message = 'Planning Your Adventure...'
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#fdf2e9]">
+    <div className="flex flex-col items-center justify-center min-h-screen ">
       {/* Main Content Container */}
       <div className="flex flex-col items-center p-8">
         {/* Lottie Animation Container */}

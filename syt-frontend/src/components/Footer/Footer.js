@@ -1,19 +1,82 @@
 // Footer.jsx
 import { Box, Container, Grid, TextField, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import React from 'react';
-import './Footer.css';
 
 const Footer = () => {
+  const theme = useTheme();
+
+  const subscribeButtonStyles = {
+    width: '200px',
+    background: 'transparent',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    color: 'white',
+    padding: '16px 32px',
+    cursor: 'pointer',
+    fontSize: '1.125rem',
+    transition: 'all 0.3s ease',
+    borderRadius: '50px',
+    margin: '0 auto',
+    display: 'block',
+    backdropFilter: 'blur(5px)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    '&:hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: 'rgba(255, 255, 255, 0.7)'
+    }
+  };
+
+  const textFieldStyles = {
+    mb: 3,
+    backgroundColor: 'transparent',
+    width: '100%',
+    input: { 
+      color: 'white',
+      py: 1.5,
+      fontSize: '1.125rem',
+      '&::placeholder': {
+        color: 'rgba(255, 255, 255, 0.7)',
+        opacity: 1
+      }
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+      '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+      '&.Mui-focused fieldset': { borderColor: 'white' },
+    }
+  };
+
   return (
     <Box
       sx={{
-        bgcolor: '#004D30',
+        backgroundImage: theme.palette.mode === 'dark' 
+          ? 'url("/assets/footer/footer_dark.png")'
+          : 'url("/assets/footer/footer_light.png")',
+          backgroundSize: 'cover',
+        backgroundPosition: 'top center',
+        backgroundRepeat: 'no-repeat',
+        '@media (max-width: 600px)': {
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+        },
+        height: '100%',
         color: 'white',
-        pt: 8,
+        pt: 0,
         pb: 8,
+        minHeight: '800px',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative'
       }}
     >
-      <Container maxWidth="xl" sx={{ px: { xs: 4, sm: 8, md: 12 } }}>
+      <Container 
+        maxWidth="xl" 
+        sx={{ 
+          px: { xs: 4, sm: 8, md: 12 },
+          pt: { xs: 60, sm: 28, md: 32 },
+          position: 'relative'
+        }}
+      >
         {/* Top Section */}
         <Grid container spacing={4} sx={{ mb: 8 }}>
           {/* Left Section */}
@@ -37,18 +100,21 @@ const Footer = () => {
                 textAlign: { xs: 'center', md: 'left' }
               }}
             >
-              SortYourTrip
+              
             </Typography>
             <Typography 
               variant="h6" 
               sx={{ 
                 fontWeight: 400, 
                 mb: 3,
-                fontSize: '1.5rem'
+                fontSize: '1.5rem',
+                 textTransform: 'uppercase'
               }}
             >
-              Contact Us
+              CONTACT US 
+              
             </Typography>
+            {/*upercase CONTACT US */}
             <Typography sx={{ 
               mb: 4, 
               fontSize: '1.125rem', 
@@ -89,7 +155,7 @@ const Footer = () => {
             </Box>
           </Grid>
 
-          {/* Middle Section - with horizontal lines in mobile */}
+          {/* Middle Section */}
           <Grid 
             item 
             xs={12} 
@@ -132,44 +198,21 @@ const Footer = () => {
                 fullWidth
                 placeholder="Email Address"
                 variant="outlined"
-                sx={{
-                  mb: 3,
-                  backgroundColor: 'transparent',
-                  input: { 
-                    color: 'white',
-                    py: 1.5,
-                    fontSize: '1.125rem'
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                    '&.Mui-focused fieldset': { borderColor: 'white' },
-                  }
-                }}
+                sx={textFieldStyles}
               />
               <TextField
                 fullWidth
                 placeholder="First Name"
                 variant="outlined"
-                sx={{
-                  mb: 3,
-                  backgroundColor: 'transparent',
-                  input: { 
-                    color: 'white',
-                    py: 1.5,
-                    fontSize: '1.125rem'
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                    '&.Mui-focused fieldset': { borderColor: 'white' },
-                  }
-                }}
+                sx={textFieldStyles}
               />
             </Box>
-            <button className="subscribe-button">
+            <Box 
+              component="button"
+              sx={subscribeButtonStyles}
+            >
               Subscribe
-            </button>
+            </Box>
           </Grid>
 
           {/* Right Section */}

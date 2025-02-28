@@ -1,7 +1,6 @@
-import { Box, Button, Typography, useTheme } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 const testimonials = [
   {
@@ -15,7 +14,7 @@ const testimonials = [
     ],
     rating: 5,
     quote: "Lorem Ipsum Dolor sit amet, consectur at cupidator",
-    testimony: 'Lorem ipsum dolor sit amet, consectetur at cupidatat non proident,sunt in culpa qui officia deserunt mollit anim id est laborum.'
+    testimony: 'Lorem ipsum dolor sit amet, consectetur at cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.'
   },
   {
     name: 'John Smith',
@@ -28,7 +27,7 @@ const testimonials = [
     ],
     rating: 5,
     quote: "Another amazing experience",
-    testimony: 'Another wonderful testimonial about the amazing travel experience.'
+    testimony: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.'
   },
   {
     name: 'Sarah Parker',
@@ -41,320 +40,281 @@ const testimonials = [
     ],
     rating: 5,
     quote: "The best travel experience ever",
-    testimony: 'A glowing review of the incredible journey and experiences.'
-  },
-  {
-    name: 'Mike Johnson',
-    avatar: '/assets/testimony/avatar/2m.jpg',
-    images: [
-      '/assets/testimony/images/013.jpg',
-      '/assets/testimony/images/014.jpg',
-      '/assets/testimony/images/015.jpg',
-      '/assets/testimony/images/016.jpg'
-    ],
-    rating: 5,
-    quote: "Unforgettable memories made",
-    testimony: 'Sharing memories of an unforgettable travel experience.'
-  },
-  {
-    name: 'Emily Davis',
-    avatar: '/assets/testimony/avatar/3f.jpg',
-    images: [
-      '/assets/testimony/images/017.jpg',
-      '/assets/testimony/images/018.jpg',
-      '/assets/testimony/images/019.jpg',
-      '/assets/testimony/images/020.jpg'
-    ],
-    rating: 5,
-    quote: "Perfect vacation planning",
-    testimony: 'Describing the perfectly planned vacation experience.'
+    testimony: 'Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.'
   }
 ];
 
+const ImageCard = ({ 
+  image, 
+  stackPosition, 
+  totalImages,
+  direction,
+  isChangingTestimonial,
+  isMobile
+}) => {
+  const theme = useTheme();
+  const cardWidth = isMobile ? 'w-72' : 'w-96';
+  const cardHeight = isMobile ? 'h-[400px]' : 'h-[550px]';
+  const stackOffset = isMobile ? 16 : 30;
+
+  return (
+    <motion.div
+      className={`absolute rounded-3xl overflow-hidden shadow-2xl ${cardWidth} ${cardHeight}`}
+      style={{
+        left: isMobile ? stackPosition * stackOffset : 'auto',
+        right: isMobile ? 'auto' : stackPosition * stackOffset,
+        top: stackPosition * stackOffset,
+        zIndex: totalImages - stackPosition,
+        transformStyle: 'preserve-3d',
+        perspective: '1000px',
+      }}
+      initial={{ 
+        x: isChangingTestimonial ? (direction === 1 ? '100%' : '-100%') : 0,
+        scale: isChangingTestimonial ? 0.8 : (1 - stackPosition * 0.05),
+        opacity: isChangingTestimonial ? 0 : 1
+      }}
+      animate={{ 
+        x: 0,
+        scale: 1 - stackPosition * 0.05,
+        opacity: 1
+      }}
+      exit={{ 
+        x: isChangingTestimonial ? (direction === 1 ? '-100%' : '100%') : 0,
+        scale: isChangingTestimonial ? 0.8 : (1 - stackPosition * 0.05),
+        opacity: 0
+      }}
+      transition={{
+        duration: 0.4,
+        ease: [0.32, 0.72, 0, 1],
+        delay: isChangingTestimonial ? 0.3 + (stackPosition * 0.1) : 0
+      }}
+    >
+      <img
+        src={image}
+        alt="Travel moment"
+        className="w-full h-full object-cover"
+      />
+    </motion.div>
+  );
+};
+
+const TestimonialContent = ({ testimonial, direction, isMobile }) => {
+  const theme = useTheme();
+  
+  return (
+    <motion.div 
+      className="text-left w-full pr-0 sm:pr-4 flex flex-col justify-between h-full"
+      initial={{ 
+        x: direction === 1 ? '100%' : '-100%',
+        opacity: 0
+      }}
+      animate={{ 
+        x: 0,
+        opacity: 1
+      }}
+      exit={{ 
+        x: direction === 1 ? '-100%' : '100%',
+        opacity: 0
+      }}
+      transition={{
+        duration: 0.4,
+        ease: [0.32, 0.72, 0, 1]
+      }}
+    >
+      <h1 
+        className="text-5xl sm:text-6xl lg:text-7xl font-light leading-tight"
+        style={{ color: theme.palette.text.primary }}
+      >
+        Hear from
+        <br />
+        <span className="text-6xl sm:text-7xl lg:text-8xl block">our happiest</span>
+        <span className="text-4xl sm:text-5xl lg:text-6xl block">travellers</span>
+      </h1>
+      
+      <div className="mt-8">
+        <div className="flex gap-2">
+          {'★'.repeat(testimonial.rating).split('').map((star, i) => (
+            <span 
+              key={i} 
+              className="text-2xl sm:text-3xl"
+              style={{ color: theme.palette.primary.dark }}
+            >
+              {star}
+            </span>
+          ))}
+        </div>
+        
+        <h2 
+          className="text-2xl sm:text-3xl font-medium mt-4"
+          style={{ color: theme.palette.text.special }}
+        >
+          {testimonial.quote}
+        </h2>
+        
+        <p 
+          className="text-lg sm:text-xl leading-relaxed mt-4"
+          style={{ color: theme.palette.text.secondary }}
+        >
+          {testimonial.testimony}
+        </p>
+        
+        <p 
+          className="text-xl sm:text-2xl font-medium mt-4"
+          style={{ color: theme.palette.primary.main }}
+        >
+          {testimonial.name}
+        </p>
+      </div>
+    </motion.div>
+  );
+};
+
 const Testimony = () => {
   const theme = useTheme();
-  const [activeIndex, setActiveIndex] = useState(2);
-  const [direction, setDirection] = useState(0);
-  const avatarSize = 100;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [navigationDirection, setNavigationDirection] = useState(1);
+  const [isChangingTestimonial, setIsChangingTestimonial] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const moveSlider = (newDirection) => {
-    setDirection(newDirection === 'next' ? 1 : -1);
-    setActiveIndex(prev => {
-      if (newDirection === 'next') {
-        return prev === testimonials.length - 1 ? 0 : prev + 1;
-      }
-      return prev === 0 ? testimonials.length - 1 : prev - 1;
-    });
-  };
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  const getVisibleAvatars = () => {
-    let visibleOnes = [];
-    const totalItems = testimonials.length;
-
-    for (let i = -2; i <= 2; i++) {
-      let index = (activeIndex + i + totalItems) % totalItems;
-      visibleOnes.push({
-        data: testimonials[index],
-        offset: i,
-        index
+  const currentImages = testimonials[currentIndex].images;
+  
+  const handleTestimonialChange = useCallback((newDirection) => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setNavigationDirection(newDirection);
+    setIsChangingTestimonial(true);
+    
+    setTimeout(() => {
+      setCurrentIndex((prevIndex) => {
+        const nextIndex = (prevIndex + newDirection + testimonials.length) % testimonials.length;
+        return nextIndex;
       });
+      setImageIndex(0);
+      
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setIsChangingTestimonial(false);
+      }, 600);
+    }, 400);
+  }, [isTransitioning]);
+
+  const handleImageNavigation = useCallback((newDirection) => {
+    if (isTransitioning || isChangingTestimonial) return;
+    
+    const nextImageIndex = (imageIndex + newDirection + currentImages.length) % currentImages.length;
+    
+    if (nextImageIndex === 0 && newDirection === 1) {
+      handleTestimonialChange(1);
+    } 
+    else if (imageIndex === 0 && newDirection === -1) {
+      handleTestimonialChange(-1);
     }
-    return visibleOnes;
+    else {
+      setIsTransitioning(true);
+      setNavigationDirection(newDirection);
+      
+      setTimeout(() => {
+        setImageIndex(nextImageIndex);
+        setIsTransitioning(false);
+      }, 400);
+    }
+  }, [isTransitioning, isChangingTestimonial, imageIndex, currentImages.length, handleTestimonialChange]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!isTransitioning && !isChangingTestimonial) {
+        handleImageNavigation(1);
+      }
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [handleImageNavigation, isTransitioning, isChangingTestimonial]);
+
+  const getStackIndices = () => {
+    const indices = [];
+    for (let i = 0; i < 4; i++) {
+      indices.push((imageIndex + i) % currentImages.length);
+    }
+    return indices;
   };
 
   return (
-    <Box 
-      sx={{ 
-        maxWidth: '1200px', 
-        mx: 'auto', 
-        py: 8,
-        px: { xs: 2, md: 4 }
-      }}
-    >
-      <Typography 
-        variant="h2" 
-        sx={{ 
-          textAlign: 'center',
-          fontWeight: 'bold',
-          color: theme.palette.text.special,
-          mb: 1,
-          fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
-        }}
-      >
-        Stories From Our Journey-Takers
-      </Typography>
-      
-      <Typography 
-        sx={{ 
-          textAlign: 'center',
-          color: theme.palette.text.secondary,
-          fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
-          mb: 6
-        }}
-      >
-        Real travelers, real stories. See what they have to say about their journeys!
-      </Typography>
-
-      {/* Avatar Carousel */}
-      <Box sx={{ 
-        position: 'relative', 
-        height: '256px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        mb: 4
-      }}>
-        <Button
-          onClick={() => moveSlider('prev')}
-          sx={{
-            position: 'absolute',
-            left: { xs: 0, md: '128px' },
-            minWidth: 'auto',
-            p: 1,
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.common.white,
-            borderRadius: '50%',
-            '&:hover': {
-              bgcolor: theme.palette.primary.dark,
-              background: theme.palette.button.hoverGradient,
-              animation: theme.palette.button.hoverAnimation
-            },
-            zIndex: 10
-          }}
-        >
-          <ChevronLeft size={24} />
-        </Button>
-
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          height: '100%',
-          overflow: 'hidden',
-          width: 'calc(100% - 256px)'
-        }}>
-          <AnimatePresence initial={false} custom={direction}>
-            <motion.div 
-              key={activeIndex}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '64px',
-                position: 'absolute'
-              }}
-              custom={direction}
-              initial={{ x: direction > 0 ? 500 : -500 }}
-              animate={{ x: 0 }}
-              exit={{ x: direction > 0 ? -500 : 500 }}
-              transition={{
-                x: { type: "spring", stiffness: 300, damping: 30 }
-              }}
-            >
-              {getVisibleAvatars().map(({ data, offset, index }) => (
-                <motion.div
-                  key={index}
-                  animate={{
-                    scale: offset === 0 ? 1.5 : 1,
-                    opacity: offset === 0 ? 1 : 0.5,
-                    filter: offset === 0 ? 'grayscale(0%)' : 'grayscale(40%)'
-                  }}
-                  transition={{
-                    duration: 0.5,
-                    ease: "easeInOut"
-                  }}
-                  style={{
-                    width: avatarSize,
-                    height: avatarSize,
-                    flexShrink: 0
-                  }}
-                >
-                  <img
-                    src={data.avatar}
-                    alt={data.name}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      borderRadius: '50%'
-                    }}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
+    <div className="w-full px-8 sm:px-8 md:px-12 lg:px-24 py-8 sm:py-12 lg:py-24 relative">
+      <div className={`grid ${isMobile ? 'grid-cols-1 gap-12' : 'grid-cols-12 gap-2'} items-center`}>
+        {/* Left Column - Text Content */}
+        <div className={`${isMobile ? 'order-2' : 'col-span-7'} w-full`}>
+          <AnimatePresence mode="wait" initial={false}>
+            <TestimonialContent 
+              key={currentIndex} 
+              testimonial={testimonials[currentIndex]}
+              direction={navigationDirection}
+              isMobile={isMobile}
+            />
           </AnimatePresence>
-        </Box>
-
-        <Button
-          onClick={() => moveSlider('next')}
-          sx={{
-            position: 'absolute',
-            right: { xs: 0, md: '128px' },
-            minWidth: 'auto',
-            p: 1,
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.common.white,
-            borderRadius: '50%',
-            '&:hover': {
-              bgcolor: theme.palette.primary.dark,
-              background: theme.palette.button.hoverGradient,
-              animation: theme.palette.button.hoverAnimation
-            },
-            zIndex: 10
-          }}
-        >
-          <ChevronRight size={24} />
-        </Button>
-      </Box>
-
-      {/* Testimonial Content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeIndex}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Box sx={{ mb: 4, textAlign: 'center' }}>
-            <Typography 
-              sx={{ 
-                fontSize: '2rem',
-                color: theme.palette.primary.main,
-                mb: 1
+        </div>
+        
+        {/* Right Column - Image Stack */}
+        <div className={`${isMobile ? 'order-1' : 'col-span-5'} flex justify-center lg:justify-end`}>
+          <div className="relative h-[400px] sm:h-[550px] w-full">
+            <div 
+              className="absolute"
+              style={{ 
+                left: isMobile ? '50%' : 'auto',
+                right: isMobile ? 'auto' : '0',
+                transform: isMobile ? 'translateX(-50%)' : 'none',
+                width: isMobile ? '300px' : 'auto'
               }}
             >
-              {'★'.repeat(testimonials[activeIndex].rating)}
-            </Typography>
-            <Typography 
-              variant="h3" 
-              sx={{ 
-                fontWeight: 'bold',
-                color: theme.palette.text.primary,
-                fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
-              }}
-            >
-              {testimonials[activeIndex].name}
-            </Typography>
-          </Box>
-
-          <Box sx={{ 
-            bgcolor: theme.palette.background.paper,
-            borderRadius: '16px',
-            p: 4,
-            boxShadow: 3
-          }}>
-            <Box sx={{ 
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-              gap: 4
-            }}>
-              {/* Left Side */}
-              <Box sx={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center'
-              }}>
-                <Box sx={{ 
-                  width: '160px',
-                  height: '160px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  mb: 3
-                }}>
-                  <img
-                    src={testimonials[activeIndex].avatar}
-                    alt={testimonials[activeIndex].name}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                </Box>
-                <Typography sx={{ 
-                  color: theme.palette.text.secondary,
-                  fontSize: '1.125rem',
-                  lineHeight: 1.7,
-                  maxWidth: '32rem'
-                }}>
-                  {testimonials[activeIndex].testimony}
-                </Typography>
-              </Box>
-
-              {/* Right Side - Images */}
-              <Box sx={{ 
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 2
-              }}>
-                {testimonials[activeIndex].images.map((image, idx) => (
-                  <Box
-                    key={idx}
-                    component="img"
-                    src={image}
-                    alt={`Travel moment ${idx + 1}`}
-                    sx={{
-                      width: '100%',
-                      aspectRatio: '1',
-                      objectFit: 'cover',
-                      borderRadius: 2,
-                      transition: 'transform 0.3s ease',
-                      '&:hover': {
-                        transform: 'scale(1.05)'
-                      }
-                    }}
+              <AnimatePresence mode="popLayout">
+                {getStackIndices().map((idx, stackPosition) => (
+                  <ImageCard
+                    key={`${currentIndex}-${idx}`}
+                    image={currentImages[idx]}
+                    stackPosition={stackPosition}
+                    totalImages={currentImages.length}
+                    direction={navigationDirection}
+                    isChangingTestimonial={isChangingTestimonial}
+                    isMobile={isMobile}
                   />
                 ))}
-              </Box>
-            </Box>
-          </Box>
-        </motion.div>
-      </AnimatePresence>
-    </Box>
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Indicators */}
+      <div className="flex justify-center gap-4 sm:gap-6 mt-12 sm:mt-16">
+        {testimonials.map((_, idx) => (
+          <div
+            key={idx}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              idx === currentIndex 
+                ? 'w-16 sm:w-20' 
+                : 'w-10 sm:w-12'
+            }`}
+            style={{
+              backgroundColor: idx === currentIndex 
+                ? theme.palette.primary.main
+                : theme.palette.primary.light
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 };
 

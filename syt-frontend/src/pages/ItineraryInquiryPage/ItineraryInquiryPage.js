@@ -1,21 +1,19 @@
 import {
+  ArrowBack,
+  ArrowForward,
   AttachMoney,
   DirectionsWalk,
-  Event,
   Favorite,
   FlightTakeoff,
-  Group,
+  Group
 } from "@mui/icons-material";
 import {
   Box,
   Button,
   Grid,
   Modal,
-  Step,
-  StepLabel,
-  Stepper,
   Typography,
-  useTheme,
+  useTheme
 } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterLuxon } from "@mui/x-date-pickers/AdapterLuxon";
@@ -23,8 +21,7 @@ import axios from "axios";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import DepartureCityForm from "../../components/ItineraryInquiryForm/DepartureCityForm/DepartureCityForm";
-import DepartureDateForm from "../../components/ItineraryInquiryForm/DepartureDateForm/DepartureDateForm";
+import DepartureDetailsForm from "../../components/ItineraryInquiryForm/DepartureDetailsForm/DepartureDetailsForm";
 import PreferencesForm from "../../components/ItineraryInquiryForm/PreferencesForm/PreferencesForm";
 import ReviewForm from "../../components/ItineraryInquiryForm/ReviewForm/ReviewForm";
 import SelectCityForm from "../../components/ItineraryInquiryForm/SelectCityForm/SelectCityForm";
@@ -61,7 +58,7 @@ const ItineraryInquiryPage = () => {
       budget: "",
     },
     includeInternational: false,
-    includeGroundTransfer: false,
+    includeGroundTransfer: true, // Always set to true by default
     includeFerryTransport: false,
     userInfo: {
       firstName: "",
@@ -88,10 +85,10 @@ const ItineraryInquiryPage = () => {
   }, [user, isAuthenticated]);
 
   // Configuration
+  // Updated steps to reflect combined departure form
   const steps = [
-    "Select City",
-    "Departure City",
-    "Departure Date",
+    "Select Cities",
+    "Departure Details", // Updated step name
     "Travelers Details",
     "Preferences",
     "Review",
@@ -100,7 +97,6 @@ const ItineraryInquiryPage = () => {
   const icons = [
     <DirectionsWalk />,
     <FlightTakeoff />,
-    <Event />,
     <Group />,
     <Favorite />,
     <AttachMoney />,
@@ -111,9 +107,36 @@ const ItineraryInquiryPage = () => {
     return !!(destination && destinationType);
   }, [destination, destinationType]);
 
-  // Navigation handlers
-  const handleNext = useCallback(() => setActiveStep((prev) => prev + 1), []);
-  const handleBack = useCallback(() => setActiveStep((prev) => prev - 1), []);
+  // Navigation handlers with animated line transitions
+  const handleNext = useCallback(() => {
+    setActiveStep((prev) => {
+      // Animate current step content
+      const nextStep = document.querySelector(`.step-${prev}`);
+      if (nextStep) {
+        nextStep.style.animation = 'fadeOut 0.3s ease forwards';
+        setTimeout(() => {
+          nextStep.style.animation = 'fadeIn 0.5s ease';
+        }, 300);
+      }
+      
+      return prev + 1;
+    });
+  }, []);
+  
+  const handleBack = useCallback(() => {
+    setActiveStep((prev) => {
+      // Animate current step content
+      const currentStep = document.querySelector(`.step-${prev}`);
+      if (currentStep) {
+        currentStep.style.animation = 'fadeOutRight 0.3s ease forwards';
+        setTimeout(() => {
+          currentStep.style.animation = 'fadeInLeft 0.5s ease';
+        }, 300);
+      }
+      
+      return prev - 1;
+    });
+  }, []);
 
   // Form handlers
   const saveSelectedCities = useCallback((selectedCities) => {
@@ -125,7 +148,7 @@ const ItineraryInquiryPage = () => {
       ...prev,
       departureCity: departureCityData.selectedCity,
       includeInternational: departureCityData.includeInternational,
-      includeGroundTransfer: departureCityData.includeGroundTransfer,
+      includeGroundTransfer: true, // Always set to true, ignoring the value from the form
       includeFerryTransport: departureCityData.includeFerryTransport,
     }));
   }, []);
@@ -165,6 +188,7 @@ const ItineraryInquiryPage = () => {
         "http://localhost:5000/api/itineraryInquiry",
         {
           ...itineraryData,
+          includeGroundTransfer: true, // Ensure it's always true when submitting
           userId: user?._id
         },
         {
@@ -199,7 +223,7 @@ const ItineraryInquiryPage = () => {
     return null;
   }
 
-  // Render active step content
+  // Render active step content - Updated to use DepartureDetailsForm
   const renderActiveStep = () => {
     switch (activeStep) {
       case 0:
@@ -212,30 +236,24 @@ const ItineraryInquiryPage = () => {
           />
         );
       case 1:
+        // Using DepartureDetailsForm to combine city and date forms
         return (
-          <DepartureCityForm
+          <DepartureDetailsForm
             handleNext={handleNext}
             handleBack={handleBack}
             saveDepartureCityData={saveDepartureCityData}
+            saveDateData={saveDepartureDates}
             selectedDepartureCity={itineraryData.departureCity}
             selectedPreferences={{
               includeInternational: itineraryData.includeInternational,
-              includeGroundTransfer: itineraryData.includeGroundTransfer,
+              // Ground transfer preference removed from UI but kept in data structure
               includeFerryTransport: itineraryData.includeFerryTransport,
             }}
-          />
-        );
-      case 2:
-        return (
-          <DepartureDateForm
-            handleNext={handleNext}
-            handleBack={handleBack}
-            saveDateData={saveDepartureDates}
             initialStartDate={itineraryData.departureDates.startDate}
             initialEndDate={itineraryData.departureDates.endDate}
           />
         );
-      case 3:
+      case 2:
         return (
           <TravelersDetailsForm
             handleNext={handleNext}
@@ -244,7 +262,7 @@ const ItineraryInquiryPage = () => {
             travelersDetails={itineraryData.travelersDetails}
           />
         );
-      case 4:
+      case 3:
         return (
           <PreferencesForm
             handleNext={handleNext}
@@ -259,7 +277,7 @@ const ItineraryInquiryPage = () => {
             }
           />
         );
-      case 5:
+      case 4:
         return <ReviewForm itineraryData={itineraryData} />;
       default:
         return null;
@@ -268,121 +286,204 @@ const ItineraryInquiryPage = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterLuxon}>
-      <div className="inquiry-container">
-        <Grid container justifyContent="center" sx={{ width: '100%', m: 0, p: 0 }}>
-          <Grid item xs={12} md={7} lg={6} sx={{ width: '100%', p: { xs: 1, sm: 2 }, height: '100%' }}>
-            <Box className="inquiry-box" sx={{
-              backgroundColor: theme.palette.mode === "dark" ? "rgba(51, 51, 51, 0.9)" : "rgba(255, 209, 174, 0.9)",
-              p: { xs: 2, sm: 3, md: 4 },
-              borderRadius: { xs: '16px', sm: '24px' },
-              width: '100%',
-              maxWidth: '900px',
-              mx: 'auto',
-              boxSizing: 'border-box',
-              overflowY: 'auto',
-              overflowX: 'hidden'
-            }}>
-              <Stepper 
-                activeStep={activeStep} 
-                alternativeLabel
-                sx={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 1,
-                  pb: { xs: 1, sm: 2 },
-                  width: '100%',
-                  overflowX: 'hidden',
-                  '& .MuiStepConnector-line': {
-                    minWidth: { xs: '20px', sm: '40px' }
-                  }
-                }}
-              >
-                {steps.map((label, index) => (
-                  <Step 
-                    key={label}
-                    sx={{
-                      flex: 1,
-                      maxWidth: { xs: '20%', sm: 'none' },
-                    }}
-                  >
-                    <StepLabel
-                      StepIconComponent={() => (
-                        <Box
-                          sx={{
-                            color: activeStep === index
-                              ? theme.palette.primary.main
-                              : theme.palette.grey[500],
-                            '& > svg': {
-                              fontSize: { xs: '20px', sm: '24px' }
-                            }
-                          }}
-                        >
-                          {icons[index]}
-                        </Box>
-                      )}
-                      sx={{
-                        '& .MuiStepLabel-labelContainer': {
-                          display: 'none' // Hide the text labels
-                        }
-                      }}
-                    >
-                      {label}
-                    </StepLabel>
-                  </Step>
-                ))}
-              </Stepper>
+      <Box 
+        className="inquiry-container" 
+        sx={{ 
+          backgroundColor: theme.palette.background.default,
+          minHeight: '100vh',
+          pt: '64px', // Restored navbar space
+        }}
+      >
+      {/* Stepper with Fixed First Step Animation */}
+<Box className="stepper-container" sx={{ 
+  position: 'relative', 
+  width: '100%',
+  padding: '32px 0',
+  backgroundColor: theme.palette.background.default
+}}>
+  <Box sx={{ 
+    maxWidth: '1200px', 
+    margin: '0 auto',
+    px: { xs: 2, sm: 4, md: 6 },
+    position: 'relative'
+  }}>
+    {/* Steps container */}
+    <Box sx={{ 
+      display: 'flex',
+      justifyContent: 'space-between',
+      position: 'relative'
+    }}>
+      {/* Background line with exact width between first and last icons */}
+      <Box sx={{
+        position: 'absolute',
+        left: '27px', // Half icon width
+        right: '27px', // Half icon width
+        top: { xs: '24px', md: '27px' }, // Center of icon
+        height: '3px',
+        backgroundColor: 'rgba(9, 57, 35, 0.2)',
+        zIndex: 1
+      }} />
+      
+      {/* Active/completed line with exact positioning */}
+      <Box 
+        className={activeStep === 0 ? '' : 'progress-line-active'}
+        sx={{
+          position: 'absolute',
+          left: '27px', // Half icon width
+          width: activeStep === 0 ? '0%' : 
+                 activeStep === 1 ? '25%' : 
+                 activeStep === 2 ? '50%' : 
+                 activeStep === 3 ? '75%' : 
+                 activeStep === 4 ? 'calc(100% - 54px)' : '0%',
+          top: { xs: '24px', md: '27px' }, // Center of icon
+          height: '3px',
+          backgroundColor: '#093923',
+          zIndex: 2,
+          transition: 'width 0.6s ease-in-out',
+          // Initialize with width 0 for the first step animation
+          ...(activeStep === 1 && {
+            animation: 'fillFirstStep 0.6s ease-in-out forwards'
+          })
+        }} 
+      />
+      
+      {/* Step icons and labels */}
+      {steps.map((label, index) => (
+        <Box 
+          key={`step-${index}`}
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            position: 'relative',
+            zIndex: 3 // Ensure above the lines
+          }}
+        >
+          {/* Step icon */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: { xs: 48, md: 54 },
+            height: { xs: 48, md: 54 },
+            borderRadius: '50%',
+            backgroundColor: activeStep >= index 
+              ? '#093923' 
+              : theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.1)' 
+                : 'rgba(239, 239, 239, 1)',
+            color: activeStep >= index 
+              ? '#fff' 
+              : theme.palette.text.secondary,
+            transition: 'background-color 0.3s ease' // Only color transition
+          }}>
+            {icons[index]}
+          </Box>
+          
+          {/* Step label */}
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              mt: 1,
+              textAlign: 'center',
+              fontWeight: activeStep === index ? 600 : 400,
+              color: activeStep === index ? '#093923' : theme.palette.text.secondary,
+              maxWidth: { xs: '70px', sm: '100px' },
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {label}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+</Box>
 
-              <Box mt={2} sx={{
-                "& .MuiGrid-container": {
-                  margin: 0,
-                  width: "100%",
-                },
+        {/* Main content area */}
+        <Box 
+          className="content-area"
+          sx={{ 
+            position: 'relative',
+            // Removed fixed height and overflow
+            pt: 2,
+            pb: 10,
+            px: { xs: 2, sm: 3, md: 4 } 
+          }}
+        >
+          <Grid container justifyContent="center">
+            <Grid item xs={12} md={10} lg={8}>
+              <div className={`step-content step-${activeStep}`} style={{
+                width: '100%',
+                animation: 'fadeIn 0.5s ease',
+                opacity: 1,
+                transform: 'translateX(0)'
               }}>
                 {renderActiveStep()}
-              </Box>
-
-              <Box mt={2} display="flex" justifyContent={activeStep === 0 ? "center" : "space-between"} sx={{
-                gap: 2,
-                flexDirection: { xs: "column", sm: "row" },
-                "& .MuiButton-root": {
-                  width: { xs: "100%", sm: "auto" },
-                  minWidth: { sm: "120px" },
-                },
-              }}>
-                {activeStep > 0 && (
-                  <Button
-                    onClick={handleBack}
-                    variant="outlined"
-                    sx={{
-                      borderRadius: "30px",
-                      order: { xs: 2, sm: 1 },
-                    }}
-                  >
-                    Back
-                  </Button>
-                )}
-
-                <Button
-                  variant="contained"
-                  onClick={
-                    activeStep === 4
-                      ? handleReview
-                      : activeStep === 5
-                      ? handleGetCost
-                      : handleNext
-                  }
-                  sx={{
-                    borderRadius: "30px",
-                    order: { xs: 1, sm: 2 },
-                  }}
-                >
-                  {activeStep === 5 ? "Get Cost" : "Next"}
-                </Button>
-              </Box>
-            </Box>
+              </div>
+            </Grid>
           </Grid>
-        </Grid>
+        </Box>
 
+        {/* Navigation Buttons */}
+        <Box sx={{ position: 'relative' }}>
+          {/* Left (Back) Button */}
+          {activeStep > 0 && (
+            <Button
+              variant="text"
+              onClick={handleBack}
+              className="nav-button-back"
+              disableRipple
+            >
+              <div className="button-content">
+                <div className="nav-icon">
+                  <ArrowBack />
+                </div>
+                <div className="nav-button-text">
+                  <span>Back</span>
+                  <Typography 
+                    variant="caption" 
+                    className="nav-caption"
+                  >
+                    {steps[activeStep - 1]}
+                  </Typography>
+                </div>
+              </div>
+            </Button>
+          )}
+
+          {/* Right (Next/Submit) Button */}
+          <Button
+            variant="text"
+            onClick={
+              activeStep === 3
+                ? handleReview
+                : activeStep === 4
+                ? handleGetCost
+                : handleNext
+            }
+            className="nav-button-next"
+            disableRipple
+          >
+            <div className="button-content">
+              <div className="nav-button-text">
+                <span>{activeStep === 4 ? "Get Cost" : "Next"}</span>
+                <Typography 
+                  variant="caption" 
+                  className="nav-caption"
+                >
+                  {activeStep === 4 ? "Submit" : steps[activeStep + 1]}
+                </Typography>
+              </div>
+              <div className="nav-icon">
+                <ArrowForward />
+              </div>
+            </div>
+          </Button>
+        </Box>
+
+        {/* Auth Modal */}
         <Modal
           open={isSignUpPopupOpen}
           onClose={() => setIsSignUpPopupOpen(false)}
@@ -397,7 +498,7 @@ const ItineraryInquiryPage = () => {
           <Box sx={{
             width: "95%",
             maxWidth: showSignUp ? "800px" : "400px",
-            backgroundColor: theme.palette.mode === "dark" ? "rgba(46, 46, 46)" : "rgba(255, 239, 226)",
+            backgroundColor: theme.palette.background.paper,
             borderRadius: "12px",
             boxShadow: 24,
             maxHeight: "90vh",
@@ -416,11 +517,11 @@ const ItineraryInquiryPage = () => {
               flexDirection: "column",
               alignItems: "center",
             }}>
-              <Typography variant="h6" gutterBottom sx={{ textAlign: "center" }}>
+              <Typography variant="h6" gutterBottom sx={{ textAlign: "center", color: theme.palette.text.primary }}>
                 Your adventure starts here!
               </Typography>
 
-              <Typography variant="body1" gutterBottom sx={{ textAlign: "center", mb: 2 }}>
+              <Typography variant="body1" gutterBottom sx={{ textAlign: "center", mb: 2, color: theme.palette.text.secondary }}>
                 Sign up or sign in to start crafting your perfect travel itinerary.
               </Typography>
 
@@ -435,14 +536,32 @@ const ItineraryInquiryPage = () => {
                   variant="contained"
                   color="primary"
                   onClick={() => setShowSignUp(true)}
-                  sx={{ minWidth: "120px" }}
+                  sx={{ 
+                    minWidth: "120px",
+                    borderRadius: "30px",
+                    backgroundColor: showSignUp ? theme.palette.primary.main : 'transparent',
+                    color: showSignUp ? '#fff' : theme.palette.text.primary,
+                    border: showSignUp ? 'none' : `1px solid ${theme.palette.primary.main}`,
+                    '&:hover': {
+                      backgroundColor: showSignUp ? theme.palette.primary.dark : 'rgba(42, 157, 143, 0.1)'
+                    }
+                  }}
                 >
                   Sign Up
                 </Button>
                 <Button
-                  variant="outlined"
+                  variant={showSignUp ? "outlined" : "contained"}
                   onClick={() => setShowSignUp(false)}
-                  sx={{ minWidth: "120px" }}
+                  sx={{ 
+                    minWidth: "120px",
+                    borderRadius: "30px",
+                    backgroundColor: !showSignUp ? theme.palette.primary.main : 'transparent',
+                    color: !showSignUp ? '#fff' : theme.palette.text.primary,
+                    border: !showSignUp ? 'none' : `1px solid ${theme.palette.primary.main}`,
+                    '&:hover': {
+                      backgroundColor: !showSignUp ? theme.palette.primary.dark : 'rgba(42, 157, 143, 0.1)'
+                    }
+                  }}
                 >
                   Sign In
                 </Button>
@@ -464,7 +583,7 @@ const ItineraryInquiryPage = () => {
             </Box>
           </Box>
         </Modal>
-      </div>
+      </Box>
     </LocalizationProvider>
   );
 };

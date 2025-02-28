@@ -33,8 +33,11 @@ import {
   searchReplacementHotel, updateItineraryHotel
 } from '../../redux/slices/hotelReplacementSlice';
 import {
+  createPaymentOrder,
   setPaymentLoading,
-  setTermsAccepted
+  setTermsAccepted,
+  validateItineraryComponents,
+  verifyPayment
 } from "../../redux/slices/paymentSlice";
 import "./PaymentPage.css";
 
@@ -328,33 +331,138 @@ const PaymentPage = () => {
       });
       return;
     }
-  
+
     dispatch(setPaymentLoading(true));
-  
+
     try {
-      // Simulate successful payment
-      setSnackbar({
-        open: true,
-        message: "Payment successful! Redirecting...",
-        severity: "success",
+      const validationResult = await dispatch(
+        validateItineraryComponents({
+          itinerary,
+          itineraryToken: itinerary.itineraryToken
+        })
+      ).unwrap();
+
+      const { componentsToCheck } = validationResult;
+
+      // Handle components with errors first (API failures)
+      if (componentsToCheck.error.length > 0) {
+        const dialogResult = await renderDialog(({ onClose }) => (
+          <ErrorDialog components={componentsToCheck.error} onClose={onClose} />
+        ));
+
+        if (dialogResult) {
+          await handleReallocation(componentsToCheck.error);
+          return;
+        }
+      }
+
+      // Handle components needing immediate reallocation (< 2 mins or null time)
+      if (componentsToCheck.immediate.length > 0) {
+        const dialogResult = await renderDialog(({ onClose }) => (
+          <ImmediateDialog components={componentsToCheck.immediate} onClose={onClose} />
+        ));
+
+        if (dialogResult) {
+          await handleReallocation(componentsToCheck.immediate);
+          return;
+        }
+      }
+
+      // Handle components with warning (2-3 mins)
+      if (componentsToCheck.warning.length > 0) {
+        const shouldProceed = await renderDialog(({ onClose }) => (
+          <WarningDialog components={componentsToCheck.warning} onClose={onClose} />
+        ));
+
+        if (!shouldProceed) {
+          await handleReallocation(componentsToCheck.warning);
+          return;
+        }
+      }
+
+      // Show info for components with > 3 mins remaining
+      if (componentsToCheck.info.length > 0) {
+        await renderDialog(({ onClose }) => (
+          <InfoDialog components={componentsToCheck.info} onClose={onClose} />
+        ));
+      }
+
+      // Proceed with payment if all checks pass
+      if (!window.Razorpay) {
+        throw new Error("Payment gateway not loaded. Please try again.");
+      }
+
+      const orderResult = await dispatch(
+        createPaymentOrder({
+          bookingId,
+          amount: itinerary.priceTotals.grandTotal,
+          itinerary
+        })
+      ).unwrap();
+
+      const rzp = new window.Razorpay({
+        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+        amount: orderResult.data.amount,
+        currency: orderResult.data.currency,
+        name: "SortYourTrip",
+        description: `Booking ID: ${bookingId}`,
+        order_id: orderResult.data.orderId,
+        prefill: {
+          name: `${itinerary.userInfo.firstName} ${itinerary.userInfo.lastName}`,
+          email: itinerary.userInfo.email,
+          contact: itinerary.userInfo.phoneNumber
+        },
+        handler: async (response) => {
+          try {
+            await dispatch(
+              verifyPayment({
+                bookingId,
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                signature: response.razorpay_signature,
+              })
+            ).unwrap();
+
+            setSnackbar({
+              open: true,
+              message: "Payment successful! Redirecting...",
+              severity: "success",
+            });
+
+            setTimeout(() => {
+              navigate("/booking-confirmation", {
+                state: {
+                  bookingId,
+                  paymentSuccess: true,
+                  itinerary: {         // Keep the minimal required itinerary info
+                    itineraryToken: itinerary.itineraryToken,
+                    inquiryToken: itinerary.inquiryToken
+                  },
+                  bookingData        // Keep the full booking data
+                },
+                replace: true
+              });
+            }, 1000);
+
+          } catch (error) {
+            setSnackbar({
+              open: true,
+              message: error.message || "Payment verification failed",
+              severity: "error",
+            });
+          } finally {
+            dispatch(setPaymentLoading(false));
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            dispatch(setPaymentLoading(false));
+          }
+        }
       });
-  
-      // Redirect to booking confirmation
-      setTimeout(() => {
-        navigate("/booking-confirmation", {
-          state: {
-            bookingId,
-            paymentSuccess: true,
-            itinerary: {         // Keep the minimal required itinerary info
-              itineraryToken: itinerary.itineraryToken,
-              inquiryToken: itinerary.inquiryToken
-            },
-            bookingData        // Keep the full booking data
-          },
-          replace: true
-        });
-      }, 1000);
-  
+      
+      rzp.open();
+
     } catch (error) {
       console.error("Payment process error:", error);
       setSnackbar({
@@ -362,10 +470,9 @@ const PaymentPage = () => {
         message: error.message || "Failed to process payment. Please try again.",
         severity: "error",
       });
-    } finally {
       dispatch(setPaymentLoading(false));
     }
-  }, [bookingId, dispatch, itinerary, navigate, bookingData, termsAccepted]);
+  }, [bookingId, dispatch, itinerary, navigate, bookingData, termsAccepted, handleReallocation]);
 
   useEffect(() => {
     const script = document.createElement('script');

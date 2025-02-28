@@ -2,6 +2,7 @@ const TransferGetQuotesService = require('../../services/transferServices/transf
 const TransferQuoteDetailsService = require('../../services/transferServices/transferQuoteDetailsService');
 const TransferBookingService = require('../../services/transferServices/transferBookingService');
 const CurrencyService = require('../../services/currencyService');
+const TransferBookingDetailsService = require('../../services/transferServices/TransferBookingDetailsService')
 
 // Helper function to format date
 const formatTransferDate = (dateStr) => {

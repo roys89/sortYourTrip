@@ -1,3 +1,19 @@
+.header-container {
+  width: 100%;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.step-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
 .step-content {
   display: flex;
   flex-direction: column;
@@ -38,62 +54,11 @@
   transform: scale(1.05);
 }
 
-/* Feature styles */
-.feature-item {
-  text-align: center;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  height: 100%;
-}
-
-.feature-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 1;
-  background-size: 200% 200%;
-}
-
-.feature-item > * {
-  position: relative;
-  z-index: 2;
-}
-
-.feature-icon {
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1rem;
-  transition: all 0.3s ease;
-}
-
-.feature-item:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
-
-.feature-item:hover::before {
-  opacity: 1;
-}
-
-.feature-item:hover .icon,
-.feature-item:hover h6 {
-  color: white !important;
-}
-
 @media (max-width: 768px) {
+  .steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .step-content {
     padding: 1.5rem;
   }
@@ -105,18 +70,13 @@
   .step-image {
     max-width: 250px;
   }
-
-  .feature-icon {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .feature-item {
-    padding: 1.5rem;
-  }
 }
 
 @media (max-width: 480px) {
+  .steps-grid {
+    grid-template-columns: 1fr;
+  }
+
   .step-content {
     padding: 1.2rem;
   }
@@ -128,13 +88,31 @@
   .step-image {
     max-width: 220px;
   }
+}
 
-  .feature-item {
-    padding: 1.2rem;
+@media (prefers-color-scheme: dark) {
+  .header-container {
+    background: linear-gradient(135deg, #303030 0%, #333333 100%);
+    color: #bcfff6;
   }
 
-  .feature-icon {
-    width: 40px;
-    height: 40px;
+  .step-content {
+    background-color: #424242;
   }
+
+  .step-number {
+    animation: movingGradientDark 5s ease infinite;
+  }
+}
+
+@keyframes movingGradientLight {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes movingGradientDark {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }

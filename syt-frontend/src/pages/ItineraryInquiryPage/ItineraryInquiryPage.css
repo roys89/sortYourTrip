@@ -1,61 +1,437 @@
-/* ItineraryInquiryPage.css */
-.inquiry-container {
-  background-image: url('../../../public/assets/images/itback.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  height: 100vh; /* Full viewport height */
-  width: 100vw; /* Full viewport width */
-  margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  box-sizing: border-box;
-  overflow: hidden;
+/* Navigation Button Styles */
+.nav-button-back,
+.nav-button-next {
   position: fixed;
-  top: 0; /* Starts from the top of the page */
-  left: 0;
-  right: 0;
-  z-index: 1; /* Ensure it's below the content */
+  z-index: 10;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  padding: 0 !important;
 }
 
-.inquiry-box {
+/* Common styles for icons */
+.nav-button-back .nav-icon,
+.nav-button-next .nav-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s ease;
+  border: 2px solid #093923;
+  color: #093923;
+}
+
+/* Text containers - initially hidden */
+.nav-button-text {
+  max-width: 0;
+  opacity: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 16px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Back button text - right aligned */
+.nav-button-back .nav-button-text {
+  text-align: right;
+  margin-right: 8px;
+  transform: translateX(20px);
+}
+
+/* Next button text - left aligned */
+.nav-button-next .nav-button-text {
+  text-align: left;
+  margin-left: 8px;
+  transform: translateX(-20px);
+}
+
+/* Button content wrapper */
+.button-content {
+  display: flex;
+  align-items: center;
+  height: 64px;
+}
+
+.nav-button-back .button-content {
+  flex-direction: row; /* Icon first, then text */
+}
+
+.nav-button-next .button-content {
+  flex-direction: row; /* Icon first, then text */
+}
+
+/* Normal state for Back button - RIGHT corners rounded */
+.nav-button-back .nav-icon {
+  border-top-right-radius: 32px;
+  border-bottom-right-radius: 32px;
+}
+
+/* Normal state for Next button - LEFT corners rounded */
+.nav-button-next .nav-icon {
+  border-top-left-radius: 32px;
+  border-bottom-left-radius: 32px;
+}
+
+/* Caption text - step name, positioned inside text container */
+.nav-caption {
+  font-size: 12px;
+  line-height: 1;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  color: inherit;
+  margin-top: 4px;
+}
+
+/* Hover states for Back button */
+.nav-button-back:hover {
+  background-color: rgba(9, 57, 35, 0.08);
+  border-radius: 32px;
+  border: 2px solid #093923;
+}
+
+.nav-button-back:hover .nav-icon {
+  border: none;
+  color: #093923;
+}
+
+.nav-button-back:hover .nav-button-text {
+  max-width: 150px;
+  opacity: 1;
+  transform: translateX(0);
+  color: #093923;
+}
+
+.nav-button-back:hover .nav-caption {
+  opacity: 0.7;
+}
+
+/* Hover states for Next button */
+.nav-button-next:hover {
+  background-color: rgba(9, 57, 35, 0.08);
+  border-radius: 32px;
+  border: 2px solid #093923;
+}
+
+.nav-button-next:hover .nav-icon {
+  border: none;
+  color: #093923;
+}
+
+.nav-button-next:hover .nav-button-text {
+  max-width: 150px;
+  opacity: 1;
+  transform: translateX(0);
+  color: #093923;
+}
+
+.nav-button-next:hover .nav-caption {
+  opacity: 0.7;
+}
+
+/* Arrow icon animations */
+.nav-button-back:hover .nav-icon::before,
+.nav-button-next:hover .nav-icon::before {
+  animation: arrow-bounce 1s infinite;
+}
+
+@keyframes arrow-bounce {
+  0%, 100% { 
+    transform: rotate(-45deg);
+    left: 54%; 
+  }
+  50% { 
+    transform: rotate(-45deg);
+    left: 48%; 
+  }
+}
+
+.nav-button-next:hover .nav-icon::before {
+  animation-name: arrow-bounce-right;
+}
+
+@keyframes arrow-bounce-right {
+  0%, 100% { 
+    transform: rotate(45deg);
+    right: 54%; 
+  }
+  50% { 
+    transform: rotate(45deg);
+    right: 48%; 
+  }
+}
+
+/* Desktop styles (default) */
+@media (min-width: 601px) {
+  .nav-button-back {
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .nav-button-next {
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .nav-button-back:hover,
+  .nav-button-next:hover {
+    min-width: 220px;
+    padding: 0 !important;
+  }
+  
+  /* Back button hover animation */
+  .nav-button-back:hover .button-content {
+    padding-right: 16px;
+  }
+  
+  /* Next button hover animation */
+  .nav-button-next:hover .button-content {
+    padding-left: 16px;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  .nav-button-back, 
+  .nav-button-next {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    transform: none;
+    height: 64px;
+    width: 50%;
+    min-width: 0;
+    border-radius: 0 !important;
+    background-color: #ffffff !important; /* Solid white background */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    border: none;
+    opacity: 1 !important;
+    z-index: 1000;
+  }
+  
+  .nav-button-back {
+    left: 0;
+    justify-content: center;
+    border-right: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  .nav-button-next {
+    right: 0;
+    justify-content: center;
+    border-left: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  /* Mobile button content layout */
+  .nav-button-back .button-content,
+  .nav-button-next .button-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    width: 100%;
+  }
+  
+  /* For back button: arrow -> text */
+  .nav-button-back .button-content {
+    flex-direction: row;
+  }
+  
+  /* For next button: arrow -> text (same as back) */
+  .nav-button-next .button-content {
+    flex-direction: row; 
+  }
+  
+  /* Icon adjustments for mobile */
+  .nav-button-back .nav-icon,
+  .nav-button-next .nav-icon {
+    width: 48px;
+    height: 48px;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Always show text on mobile */
+  .nav-button-back .nav-button-text,
+  .nav-button-next .nav-button-text {
+    max-width: 80px;
+    opacity: 1;
+    transform: translateX(0);
+    font-size: 15px;
+    height: 48px;
+    margin: 0 8px;
+    text-align: center;
+  }
+  
+  .nav-button-back .nav-button-text {
+    margin-left: 4px;
+    color: #093923;
+  }
+  
+  .nav-button-next .nav-button-text {
+    margin-right: 4px;
+    color: #093923;
+  }
+  
+  /* Hide step name on mobile */
+  .nav-caption {
+    display: none;
+  }
+  
+  /* Completely disable the ripple effect */
+  .nav-button-back .MuiTouchRipple-root,
+  .nav-button-next .MuiTouchRipple-root {
+    display: none !important;
+  }
+}
+
+/* Custom arrows (using ::before pseudo-element) */
+.nav-button-back .nav-icon::before,
+.nav-button-next .nav-icon::before {
+  content: '';
+  position: absolute;
+  width: 24px; 
+  height: 24px;
+  border-style: solid;
+  border-width: 0;
+  border-color: #093923;
+}
+
+/* Back arrow (left-pointing) */
+.nav-button-back .nav-icon::before {
+  border-top-width: 3px;
+  border-left-width: 3px;
+  transform: rotate(-45deg);
+  left: 54%;
+}
+
+/* Next arrow (right-pointing) */
+.nav-button-next .nav-icon::before {
+  border-top-width: 3px;
+  border-right-width: 3px;
+  transform: rotate(45deg);
+  right: 54%;
+}
+
+/* Hover states for arrows */
+.nav-button-back:hover .nav-icon::before,
+.nav-button-next:hover .nav-icon::before {
+  border-color: #093923;
+}
+
+/* Hide the original arrow icons */
+.nav-button-back .nav-icon svg,
+.nav-button-next .nav-icon svg {
+  display: none;
+}
+
+/* Custom Stepper Styles */
+.custom-stepper-wrapper {
   width: 100%;
-  max-width: 1200px;
-  height: calc(100vh - 100px); /* Maintains space for navbar */
-  margin-top: 64px; /* Space for navbar */
-  overflow-y: auto;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-  text-align: center;
-  box-sizing: border-box;
-  /* Custom scrollbar */
-  &::-webkit-scrollbar {
-    width: 8px;
+  padding: 32px 0;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+/* Active line animation for smooth transitions */
+.active-line {
+  transition: width 0.6s ease-in-out;
+}
+
+/* Step content animations */
+.step-content {
+  animation: fadeIn 0.5s ease;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Animations for step transitions */
+@keyframes fadeIn {
+  from { 
+    opacity: 0;
+    transform: translateX(30px);
   }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+  to { 
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-.completion-text {
-  margin-top: 20px;
-  font-weight: bold;
+@keyframes fadeOut {
+  from { 
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to { 
+    opacity: 0;
+    transform: translateX(-30px);
+  }
 }
 
-@media only screen and (max-width: 600px) {
-  .inquiry-container {
-    height: 100vh;
+@keyframes fadeOutRight {
+  from { 
+    opacity: 1;
+    transform: translateX(0);
   }
+  to { 
+    opacity: 0;
+    transform: translateX(30px);
+  }
+}
 
-  .inquiry-box {
-    height: calc(100vh - 80px);
-    margin-top: 56px; /* Adjust for smaller mobile navbar */
-    padding: 16px;
-    border-radius: 16px;
+@keyframes fadeInLeft {
+  from { 
+    opacity: 0;
+    transform: translateX(-30px);
   }
+  to { 
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Custom stepper responsive adjustments */
+@media (max-width: 600px) {
+  .custom-stepper-wrapper {
+    padding: 24px 0;
+  }
+  
+  /* Ensure step labels are visible on small screens */
+  .custom-stepper-wrapper .MuiTypography-caption {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+}
+
+/* Content area and spacing adjustments */
+.content-area {
+  margin-bottom: 60px;
+}
+
+@media (max-width: 600px) {
+  .content-area {
+    margin-bottom: 80px; /* More space for fixed mobile navigation */
+  }
+}
+
+/* Fix for container padding */
+.inquiry-container {
+  padding-bottom: 80px;
 }

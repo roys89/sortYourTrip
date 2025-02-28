@@ -1,46 +1,46 @@
+// ImageCarousel.js
 import React from 'react';
 import './ImageCarousel.css';
 
 const destinations = [
   {
     image: '/assets/destinations/hawaii.jpg',
-    title: 'Tropical Paradise',
-    location: 'Hawaii, USA'
+    title: 'TROPICAL PARADISE',
+    subtitle: 'DISCOVER PARADISE IN',
+    location: 'HAWAII, USA',
+    price: 'USD 2,345 /-'
   },
   {
     image: '/assets/destinations/louvre.jpg',
-    title: 'Art and Culture',
-    location: 'Paris, France'
+    title: 'PARIS',
+    subtitle: 'ART AND CULTURE IN',
+    location: 'PARIS, FRANCE',
+    price: 'EUR 3,456 /-'
   },
   {
     image: '/assets/destinations/sydney.jpg',
-    title: 'Urban Coastal Charm',
-    location: 'Sydney, Australia'
-  },
-  {
-    image: '/assets/destinations/coast.jpg',
-    title: 'Coastal Serenity',
-    location: 'Coastal Retreat'
-  },
-  {
-    image: '/assets/destinations/paris.jpg',
-    title: 'City of Lights',
-    location: 'Paris, France'
+    title: 'SYDNEY',
+    subtitle: 'URBAN COASTAL CHARM OF',
+    location: 'SYDNEY, AUSTRALIA',
+    price: 'AUD 4,567 /-'
   },
   {
     image: '/assets/destinations/dubai.jpg',
-    title: 'Modern Marvel',
-    location: 'Dubai, UAE'
+    title: 'DUBAI',
+    subtitle: 'MODERN MARVEL OF',
+    location: 'DUBAI, UAE',
+    price: 'AED 5,678 /-'
   },
   {
     image: '/assets/destinations/alps.jpg',
-    title: 'Mountain Majesty',
-    location: 'The Alps'
+    title: 'THE ALPS',
+    subtitle: 'MOUNTAIN MAJESTY OF',
+    location: 'SWITZERLAND',
+    price: 'CHF 6,789 /-'
   }
 ];
 
 const ImageCarousel = () => {
-  // Duplicate destinations to create continuous scroll
   const carouselDestinations = [...destinations, ...destinations];
 
   return (
@@ -50,8 +50,19 @@ const ImageCarousel = () => {
           <div key={index} className="carousel-item">
             <img 
               src={dest.image} 
-              alt={`Destination ${dest.title}`} 
+              alt={dest.title}
             />
+            <div className="carousel-content">
+              <p className="subtitle">{dest.subtitle}</p>
+              <div className="details">
+                <h3 className="title">{dest.title}</h3>
+                <p className="location">{dest.location}</p>
+                <p className="price-text">
+                  Starts from
+                  <span className="price">{dest.price}</span>
+                </p>
+              </div>
+            </div>
           </div>
         ))}
       </div>

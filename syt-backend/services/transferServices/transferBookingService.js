@@ -47,7 +47,8 @@ class TransferBookingService {
         guest_details: bookingArrayItem.guest_details,
         quotation_id: String(bookingArrayItem.quotation_id),
         quotation_child_id: String(bookingArrayItem.quotation_child_id),
-        comments: bookingArrayItem.comments || 'Testing',
+        // comments: bookingArrayItem.comments || 'Test',
+                comments: 'Test',
         total_passenger: bookingArrayItem.total_passenger,
         flight_number: String(bookingArrayItem.flight_number) || 'NA'
       };

@@ -1,18 +1,67 @@
 import { createTheme } from '@mui/material/styles';
 
+const commonTypography = {
+  fontFamily: [
+    'Poppins',
+    'League Spartan',
+    'Montserrat',
+    '-apple-system',
+    'BlinkMacSystemFont',
+    '"Segoe UI"',
+    'Roboto',
+    'Arial',
+    'sans-serif'
+  ].join(','),
+  h1: {
+    fontFamily: 'League Spartan, sans-serif',
+    fontWeight: 700,
+  },
+  h2: {
+    fontFamily: 'League Spartan, sans-serif',
+    fontWeight: 600,
+  },
+  h3: {
+    fontFamily: 'Montserrat, sans-serif',
+    fontWeight: 600,
+  },
+  h4: {
+    fontFamily: 'Montserrat, sans-serif',
+    fontWeight: 500,
+  },
+  h5: {
+    fontFamily: 'Montserrat, sans-serif',
+    fontWeight: 500,
+  },
+  h6: {
+    fontFamily: 'Montserrat, sans-serif',
+    fontWeight: 500,
+  },
+  body1: {
+    fontFamily: 'Poppins, sans-serif',
+  },
+  body2: {
+    fontFamily: 'Poppins, sans-serif',
+  },
+  button: {
+    fontFamily: 'Poppins, sans-serif',
+    fontWeight: 500,
+  },
+};
+
 const lightTheme = createTheme({
+  typography: commonTypography,
   palette: {
     mode: 'light',
     primary: {
-      main: '#004d30',
-      light: '#004D40',
+      main: '#093923',
+      light: '#093923',
       dark: '#04d190'
     },
     secondary: {
-      main: '#078d5b',
+      main: '#13804e',
     },
     background: {
-      default: '#fdf2e9',
+      default: '#f0f0f0',
       paper: '#ffffff',
     },
     text: {
@@ -32,9 +81,9 @@ const lightTheme = createTheme({
       main: '#fee1ca',
     },
     button: {
-      main: '#2A9D8F',
+      main: '#093923',
       contrastText: '#ffffff',
-      hoverGradient: 'linear-gradient(135deg, #2A9D8F 0%, #264653 100%)',
+      hoverGradient: 'linear-gradient(135deg, #2a9d8f 0%, #093923 100%)',
       hoverAnimation: `movingGradientLight 5s ease infinite`,
     },
   },
@@ -59,6 +108,7 @@ const lightTheme = createTheme({
 });
 
 const darkTheme = createTheme({
+  typography: commonTypography,
   palette: {
     mode: 'dark',
     primary: {

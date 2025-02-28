@@ -1,10 +1,10 @@
 .form-container {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* Align items at the start vertically */
-  align-items: center; /* Center items horizontally */
+  justify-content: flex-start;
+  align-items: center;
   padding: 24px;
-  max-width: 600px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -13,18 +13,40 @@
   border-radius: 30px;
   padding: 24px;
   margin-bottom: 24px;
-  width: 100%;
+  width: 90%;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
   position: relative;
+  
+  /* Animation properties */
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
-h4 {
-  margin: 0;
-  margin-bottom: 16px;
+.room-container.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-.back-button,
-.next-button {
+.solo-couple-container {
   width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  /* Animation properties */
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.solo-couple-container.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .remove-button {
@@ -42,24 +64,50 @@ h4 {
 
 .add-button {
   flex: 1;
-  max-width: calc(50% - 12px);
+}
+
+.add-room-button {
+  display: block !important;
+  width: 60% !important;
+  max-width: 300px !important;
+  margin: 24px auto !important;
+}
+
+.age-input-half {
+  width: 50% !important; 
+  min-width: 280px;
+  max-width: 600px;
+  
+  /* Animation properties */
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.age-input-half.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (max-width: 600px) {
   .form-container {
-    padding: 2px;
+    padding: 16px;
   }
 
   .room-container {
     padding: 16px;
+    width: 100%;
   }
 
   .add-buttons-container {
-    flex-direction: row;
     gap: 16px;
   }
+  
+  .add-room-button {
+    width: 80% !important;
+  }
 
-  .add-button {
-    width: calc(50% - 8px);
+  .age-input-half {
+    width: 80% !important;
   }
 }

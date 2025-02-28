@@ -2,7 +2,7 @@ import { Box, Grid, Typography } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DateTime } from "luxon";
 import React, { useEffect, useState } from "react";
-import "./DepartureDateForm.css"; // Import specific CSS for this component
+import "./DepartureDateForm.css";
 
 const DepartureDateForm = ({ saveDateData, initialStartDate, initialEndDate }) => {
   const [startDate, setStartDate] = useState(initialStartDate || null);

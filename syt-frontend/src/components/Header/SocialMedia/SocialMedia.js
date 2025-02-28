@@ -1,16 +1,27 @@
-import XIcon from '@mui/icons-material/X';
-import { Box, IconButton, Typography, useTheme } from '@mui/material';
+import { X as XIcon } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { Facebook, Instagram, Linkedin } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const SocialMediaSection = () => {
   const theme = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const socialLinks = [
     { Icon: Instagram, url: 'https://www.instagram.com/sortyourtrip', label: 'Instagram' },
     { Icon: Facebook, url: 'https://www.facebook.com/sortyourtrip', label: 'Facebook' },
-    { Icon: XIcon, url: 'https://x.com/sortyourtrip', label: 'X', props: { sx: { fontSize: 32 } } },
+    { Icon: XIcon, url: 'https://x.com/sortyourtrip', label: 'X' },
     { Icon: Linkedin, url: 'https://www.linkedin.com/company/sortyourtrip', label: 'LinkedIn' }
   ];
 
@@ -44,174 +55,198 @@ const SocialMediaSection = () => {
     }
   ];
 
-  const getLoopedPosts = (posts) => [...posts, ...posts, ...posts, ...posts];
-
   const FloatingColumn = ({ posts, direction = 'up' }) => {
-    const loopedPosts = getLoopedPosts(posts);
-    const singleHeight = 310;
-    const totalHeight = posts.length * singleHeight;
+    const [isHovered, setIsHovered] = useState(false);
+    const containerRef = useRef(null);
+    const animationRef = useRef(null);
+    const lastTimeRef = useRef(null);
+    const lastPositionRef = useRef(direction === 'up' ? 0 : -posts.length * (isMobile ? 260 : 340) / 2);
     
+    const containerHeight = isMobile ? 480 : 580;
+    const singleHeight = isMobile ? 260 : 340;
+    const totalHeight = posts.length * singleHeight;
+    const loopedPosts = [...posts, ...posts];
+    const duration = isMobile ? 10 : 12;
+    const pixelsPerMs = totalHeight / 2 / (duration * 1000);
+
+    useEffect(() => {
+      const animate = (timestamp) => {
+        if (!lastTimeRef.current) {
+          lastTimeRef.current = timestamp;
+        }
+
+        if (isHovered) {
+          lastTimeRef.current = timestamp;
+          animationRef.current = requestAnimationFrame(animate);
+          return;
+        }
+
+        const deltaTime = timestamp - lastTimeRef.current;
+        lastTimeRef.current = timestamp;
+
+        if (direction === 'up') {
+          lastPositionRef.current -= deltaTime * pixelsPerMs;
+          if (lastPositionRef.current <= -totalHeight / 2) {
+            lastPositionRef.current = 0;
+          }
+        } else {
+          lastPositionRef.current += deltaTime * pixelsPerMs;
+          if (lastPositionRef.current >= 0) {
+            lastPositionRef.current = -totalHeight / 2;
+          }
+        }
+
+        if (containerRef.current) {
+          containerRef.current.style.transform = `translateY(${lastPositionRef.current}px)`;
+        }
+        
+        animationRef.current = requestAnimationFrame(animate);
+      };
+
+      animationRef.current = requestAnimationFrame(animate);
+
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    }, [isHovered, direction, totalHeight, pixelsPerMs]);
+
     return (
-      <motion.div
-        initial={{ y: direction === 'up' ? 0 : -totalHeight }}
-        animate={{ 
-          y: direction === 'up' ? -totalHeight : 0
-        }}
-        whileHover={{ y: 'inherit' }}
-        transition={{
-          duration: 15,
-          repeat: Infinity,
-          ease: "linear",
-          repeatType: "loop"
-        }}
-        style={{
-          willChange: 'transform'
-        }}
+      <div 
+        className="relative overflow-hidden" 
+        style={{ height: containerHeight }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        {loopedPosts.map((post, index) => (
-          <Box
-            key={`${post.alt}-${index}`}
-            sx={{
-              width: '100%',
-              aspectRatio: '4/5',
-              mb: 2,
-              overflow: 'hidden',
-              borderRadius: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            <img
-              src={post.imgSrc}
-              alt={post.alt}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
-            />
-          </Box>
-        ))}
-      </motion.div>
+        <div
+          ref={containerRef}
+          className="transform"
+          style={{
+            willChange: 'transform',
+            transform: `translateY(${lastPositionRef.current}px)`
+          }}
+        >
+          {loopedPosts.map((post, index) => (
+            <motion.div
+              key={`${post.alt}-${index}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="mb-6"
+            >
+              <div
+                className="w-full overflow-hidden rounded-lg cursor-pointer shadow-md transition-transform duration-300 hover:scale-105"
+                style={{ 
+                  height: singleHeight,
+                  backgroundColor: theme.palette.background.paper
+                }}
+              >
+                <img
+                  src={post.imgSrc}
+                  alt={post.alt}
+                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
     );
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
+    <div 
+      className="w-full flex items-center min-h-[550px] md:min-h-[600px] py-10"
+      style={{
         backgroundColor: theme.palette.background.default,
-        minHeight: '600px'
+        color: theme.palette.text.primary,
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
-      <Box
-        sx={{
-          maxWidth: '1200px',
-          width: '100%',
-          mx: 'auto',
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          gap: { xs: 6, md: 8 },
-          alignItems: 'center'
+      {/* Background Pattern */}
+      <div 
+        className="absolute inset-0 opacity-5"
+        style={{
+          backgroundImage: `radial-gradient(${theme.palette.primary.main} 1px, transparent 1px)`,
+          backgroundSize: '30px 30px'
         }}
-      >
+      />
+
+      <div className="w-[90%] mx-auto flex flex-col md:flex-row gap-8 md:gap-12 items-center relative z-10">
         {/* Left side - Content */}
-        <Box
-          sx={{
-            flex: { xs: '1', md: '1.2' },
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: { xs: 'center', md: 'flex-start' },
-            textAlign: { xs: 'center', md: 'left' },
-            pr: { md: 6 }
-          }}
-        >
-          <Typography
-            variant="h2"
-            sx={{
-              fontWeight: 800,
-              mb: { xs: 3, sm: 4 },
-              fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem' },
-              lineHeight: 1.1,
-              color: theme.palette.text.special
-            }}
+        <div className="flex-1 md:flex-[1.2] flex flex-col items-center md:items-start text-center md:text-left md:pr-8">
+          <motion.h2 
+            className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            style={{ color: theme.palette.text.primary }}
           >
             Stay updated
-          </Typography>
+          </motion.h2>
           
-          <Typography
-            sx={{
-              mb: { xs: 4, sm: 5 },
-              color: theme.palette.text.primary,
-              fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.5rem' },
-              lineHeight: 1.5,
-              maxWidth: '90%'
-            }}
+          <motion.p 
+            className="text-xl md:text-2xl mb-8 max-w-[90%] leading-relaxed"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            style={{ color: theme.palette.text.secondary }}
           >
             Follow us on social media to stay updated on how today's travellers explore the world, 
             discover exciting offers, and see the impact of experiences on the future of travel.
-          </Typography>
+          </motion.p>
 
-          <Box
-            sx={{
-              display: 'flex',
-              gap: { xs: 3, sm: 4 },
-              flexWrap: 'wrap',
-              justifyContent: { xs: 'center', md: 'flex-start' }
-            }}
-          >
-            {socialLinks.map(({ Icon, url, label, props = {} }) => (
-              <IconButton
+          <div className="flex gap-6 flex-wrap justify-center md:justify-start">
+            {socialLinks.map(({ Icon, url, label }, index) => (
+              <motion.div
                 key={label}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={label}
-                sx={{
-                  width: { xs: 55, sm: 65 },
-                  height: { xs: 55, sm: 65 },
-                  backgroundColor: theme.palette.primary.main,
-                  color: theme.palette.common.white,
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                    transform: 'scale(1.1)'
-                  }
-                }}
+                initial={{ opacity: 0, scale: 0.5 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
-                {typeof Icon === 'function' ? (
-                  <Icon size={28} />
-                ) : (
-                  <Icon {...props} />
-                )}
-              </IconButton>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative w-14 h-14 md:w-20 md:h-20 flex items-center justify-center rounded-full overflow-hidden group"
+                  style={{
+                    backgroundColor: theme.palette.button.main,
+                    color: theme.palette.button.contrastText,
+                  }}
+                >
+                  <Icon 
+                    sx={{ fontSize: isMobile ? 24 : 32 }}
+                    className="relative z-10 transition-transform duration-300 group-hover:scale-110" 
+                  />
+                  <div 
+                    className="absolute inset-0 transform scale-x-0 origin-left transition-transform duration-300 ease-out group-hover:scale-x-100"
+                    style={{
+                      background: theme.palette.button.hoverGradient,
+                      animation: theme.palette.button.hoverAnimation,
+                      backgroundSize: '200% 200%'
+                    }}
+                  />
+                </a>
+              </motion.div>
             ))}
-          </Box>
-        </Box>
+          </div>
+        </div>
 
         {/* Right side - Floating Images */}
-        <Box
-          sx={{
-            flex: { xs: '1', md: '0.8' },
-            width: '100%',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: { xs: 2, sm: 3 },
-            height: { xs: '500px', sm: '550px', md: '600px' },
-            overflow: 'hidden',
-            position: 'relative'
-          }}
-        >
-          {/* First Column - Moving Up */}
+        <div className="flex-1 md:flex-[0.8] w-full grid grid-cols-2 gap-3 md:gap-4 overflow-hidden relative">
           <FloatingColumn posts={column1Posts} direction="up" />
-          
-          {/* Second Column - Moving Down */}
           <FloatingColumn posts={column2Posts} direction="down" />
-        </Box>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 };
 

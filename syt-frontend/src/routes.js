@@ -28,6 +28,16 @@ const BookingConfirmation = lazy(() =>
   import("./pages/BookingConfirmation/BookingConfirmation")
 );
 
+const FlightVoucherPage = lazy(() =>
+  import("./pages/FlightVoucherPage/FlightVoucherPage")
+);
+const HotelVoucherPage = lazy(() =>
+  import("./pages/HotelVoucherPage/HotelVoucherPage")
+);
+const TransferVoucherPage = lazy(() =>
+  import("./pages/TransferVoucherPage/TransferVoucherPage")
+);
+
 const AppRoutes = () => {
   return (
     <Suspense fallback={<LoadingSpinner2 message="Loading page..." />}>
@@ -115,6 +125,30 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <BookingConfirmation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/flight-voucher"
+          element={
+            <ProtectedRoute>
+              <FlightVoucherPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hotel-voucher"
+          element={
+            <ProtectedRoute>
+              <HotelVoucherPage />
+            </ProtectedRoute>
+          }
+        />
+          <Route
+          path="/transfer-voucher"
+          element={
+            <ProtectedRoute>
+              <TransferVoucherPage />
             </ProtectedRoute>
           }
         />

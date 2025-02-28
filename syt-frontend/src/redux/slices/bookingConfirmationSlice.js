@@ -6,27 +6,40 @@ import { batch } from 'react-redux';
 export const updateBookingStatus = createAsyncThunk(
   'bookingConfirmation/updateBookingStatus',
   async ({ 
+    bookingId,
     itineraryToken, 
     inquiryToken,
     cityName, 
     date, 
     bookingType, 
     bookingStatus,
+    bookingResponse,
     activityCode,
     itineraryCode,
     code,
     quotation_id
   }, { rejectWithValue }) => {
     try {
+      // For offline activities, skip API call
+      if (bookingType === 'activity' && bookingResponse?.offlineDetails) {
+        return { 
+          success: true, 
+          data: bookingResponse,
+          offlineActivity: true 
+        };
+      }
+
       const response = await axios.put(
         `http://localhost:5000/api/itinerary/${itineraryToken}/booking-status`,
         { 
+          bookingId,
           itineraryToken,
           inquiryToken,
           cityName, 
           date,
           bookingType,
           bookingStatus,
+          bookingResponse,
           ...(bookingType === 'activity' && { activityCode }),
           ...(bookingType === 'flight' && { itineraryCode }),
           ...(bookingType === 'hotel' && { code }),
@@ -73,14 +86,16 @@ export const bookFlight = createAsyncThunk(
 
       if (response.data.success) {
         await dispatch(updateBookingStatus({
+          bookingId, 
           itineraryToken: flight.itineraryToken,
           inquiryToken: flight.inquiryToken,
           cityName: flight.city,
           date: flight.date,
           bookingType: 'flight',
           bookingStatus: 'confirmed',
-          itineraryCode: flight.itineraryCode
-        }));
+          itineraryCode: flight.itineraryCode,
+          bookingResponse: response.data
+        })).unwrap();
 
         dispatch(setBookingStatus({
           type: 'flight',
@@ -97,7 +112,7 @@ export const bookFlight = createAsyncThunk(
         type: 'flight',
         id: flightId,
         status: 'failed',
-        error: error.message
+        error: error.response?.data?.message || error.message
       }));
 
       return rejectWithValue(error.response?.data || { message: 'Flight booking failed' });
@@ -131,14 +146,16 @@ export const bookHotel = createAsyncThunk(
 
       if (response.data.success) {
         await dispatch(updateBookingStatus({
+          bookingId, 
           itineraryToken: hotel.itineraryToken,
           inquiryToken: hotel.inquiryToken,
           cityName: hotel.city,
           date: hotel.date,
           bookingType: 'hotel',
           bookingStatus: 'confirmed',
-          code: hotel.code
-        }));
+          code: hotel.code,
+          bookingResponse: response.data
+        })).unwrap();
 
         dispatch(setBookingStatus({
           type: 'hotel',
@@ -155,7 +172,7 @@ export const bookHotel = createAsyncThunk(
         type: 'hotel',
         id: hotelId,
         status: 'failed',
-        error: error.message
+        error: error.response?.data?.message || error.message
       }));
 
       return rejectWithValue(error.response?.data || { message: 'Hotel booking failed' });
@@ -170,6 +187,42 @@ export const bookActivity = createAsyncThunk(
     const activityId = activity.transformedActivity.activityCode;
 
     try {
+      // Handle offline activity
+      if (activity.transformedActivity.activityType === 'offline') {
+        const offlineDetails = {
+          activityCode: activityId,
+          date: activity.transformedActivity.fromDate,
+          selectedTime: activity.transformedActivity.selectedTime,
+          endTime: activity.transformedActivity.endTime,
+          timeSlot: activity.transformedActivity.timeSlot,
+          departureTime: activity.transformedActivity.departureTime,
+          duration: activity.transformedActivity.duration
+        };
+
+        await dispatch(updateBookingStatus({
+          bookingId, 
+          itineraryToken: activity.transformedActivity.itineraryToken,
+          inquiryToken: activity.transformedActivity.inquiryToken,
+          cityName: activity.transformedActivity.cityName,
+          date: activity.transformedActivity.fromDate,
+          bookingType: 'activity',
+          bookingStatus: 'confirmed',
+          activityCode: activityId,
+          bookingResponse: { 
+            offlineDetails, 
+            success: true 
+          }
+        })).unwrap();
+
+        dispatch(setBookingStatus({
+          type: 'activity',
+          id: activityId,
+          status: 'confirmed'
+        }));
+
+        return { success: true, data: offlineDetails };
+      }
+
       dispatch(setBookingStatus({
         type: 'activity',
         id: activityId,
@@ -189,14 +242,16 @@ export const bookActivity = createAsyncThunk(
 
       if (response.data.success) {
         await dispatch(updateBookingStatus({
+          bookingId, 
           itineraryToken: activity.transformedActivity.itineraryToken,
           inquiryToken: activity.transformedActivity.inquiryToken,
           cityName: activity.transformedActivity.cityName,
           date: activity.transformedActivity.fromDate,
           bookingType: 'activity',
           bookingStatus: 'confirmed',
-          activityCode: activityId
-        }));
+          activityCode: activityId,
+          bookingResponse: response.data
+        })).unwrap();
 
         dispatch(setBookingStatus({
           type: 'activity',
@@ -213,7 +268,7 @@ export const bookActivity = createAsyncThunk(
         type: 'activity',
         id: activityId,
         status: 'failed',
-        error: error.message
+        error: error.response?.data?.message || error.message
       }));
 
       return rejectWithValue(error.response?.data || { message: 'Activity booking failed' });
@@ -245,16 +300,19 @@ export const bookTransfer = createAsyncThunk(
         }
       );
 
-      if (response.data.success) {
+      // Check both response.data.success and that we have booking_id
+      if (response.data.success && response.data.data?.data?.booking_id) {
         await dispatch(updateBookingStatus({
+          bookingId, 
           itineraryToken: transfer.itineraryToken,
           inquiryToken: transfer.inquiryToken,
           cityName: transfer.cityName,
           date: transfer.bookingArray[0].booking_date,
           bookingType: 'transfer',
           bookingStatus: 'confirmed',
-          quotation_id: transferId
-        }));
+          quotation_id: transferId,
+          bookingResponse: response.data || null
+        })).unwrap();
 
         dispatch(setBookingStatus({
           type: 'transfer',
@@ -264,14 +322,18 @@ export const bookTransfer = createAsyncThunk(
 
         return response.data;
       } else {
-        throw new Error('Booking unsuccessful');
+        // More descriptive error
+        const errorMsg = !response.data.success 
+          ? 'Transfer booking failed' 
+          : 'Missing booking ID in response';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       dispatch(setBookingStatus({
         type: 'transfer',
         id: transferId,
         status: 'failed',
-        error: error.message
+        error: error.response?.data?.message || error.message
       }));
 
       return rejectWithValue(error.response?.data || { message: 'Transfer booking failed' });
@@ -296,7 +358,7 @@ const bookingConfirmationSlice = createSlice({
       state.bookingLoading = {};
     },
     setBookingStatus: (state, action) => {
-      const { type, id, status, error } = action.payload;
+      const { type, id, status, error, bookingDetails } = action.payload;
       const bookingKey = `${type}-${id}`;
       
       batch(() => {
@@ -307,6 +369,11 @@ const bookingConfirmationSlice = createSlice({
           state.errors[bookingKey] = error;
         } else {
           delete state.errors[bookingKey];
+        }
+
+        // Optional: Store booking details if provided
+        if (bookingDetails) {
+          state[`${bookingKey}-details`] = bookingDetails;
         }
       });
     }

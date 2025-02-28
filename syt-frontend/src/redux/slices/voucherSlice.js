@@ -12,21 +12,12 @@ export const openFlightVoucher = createAsyncThunk(
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'x-inquiry-token': inquiryToken
-          },
-          responseType: 'text'
+          }
         }
       );
-
-      const voucherWindow = window.open('', '_blank');
-      if (voucherWindow) {
-        voucherWindow.document.write(response.data);
-        voucherWindow.document.close();
-        return response.data;
-      } else {
-        throw new Error('Failed to open voucher window. Please allow popups.');
-      }
+      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to open flight voucher');
+      return rejectWithValue(error.message || 'Failed to fetch flight voucher');
     }
   }
 );
@@ -42,21 +33,12 @@ export const openHotelVoucher = createAsyncThunk(
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'x-inquiry-token': inquiryToken
-          },
-          responseType: 'text'
+          }
         }
       );
-
-      const voucherWindow = window.open('', '_blank');
-      if (voucherWindow) {
-        voucherWindow.document.write(response.data);
-        voucherWindow.document.close();
-        return response.data;
-      } else {
-        throw new Error('Failed to open voucher window. Please allow popups.');
-      }
+      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to open hotel voucher');
+      return rejectWithValue(error.message || 'Failed to fetch hotel voucher');
     }
   }
 );
@@ -72,21 +54,12 @@ export const openActivityVoucher = createAsyncThunk(
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'x-inquiry-token': inquiryToken
-          },
-          responseType: 'text'
+          }
         }
       );
-
-      const voucherWindow = window.open('', '_blank');
-      if (voucherWindow) {
-        voucherWindow.document.write(response.data);
-        voucherWindow.document.close();
-        return response.data;
-      } else {
-        throw new Error('Failed to open voucher window. Please allow popups.');
-      }
+      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to open activity voucher');
+      return rejectWithValue(error.message || 'Failed to fetch activity voucher');
     }
   }
 );
@@ -102,21 +75,12 @@ export const openTransferVoucher = createAsyncThunk(
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'x-inquiry-token': inquiryToken
-          },
-          responseType: 'text'
+          }
         }
       );
-
-      const voucherWindow = window.open('', '_blank');
-      if (voucherWindow) {
-        voucherWindow.document.write(response.data);
-        voucherWindow.document.close();
-        return response.data;
-      } else {
-        throw new Error('Failed to open voucher window. Please allow popups.');
-      }
+      return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to open transfer voucher');
+      return rejectWithValue(error.message || 'Failed to fetch transfer voucher');
     }
   }
 );
@@ -125,54 +89,76 @@ const voucherSlice = createSlice({
   name: 'voucher',
   initialState: {
     error: null,
-    loading: false
+    loading: false,
+    voucherData: null
   },
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    clearVoucherData: (state) => {
+      state.voucherData = null;
     }
   },
   extraReducers: (builder) => {
+    // Flight voucher
     builder
       .addCase(openFlightVoucher.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.voucherData = null;
       })
-      .addCase(openFlightVoucher.fulfilled, (state) => {
+      .addCase(openFlightVoucher.fulfilled, (state, action) => {
         state.loading = false;
+        state.voucherData = action.payload;
       })
       .addCase(openFlightVoucher.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
+    // Hotel voucher
+    builder
       .addCase(openHotelVoucher.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.voucherData = null;
       })
-      .addCase(openHotelVoucher.fulfilled, (state) => {
+      .addCase(openHotelVoucher.fulfilled, (state, action) => {
         state.loading = false;
+        state.voucherData = action.payload;
       })
       .addCase(openHotelVoucher.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
+    // Activity voucher
+    builder
       .addCase(openActivityVoucher.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.voucherData = null;
       })
-      .addCase(openActivityVoucher.fulfilled, (state) => {
+      .addCase(openActivityVoucher.fulfilled, (state, action) => {
         state.loading = false;
+        state.voucherData = action.payload;
       })
       .addCase(openActivityVoucher.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
+    // Transfer voucher
+    builder
       .addCase(openTransferVoucher.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.voucherData = null;
       })
-      .addCase(openTransferVoucher.fulfilled, (state) => {
+      .addCase(openTransferVoucher.fulfilled, (state, action) => {
         state.loading = false;
+        state.voucherData = action.payload;
       })
       .addCase(openTransferVoucher.rejected, (state, action) => {
         state.loading = false;
@@ -181,5 +167,5 @@ const voucherSlice = createSlice({
   }
 });
 
-export const { clearError } = voucherSlice.actions;
+export const { clearError, clearVoucherData } = voucherSlice.actions;
 export default voucherSlice.reducer;

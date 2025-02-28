@@ -1,4 +1,3 @@
-// models/ItineraryBooking.js
 const mongoose = require('mongoose');
 
 const travelerSchema = new mongoose.Schema({
@@ -52,6 +51,59 @@ const roomSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+const flightBookingSchema = new mongoose.Schema({
+  bmsBookingCode: String,
+  pnr: String,
+  bookingStatus: String,
+  traceId: String,
+  itineraryCode: String,
+  pnrDetails: [{
+    origin: String,
+    destination: String,
+    pnr: String
+  }],
+  date: String,
+  city: String
+}, { _id: false });
+
+const hotelBookingSchema = new mongoose.Schema({
+  bookingRefId: String,
+  providerConfirmationNumber: String,
+  traceId: String,
+  code: String,
+  status: String,
+  date: String,
+  city: String,
+  roomConfirmations: [{
+    rateId: String,
+    roomId: String,
+    providerConfirmationNumber: String
+  }]
+}, { _id: false });
+
+const activityBookingSchema = new mongoose.Schema({
+  bookingReference: String,
+  bookingStatus: String,
+  activityCode: String,
+  searchId: String,
+  amount: Number,
+  date: String,
+  city: String,
+  selectedTime: String,
+  endTime: String,
+  timeSlot: String,
+  departureTime: String,
+  duration: String
+}, { _id: false });
+
+const transferBookingSchema = new mongoose.Schema({
+  booking_id: String,
+  quotationId: String,
+  status: String,
+  date: String,
+  city: String
+}, { _id: false });
+
 const itineraryBookingSchema = new mongoose.Schema({
   bookingId: { 
     type: String, 
@@ -70,7 +122,6 @@ const itineraryBookingSchema = new mongoose.Schema({
   },
   bookingDate: { type: Date, required: true },
 
-  // Payment fields
   paymentStatus: {
     type: String,
     enum: ['pending', 'processing', 'completed', 'failed'],
@@ -94,7 +145,6 @@ const itineraryBookingSchema = new mongoose.Schema({
     default: 0
   },
 
-  // Razorpay transaction details
   razorpay: {
     orderId: { type: String, default: null },
     paymentId: { type: String, default: null },
@@ -108,6 +158,12 @@ const itineraryBookingSchema = new mongoose.Schema({
   },
   specialRequirements: { type: String, default: null },
 
+  // Direct arrays for booking details
+  flights: [flightBookingSchema],
+  hotels: [hotelBookingSchema],
+  activities: [activityBookingSchema],
+  transfers: [transferBookingSchema],
+
   userInfo: {
     userId: { type: String, required: true },
     firstName: { type: String, required: true },
@@ -119,7 +175,7 @@ const itineraryBookingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-
+// Indexes
 itineraryBookingSchema.index({ 'userInfo.userId': 1, bookingDate: -1 });
 itineraryBookingSchema.index({ status: 1 });
 itineraryBookingSchema.index({ paymentStatus: 1 });

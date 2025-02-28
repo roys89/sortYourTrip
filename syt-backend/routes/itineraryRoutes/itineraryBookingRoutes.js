@@ -29,6 +29,11 @@ router.post('/',
   asyncHandler(ItineraryBookingController.createBooking)
 );
 
+// Change this route
+router.get('/:bookingId/booking-details/:type/:itemId',
+  asyncHandler(ItineraryBookingController.getBookingeDetails)
+);
+
 // Get user's bookings with optional filters
 router.get('/', 
   asyncHandler(ItineraryBookingController.getUserBookings)

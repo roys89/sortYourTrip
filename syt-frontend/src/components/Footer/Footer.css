@@ -21,12 +21,3 @@
   color: rgba(255, 255, 255, 0.7) !important;
   opacity: 1;
 }
-
-/* Remove autofill background color */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #004D30 inset !important;
-  -webkit-text-fill-color: white !important;
-}

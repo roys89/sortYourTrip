@@ -1,3 +1,4 @@
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Box, Card, Typography } from "@mui/material";
 import { useTheme } from '@mui/material/styles';
 import axios from "axios";
@@ -96,140 +97,201 @@ const SelectCityForm = ({ destinationType, destination, saveSelectedCities }) =>
     );
   }
   
-    return (
-      <Box sx={{ 
-        width: '100%',
-        px: { xs: 1, sm: 2 },
-        py: 2
-      }}>
-        <Typography 
-          variant="h6" 
-          sx={{ 
-            mb: 2,
-            textAlign: 'center'
-          }}
-        >
-          Select Cities
-        </Typography>
-  
-        <Box 
-          sx={{ 
-            height: '400px', 
-            overflowY: 'auto',
-            width: '100%',
-            '&::-webkit-scrollbar': {
-              width: '8px'
-            },
-            '&::-webkit-scrollbar-track': {
-              background: 'transparent'
-            },
-            '&::-webkit-scrollbar-thumb': {
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              borderRadius: '4px'
-            }
-          }}
-        >
-          <Box 
-            sx={{ 
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'repeat(2, 1fr)',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
-                lg: 'repeat(4, 1fr)'
-              },
-              gap: { xs: 1, sm: 2 },
-              width: '100%',
-              m: 0
-            }}
-          >
-            {cities.map((city) => {
-              const isSelected = selectedCities.some(
-                (selectedCity) => selectedCity.destination_id === city.destination_id
-              );
-  
-              return (
-                <Card
-                  key={city.destination_id}
-                  onClick={(e) => handleCitySelect(city, e)}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                  }}
+  return (
+    <Box sx={{ 
+      width: '100%',
+      px: { xs: 1, sm: 2 },
+      py: 2
+    }}>
+      <Typography 
+        variant="h6" 
+        sx={{ 
+          mb: 1,
+          textAlign: 'center'
+        }}
+      >
+        Select Cities
+      </Typography>
+      
+      <Typography 
+        variant="subtitle1" 
+        sx={{ 
+          mb: 2,
+          textAlign: 'center',
+          color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+          fontStyle: 'italic'
+        }}
+      >
+        Please select cities in the order you wish to travel
+      </Typography>
+
+      {/* Increased gap between cards */}
+      <Box 
+        sx={{ 
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'repeat(2, 1fr)',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(3, 1fr)',
+            lg: 'repeat(4, 1fr)'
+          },
+          gap: { xs: 3, sm: 4 },
+          width: '100%',
+          m: 0
+        }}
+      >
+        {cities.map((city) => {
+          const isSelected = selectedCities.some(
+            (selectedCity) => selectedCity.destination_id === city.destination_id
+          );
+
+          return (
+            <Card
+              key={city.destination_id}
+              onClick={(e) => handleCitySelect(city, e)}
+              onTouchStart={(e) => {
+                e.preventDefault();
+              }}
+              elevation={isSelected ? 12 : 3}
+              sx={{
+                position: 'relative',
+                height: { xs: '180px', sm: '240px' },
+                width: '100%',
+                borderRadius: '24px',
+                cursor: 'pointer',
+                overflow: 'hidden',
+                WebkitTapHighlightColor: 'transparent',
+                transition: 'all 0.3s ease',
+                transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                boxShadow: isSelected ? 
+                  `0 0 0 4px ${theme.palette.primary.main}, 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23)` : 
+                  '0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)',
+                '&:hover': {
+                  transform: 'scale(1.03)',
+                  boxShadow: '0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23)'
+                }
+              }}
+            >
+              {/* Selection indicator */}
+              {isSelected && (
+                <Box
                   sx={{
-                    position: 'relative',
-                    height: { xs: '160px', sm: '200px' },
-                    width: '100%',
-                    border: isSelected
-                      ? '5px solid #FF9800'
-                      : '5px solid rgba(255, 180, 123, 0.6)',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.3s',
-                    overflow: 'hidden',
-                    WebkitTapHighlightColor: 'transparent',
-                    '@media (hover: hover)': {
-                      '&:hover': {
-                        borderColor: '#FF9800'
-                      }
-                    }
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    zIndex: 2,
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    backgroundColor: theme.palette.primary.main,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 3px 5px rgba(0,0,0,0.2)',
+                    color: 'white',
+                    fontWeight: 'bold'
                   }}
                 >
-                  {/* Image */}
-                  <Box
-                    component="img"
-                    src={city.imageUrl || "default-city-image.jpg"}
-                    alt={city.name}
-                    sx={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      pointerEvents: 'none'
-                    }}
-                  />
-  
-                  {/* Content Overlay */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      background: 'rgba(255, 255, 255, 0.2)',
-                      backdropFilter: 'blur(5px)',
-                      padding: { xs: 1, sm: 1.5 },
-                      borderBottomLeftRadius: '11px', // Account for the 5px border
-                      borderBottomRightRadius: '11px',
-                      transition: 'background-color 0.3s'
+                  <CheckCircleIcon fontSize="small" />
+                </Box>
+              )}
+              
+              {/* Image with gradient overlay */}
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '60%',
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)',
+                    borderBottomLeftRadius: '24px',
+                    borderBottomRightRadius: '24px',
+                    zIndex: 1
+                  }
+                }}
+              >
+                <Box
+                  component="img"
+                  src={city.imageUrl || "default-city-image.jpg"}
+                  alt={city.name}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    pointerEvents: 'none',
+                    filter: isSelected ? 'brightness(1.1) contrast(1.1)' : 'none',
+                    transition: 'filter 0.3s ease'
+                  }}
+                />
+              </Box>
+
+              {/* Content Overlay */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  padding: { xs: 1.5, sm: 2 },
+                  zIndex: 2,
+                  transition: 'transform 0.3s ease'
+                }}
+              >
+                <Typography 
+                  variant="h6"
+                  sx={{ 
+                    fontSize: { xs: '1rem', sm: '1.25rem' },
+                    fontWeight: 600,
+                    color: 'white',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    mb: 0.5
+                  }}
+                >
+                  {city.name}
+                </Typography>
+                <Box 
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5
+                  }}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Box 
+                      key={star}
+                      component="span" 
+                      sx={{
+                        color: star <= Math.round(city.rating || 0) ? '#FFD700' : 'rgba(255,255,255,0.3)',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      }}
+                    >
+                      ★
+                    </Box>
+                  ))}
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      color: 'rgba(255,255,255,0.9)',
+                      ml: 0.5
                     }}
                   >
-                    <Typography 
-                      variant="subtitle1"
-                      sx={{ 
-                        fontSize: { xs: '0.875rem', sm: '1rem' },
-                        fontWeight: 600,
-                        color: 'rgba(0, 0, 0, 0.87)',
-                        mb: 0.5
-                      }}
-                    >
-                      {city.name}
-                    </Typography>
-                    <Typography 
-                      variant="body2"
-                      sx={{ 
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                        color: 'rgba(0, 0, 0, 0.6)'
-                      }}
-                    >
-                      Rating: {city.rating || "N/A"}
-                    </Typography>
-                  </Box>
-                </Card>
-              );
-            })}
-          </Box>
-        </Box>
+                    {city.rating || "N/A"}
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          );
+        })}
       </Box>
-    );
-  };
-  
-  export default SelectCityForm;
+    </Box>
+  );
+};
+
+export default SelectCityForm;

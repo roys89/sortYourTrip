@@ -1,95 +1,99 @@
-  /* Navbar Default Styles */
-  .navbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    margin: 0 auto;
-    width: 100%;
-    height: 80px;
-    background-color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 30px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+/* Navbar Default Styles */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 100%;
+  height: 80px;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  /* Navbar Styles When Scrolled */
-  .navbar.scrolled {
-    width: 80%;
-    margin: 10px auto;
-    height: 60px;
-    border-radius: 10px;
-  }
-  /* Navbar Logo */
+/* Navbar Styles When Scrolled */
+.navbar.scrolled {
+  width: 80%;
+  margin: 10px auto;
+  height: 60px;
+  border-radius: 10px;
+}
+/* Navbar Logo */
+.navbar-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.navbar-logo-section {
+  display: flex;
+  align-items: center;
+}
+
+.active {
+  position: relative;
+  /* We're keeping the position relative but removing the underline */
+}
+
+/* Removing the underline by commenting out or removing this rule */
+/* 
+.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: currentColor;
+}
+*/
+
+/* Navbar Items Container */
+.navbar-items {
+  display: flex; /* Flexbox for alignment */
+  align-items: center; /* Align vertically */
+  list-style: none; /* Remove list bullets */
+  gap: 20px; /* Spacing between items */
+}
+
+/* Navbar Links */
+.navbar a {
+  text-decoration: none; /* Remove underline */
+  color: #333; /* Default text color */
+  font-size: 16px;
+  font-weight: 500;
+  transition: color 0.3s ease; /* Smooth color change */
+}
+
+/* Navbar Link Hover */
+.navbar a:hover {
+  color: #007bff; /* Highlight color */
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
   .navbar-logo {
-    height: 40px;
-    width: auto;
-    object-fit: contain;
+    height: 32px;
+  }
+}
+
+/* For Mobile Devices */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 15px; /* Reduce horizontal padding */
   }
 
-  .navbar-logo-section {
-    display: flex;
-    align-items: center;
-  }
-
-  .active {
-    position: relative;
-  }
-
-  .active::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background-color: currentColor;
-  }
-
-  /* Navbar Items Container */
   .navbar-items {
-    display: flex; /* Flexbox for alignment */
-    align-items: center; /* Align vertically */
-    list-style: none; /* Remove list bullets */
-    gap: 20px; /* Spacing between items */
+    gap: 10px; /* Reduce spacing between items */
   }
 
-  /* Navbar Links */
   .navbar a {
-    text-decoration: none; /* Remove underline */
-    color: #333; /* Default text color */
-    font-size: 16px;
-    font-weight: 500;
-    transition: color 0.3s ease; /* Smooth color change */
+    font-size: 14px; /* Smaller font size for links */
   }
-
-  /* Navbar Link Hover */
-  .navbar a:hover {
-    color: #007bff; /* Highlight color */
-  }
-
-  /* Responsive adjustments */
-  @media (max-width: 600px) {
-    .navbar-logo {
-      height: 32px;
-    }
-  }
-
-  /* For Mobile Devices */
-  @media (max-width: 768px) {
-    .navbar {
-      padding: 0 15px; /* Reduce horizontal padding */
-    }
-
-    .navbar-items {
-      gap: 10px; /* Reduce spacing between items */
-    }
-
-    .navbar a {
-      font-size: 14px; /* Smaller font size for links */
-    }
-  }
+}

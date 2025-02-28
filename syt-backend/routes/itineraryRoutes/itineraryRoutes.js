@@ -12,7 +12,7 @@ const {
   getItinerary,
   getItineraryByInquiryToken,
   updateItineraryPrices,
-  deleteItinerary
+  deleteItinerary,
 } = require("../../controllers/itineraryController/itineraryController");
 
 const {
@@ -23,22 +23,22 @@ const {
   replaceRoom,
   replaceFlight,
   updateFlightSeatsAndBaggage,
-  updateBookingStatus
-} = require("../../controllers/itineraryController/itineraryModificationController"); 
+  updateBookingStatus,
+} = require("../../controllers/itineraryController/itineraryModificationController");
 
 const {
   searchAvailableHotels,
   getHotelDetails,
   selectHotelRoom,
   getHotelRooms,
-  getItineraryDetails
+  getItineraryDetails,
 } = require("../../controllers/hotelController/hotelChangeController");
 
 const {
   searchAvailableFlights,
   getFareRules,
   selectFlight,
-  getFlightItineraryDetails
+  getFlightItineraryDetails,
 } = require("../../controllers/flightController/flightChangeController");
 
 const {
@@ -47,17 +47,15 @@ const {
   createActivityBookingReference,
 } = require("../../controllers/activityController/activityControllerGRNC");
 
-
 const {
   // recheckActivityPrices,
   recheckHotelPrices,
   recheckFlightPrices,
 } = require("../../controllers/priceRecheckController");
 
-
-
-const {getFlights} = require("../../controllers/flightController/flightControllerTC");
-
+const {
+  getFlights,
+} = require("../../controllers/flightController/flightControllerTC");
 
 // Middleware
 const checkAuth = (req, res, next) => {
@@ -84,9 +82,24 @@ router.put("/:itineraryToken/prices", checkAuth, updateItineraryPrices);
 router.delete("/:inquiryToken", checkAuth, deleteItinerary);
 
 // Itinerary Modification Routes
-router.put("/:itineraryToken/activity", checkAuth, checkInquiryToken, replaceActivity);
-router.delete("/:itineraryToken/activity", checkAuth, checkInquiryToken, removeActivity);
-router.put("/:itineraryToken/hotel", checkAuth, checkInquiryToken, replaceHotel);
+router.put(
+  "/:itineraryToken/activity",
+  checkAuth,
+  checkInquiryToken,
+  replaceActivity
+);
+router.delete(
+  "/:itineraryToken/activity",
+  checkAuth,
+  checkInquiryToken,
+  removeActivity
+);
+router.put(
+  "/:itineraryToken/hotel",
+  checkAuth,
+  checkInquiryToken,
+  replaceHotel
+);
 router.put(
   "/:itineraryToken/activity/booking-ref",
   checkAuth,
@@ -94,7 +107,12 @@ router.put(
   updateActivityWithBookingRef
 );
 router.put("/:itineraryToken/room", checkAuth, checkInquiryToken, replaceRoom);
-router.put("/:itineraryToken/flight", checkAuth, checkInquiryToken, replaceFlight);
+router.put(
+  "/:itineraryToken/flight",
+  checkAuth,
+  checkInquiryToken,
+  replaceFlight
+);
 router.put(
   "/:itineraryToken/flight/seats",
   checkAuth,
@@ -124,12 +142,11 @@ router.post(
 );
 
 router.post(
-  "/:itineraryToken/flight-details", 
-  checkAuth, 
-  checkInquiryToken, 
+  "/:itineraryToken/flight-details",
+  checkAuth,
+  checkInquiryToken,
   getFlightItineraryDetails
 );
-
 
 // Hotel Change Routes
 router.get(
@@ -168,7 +185,7 @@ router.post(
 
 // Activity Routes
 router.get(
-  "/activities/:inquiryToken/:cityName/:date", 
+  "/activities/:inquiryToken/:cityName/:date",
   checkAuth,
   checkInquiryToken,
   getAvailableActivities
@@ -203,7 +220,6 @@ router.get(
   getTransferOptions
 );
 
-
 // Recheck Routes
 
 router.post(
@@ -220,15 +236,18 @@ router.post(
   getFlights
 );
 
-router.post('/:itineraryToken/recheck-hotels', checkAuth,
+router.post(
+  "/:itineraryToken/recheck-hotels",
+  checkAuth,
   checkInquiryToken,
-  recheckHotelPrices);
+  recheckHotelPrices
+);
 
-  router.put(
-    "/:itineraryToken/booking-status",
-    checkAuth,
-    checkInquiryToken,
-    updateBookingStatus
-  );
+router.put(
+  "/:itineraryToken/booking-status",
+  checkAuth,
+  checkInquiryToken,
+  updateBookingStatus
+);
 
 module.exports = router;

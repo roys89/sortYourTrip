@@ -2,19 +2,23 @@
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 0 0 1.5rem 0; /* Removed top padding */
   color: inherit;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(9, 57, 35, 0.1);
   transition: all 0.3s ease;
+  overflow: hidden; /* Prevents content from spilling outside border-radius */
 }
 
 .price-summary-title {
   font-size: 2.25rem !important;
   font-weight: 600 !important;
-  margin-bottom: 1.5rem !important;
+  margin: 0 0 1.5rem 0 !important; /* Removed negative margins */
+  padding: 1.5rem !important; /* Add padding to maintain spacing */
   color: #1b5e20;
   text-align: center;
+  background-color: rgba(251, 203, 173, 0.5); /* Default light mode background */
+  border-radius: 0; /* No border radius needed now */
 }
 
 .segment-divider {
@@ -109,10 +113,9 @@
   opacity: 0.9;
 }
 
-/* Original summary section styles */
+/* Original summary section styles - removed border-top as requested */
 .summary-section {
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  padding-top: 1rem;
+  padding: 0 1.5rem;
   margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
@@ -138,7 +141,7 @@
 
 .total-section {
   border-top: 1px solid rgba(0, 0, 0, 0.1);
-  padding-top: 1rem;
+  padding: 1rem 1.5rem 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -164,6 +167,7 @@
 
 [data-theme='dark'] .price-summary-title {
   color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.3); /* Dark mode background using primary.main */
 }
 
 [data-theme='dark'] .segment-divider {
@@ -179,10 +183,6 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-[data-theme='dark'] .summary-section {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-
 [data-theme='dark'] .total-section {
   border-top-color: rgba(255, 255, 255, 0.1);
 }
@@ -193,12 +193,22 @@
 
 @media (max-width: 768px) {
   .price-summary-container {
-    padding: 1rem;
+    padding: 0 0 1rem 0;
   }
 
   .price-summary-title {
     text-align: center;
     font-size: 1.75rem !important;
+    margin: 0 0 1rem 0 !important;
+    padding: 1rem !important; /* Adjust padding for mobile */
+  }
+  
+  .summary-section {
+    padding: 0 1rem;
+  }
+  
+  .total-section {
+    padding: 1rem 1rem 0;
   }
 }
 

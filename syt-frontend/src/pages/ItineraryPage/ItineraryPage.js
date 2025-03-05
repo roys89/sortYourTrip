@@ -959,10 +959,6 @@ const ItineraryPage = () => {
                   transition={{ duration: 0.5 }}
                   className="price-summary-wrapper"
                   style={{
-                    backgroundColor:
-                      theme.palette.mode === "dark"
-                        ? theme.palette.grey[800]
-                        : theme.palette.grey[50],
                     boxShadow:
                       theme.palette.mode === "dark"
                         ? "0 4px 20px rgba(0,0,0,0.3)"

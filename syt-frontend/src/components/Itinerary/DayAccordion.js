@@ -1,4 +1,4 @@
-import { Button, useTheme } from "@mui/material";
+import { Button } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Plus } from "lucide-react";
 import { DateTime } from "luxon";
@@ -13,7 +13,6 @@ import TransferCard from "../Cards/TransferCard";
 import "./DayAccordion.css";
 
 const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
-  const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -50,20 +49,14 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
   return (
     <div className="day-accordion">
       <button className="day-header" onClick={() => setIsOpen(!isOpen)}>
-        <span
-          className="day-date"
-          style={{ color: theme.palette.text.primary }}
-        >
+        <span className="day-date">
           {formatDate(day.date)}
         </span>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown
-            className="day-icon"
-            style={{ color: theme.palette.text.secondary }}
-          />
+          <ChevronDown className="day-icon" />
         </motion.div>
       </button>
 
@@ -77,16 +70,13 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
               hidden: { height: 0, opacity: 0 },
               visible: { height: "auto", opacity: 1 },
             }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.3 }}
             className="day-content"
           >
             {/* Flights Section */}
             {day.flights?.length > 0 && (
               <div className="section-container">
-                <h3
-                  className="section-title"
-                  style={{ color: theme.palette.primary.main }}
-                >
+                <h3 className="section-title">
                   Flights
                 </h3>
                 <div className="cards-container">
@@ -97,7 +87,7 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
                       inquiryToken={inquiryToken}
                       itineraryToken={itineraryToken}
                       travelersDetails={travelersDetails}
-                      showChange={true} // Add this
+                      showChange={true}
                     />
                   ))}
                 </div>
@@ -107,10 +97,7 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
             {/* Hotels Section */}
             {day.hotels?.length > 0 && (
               <div className="section-container">
-                <h3
-                  className="section-title"
-                  style={{ color: theme.palette.primary.main }}
-                >
+                <h3 className="section-title">
                   Accommodations
                 </h3>
                 <div className="cards-container">
@@ -133,10 +120,7 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
             {/* Transfers Section */}
             {day.transfers?.length > 0 && (
               <div className="section-container">
-                <h3
-                  className="section-title"
-                  style={{ color: theme.palette.primary.main }}
-                >
+                <h3 className="section-title">
                   Transfers
                 </h3>
                 <div className="cards-container">
@@ -152,10 +136,7 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
 
             {/* Activities Section */}
             <div className="section-container">
-              <h3
-                className="section-title"
-                style={{ color: theme.palette.primary.main }}
-              >
+              <h3 className="section-title">
                 Activities
               </h3>
               <div className="cards-container">
@@ -180,15 +161,9 @@ const DayAccordion = ({ day, city, inquiryToken, travelersDetails }) => {
                 >
                   <Button
                     variant="outlined"
-                    startIcon={
-                      <Plus
-                        className="w-4 h-4"
-                        style={{ color: theme.palette.text.primary }}
-                      />
-                    }
+                    startIcon={<Plus className="add-icon" />}
                     onClick={handleAddActivity}
                     className="add-activity-button"
-                    sx={{ color: theme.palette.text.primary }}
                   >
                     Add Activity ({3 - (day.activities?.length || 0)} remaining)
                   </Button>

@@ -1,0 +1,223 @@
+.itinerary-day {
+  padding: 1.5rem;
+  position: relative;
+  margin: 0; /* No margin on the day component itself */
+}
+
+/* Main continuous timeline that runs through the entire component */
+.timeline-main {
+  position: absolute;
+  left: 72px; /* Aligns with the center point of icons */
+  top: 25px; /* Start from the middle of the calendar icon */
+  width: 3px;
+  z-index: 1; /* Set between bg and icons */
+  /* Bottom positioning removed, height will be set in JS */
+}
+
+/* Timeline end indicator */
+.timeline-end {
+  position: absolute;
+  left: 49px; /* Align center with the timeline */
+  bottom: 30px; /* Adjusted to match the new timeline endpoint */
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  position: relative;
+  padding-left: 100px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  min-height: 50px; /* Ensure consistent height */
+}
+
+.day-header.collapsed {
+  margin-bottom: 0;
+  padding: 1rem 1rem 1rem 100px;
+}
+
+.date-calendar-icon {
+  position: absolute;
+  left: 50px; /* Align center with the timeline */
+  transform: translateX(-50%);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 2; /* Ensure it's above the timeline */
+}
+
+.date-text {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.5px;
+}
+
+.day-segments {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.day-segment {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+/* Timeline container to align icons and labels */
+.timeline-container {
+  position: relative;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+}
+
+.timeline-icon {
+  position: absolute;
+  left: 50px; /* Align center with the timeline */
+  top: 40%; /* Center vertically relative to the card */
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Remove individual timeline lines as they're replaced by the main continuous line */
+.timeline-line {
+  display: none;
+}
+
+/* Multiple activities container */
+.multiple-activities {
+  position: relative;
+}
+
+.multiple-activities .card-wrapper:not(:last-child) {
+  margin-bottom: 1.5rem;
+}
+
+.add-activity-container {
+  margin-top: 1.25rem;
+  margin-left: 80px;
+}
+
+.add-activity-button {
+  width: 100% !important;
+  padding: 0.85rem !important;
+  border-radius: 10px !important;
+  text-transform: none !important;
+  letter-spacing: 0.2px !important;
+  font-weight: 500 !important;
+  font-family: 'Poppins', sans-serif !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s ease !important;
+}
+
+.no-activities {
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  margin-left: 80px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.no-items-text {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+/* Consistent spacing for city sections and components */
+.city-section {
+  margin: 0;
+  padding: 0;
+}
+
+.city-days {
+  margin-top: 1.5rem; /* Consistent spacing from city header to days */
+}
+
+.day-wrapper {
+  margin-top: 0;
+  margin-bottom: 1.5rem; /* Consistent spacing between days */
+}
+
+.day-wrapper:last-child {
+  margin-bottom: 0; /* No bottom margin on last day */
+}
+
+/* City section spacing */
+.city-section + .city-section {
+  margin-top: 1.5rem; /* Consistent spacing between city sections */
+}
+
+/* Make itinerary page spacing more consistent */
+.itinerary-page {
+  padding-bottom: 2rem; /* Consistent bottom padding */
+}
+
+@media (max-width: 768px) {
+  .itinerary-day {
+    padding: 1rem;
+  }
+  
+  .timeline-main {
+    left: 30px;
+    top: 18px; /* Adjust for smaller calendar icon on mobile */
+  }
+  
+  .timeline-end {
+    left:15px;
+    bottom: 45px;
+    width: 10px;
+    height: 10px;
+  }
+  
+  .day-header {
+    padding-left: 60px;
+  }
+  
+  .day-header.collapsed {
+    padding: 0.75rem 0.75rem 0.75rem 60px;
+  }
+  
+  .date-calendar-icon {
+    left: 15px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .date-text {
+    font-size: 1.1rem;
+  }
+  
+  .timeline-icon {
+    left: 15px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .add-activity-container {
+    margin-left: 60px;
+  }
+  
+  .no-activities {
+    margin-left: 60px;
+    padding: 1.5rem;
+  }
+}

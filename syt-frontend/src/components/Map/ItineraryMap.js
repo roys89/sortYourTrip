@@ -22,78 +22,97 @@ const ItineraryMap = ({ itineraryData }) => {
   const routesRef = useRef([]);
 
   const processItineraryData = (data) => {
+    // Check if data is valid before processing
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid itinerary data provided');
+    }
+
     const locations = [];
     const routeSegments = [];
     
     // Process each city
-    data.cities.forEach((city, cityIndex) => {
-      // Process each day in the city
-      city.days.forEach((day) => {
-        // Process flights
-        if (day.flights && day.flights.length > 0) {
-          day.flights.forEach(flight => {
-            const { originAirport, arrivalAirport } = flight.flightData;
-            
-            // Add origin airport
-            locations.push({
-              coordinates: [originAirport.location.longitude, originAirport.location.latitude],
-              name: originAirport.name,
-              description: `${originAirport.city} (${originAirport.code})`,
-              type: 'airport'
-            });
-            
-            // Add destination airport
-            locations.push({
-              coordinates: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-              name: arrivalAirport.name,
-              description: `${arrivalAirport.city} (${arrivalAirport.code})`,
-              type: 'airport'
-            });
-            
-            // Add flight route
-            routeSegments.push({
-              from: [originAirport.location.longitude, originAirport.location.latitude],
-              to: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
-              type: 'flight'
-            });
-          });
-        }
-        
-        // Process hotels
-        if (day.hotels && day.hotels.length > 0) {
-          day.hotels.forEach(hotel => {
-            if (hotel.success && hotel.data?.hotelDetails) {
-              const hotelDetails = hotel.data.hotelDetails;
-              
-              locations.push({
-                coordinates: [
-                  parseFloat(hotelDetails.geolocation.long),
-                  parseFloat(hotelDetails.geolocation.lat)
-                ],
-                name: hotelDetails.name,
-                description: `${hotelDetails.address.city.name}, ${hotelDetails.address.country.name}`,
-                type: 'hotel'
+    if (data.cities && Array.isArray(data.cities)) {
+      data.cities.forEach((city) => {
+        if (city && Array.isArray(city.days)) {
+          // Process each day in the city
+          city.days.forEach((day) => {
+            // Process flights
+            if (day.flights && Array.isArray(day.flights)) {
+              day.flights.forEach(flight => {
+                if (flight && flight.flightData) {
+                  const { originAirport, arrivalAirport } = flight.flightData;
+                  
+                  if (originAirport && originAirport.location && arrivalAirport && arrivalAirport.location) {
+                    // Add origin airport
+                    locations.push({
+                      coordinates: [originAirport.location.longitude, originAirport.location.latitude],
+                      name: originAirport.name,
+                      description: `${originAirport.city} (${originAirport.code})`,
+                      type: 'airport'
+                    });
+                    
+                    // Add destination airport
+                    locations.push({
+                      coordinates: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
+                      name: arrivalAirport.name,
+                      description: `${arrivalAirport.city} (${arrivalAirport.code})`,
+                      type: 'airport'
+                    });
+                    
+                    // Add flight route
+                    routeSegments.push({
+                      from: [originAirport.location.longitude, originAirport.location.latitude],
+                      to: [arrivalAirport.location.longitude, arrivalAirport.location.latitude],
+                      type: 'flight'
+                    });
+                  }
+                }
               });
             }
-          });
-        }
-        
-        // Process transfers
-        if (day.transfers && day.transfers.length > 0) {
-          day.transfers.forEach(transfer => {
-            const { origin, destination } = transfer.details;
             
-            if (origin && destination && origin.lat && origin.long && destination.lat && destination.long) {
-              routeSegments.push({
-                from: [parseFloat(origin.long), parseFloat(origin.lat)],
-                to: [parseFloat(destination.long), parseFloat(destination.lat)],
-                type: 'transfer'
+            // Process hotels
+            if (day.hotels && Array.isArray(day.hotels)) {
+              day.hotels.forEach(hotel => {
+                if (hotel && hotel.success && hotel.data?.hotelDetails) {
+                  const hotelDetails = hotel.data.hotelDetails;
+                  
+                  if (hotelDetails.geolocation && 
+                      typeof hotelDetails.geolocation.long === 'string' && 
+                      typeof hotelDetails.geolocation.lat === 'string') {
+                    locations.push({
+                      coordinates: [
+                        parseFloat(hotelDetails.geolocation.long),
+                        parseFloat(hotelDetails.geolocation.lat)
+                      ],
+                      name: hotelDetails.name,
+                      description: `${hotelDetails.address.city.name}, ${hotelDetails.address.country.name}`,
+                      type: 'hotel'
+                    });
+                  }
+                }
+              });
+            }
+            
+            // Process transfers
+            if (day.transfers && Array.isArray(day.transfers)) {
+              day.transfers.forEach(transfer => {
+                if (transfer && transfer.details) {
+                  const { origin, destination } = transfer.details;
+                  
+                  if (origin && destination && origin.lat && origin.long && destination.lat && destination.long) {
+                    routeSegments.push({
+                      from: [parseFloat(origin.long), parseFloat(origin.lat)],
+                      to: [parseFloat(destination.long), parseFloat(destination.lat)],
+                      type: 'transfer'
+                    });
+                  }
+                }
               });
             }
           });
         }
       });
-    });
+    }
     
     return { locations, routeSegments };
   };
@@ -102,6 +121,10 @@ const ItineraryMap = ({ itineraryData }) => {
     try {
       if (!mapboxgl.supported()) {
         throw new Error('Your browser does not support Mapbox GL');
+      }
+
+      if (!itineraryData) {
+        throw new Error('No itinerary data provided');
       }
 
       const { locations, routeSegments } = processItineraryData(itineraryData);
@@ -118,6 +141,11 @@ const ItineraryMap = ({ itineraryData }) => {
       mapInstance.addControl(new mapboxgl.NavigationControl());
 
       mapInstance.on('load', () => {
+        // Check if we have any locations to display
+        if (locations.length === 0) {
+          console.warn('No valid locations found in the itinerary data');
+        }
+
         // Add markers
         locations.forEach(location => {
           let markerColor;
@@ -185,12 +213,14 @@ const ItineraryMap = ({ itineraryData }) => {
           routesRef.current.push({ sourceId, layerId });
         });
 
-        // Fit bounds to show all markers
-        const bounds = new mapboxgl.LngLatBounds();
-        locations.forEach(location => {
-          bounds.extend(location.coordinates);
-        });
-        mapInstance.fitBounds(bounds, { padding: 50 });
+        // Fit bounds to show all markers if we have any
+        if (locations.length > 0) {
+          const bounds = new mapboxgl.LngLatBounds();
+          locations.forEach(location => {
+            bounds.extend(location.coordinates);
+          });
+          mapInstance.fitBounds(bounds, { padding: 50 });
+        }
       });
 
       setMap(mapInstance);
@@ -201,6 +231,7 @@ const ItineraryMap = ({ itineraryData }) => {
         routesRef.current = [];
       };
     } catch (err) {
+      console.error('Map error:', err);
       setError(err.message);
     }
   }, [itineraryData]);

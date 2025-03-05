@@ -4,16 +4,16 @@
   border-radius: 1rem;
   padding: 1.5rem;
   color: inherit;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(9, 57, 35, 0.1);
+  transition: all 0.3s ease;
 }
 
 .price-summary-title {
   font-size: 2.25rem !important;
   font-weight: 600 !important;
   margin-bottom: 1.5rem !important;
-  background: linear-gradient(to right, #1b5e20, #4caf50);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #1b5e20;
   text-align: center;
 }
 
@@ -22,7 +22,7 @@
   background: linear-gradient(
     to right,
     transparent,
-    rgba(255, 255, 255, 0.5) 50%,
+    rgba(0, 0, 0, 0.1) 50%,
     transparent
   );
   margin: 0.75rem 0;
@@ -39,7 +39,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .segment-item-container {
@@ -47,15 +47,17 @@
 }
 
 .segment-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(9, 57, 35, 0.05);
   border-radius: 0.5rem;
   padding: 0.5rem;
   margin: 0 -0.5rem;
+  transform: translateY(-2px);
 }
 
 .segment-name {
   color: inherit;
   opacity: 0.9;
+  font-weight: 500;
 }
 
 .segment-amount {
@@ -64,18 +66,25 @@
   opacity: 0.9;
 }
 
-/* Flight breakdown styles */
+.segment-icon-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .segment-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
   cursor: pointer;
+  padding: 0.25rem 0;
 }
 
 .flight-breakdown {
   margin-top: 1rem;
   padding-left: 1.5rem;
+  animation: slideIn 0.3s ease-out;
 }
 
 .breakdown-title {
@@ -91,7 +100,7 @@
 
 .breakdown-name {
   color: inherit;
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 .breakdown-amount {
@@ -102,7 +111,7 @@
 
 /* Original summary section styles */
 .summary-section {
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   padding-top: 1rem;
   margin-bottom: 1rem;
   display: flex;
@@ -128,7 +137,7 @@
 }
 
 .total-section {
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   padding-top: 1rem;
   display: flex;
   justify-content: space-between;
@@ -142,35 +151,44 @@
 
 .total-amount {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace !important;
-  color: inherit !important;
+  color: #2e7d32 !important;
   font-weight: 600 !important;
-  background: linear-gradient(to right, #2e7d32, #082609);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 /* Theme-specific styles */
-[data-theme='light'] .total-amount {
-  color: #ffffff !important;
+[data-theme='dark'] .price-summary-container {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(42, 157, 143, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
-[data-theme='light'] .price-summary-title {
-  color: #000000 !important;
+[data-theme='dark'] .price-summary-title {
+  color: #4caf50;
+}
+
+[data-theme='dark'] .segment-divider {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent
+  );
+}
+
+[data-theme='dark'] .segment-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .summary-section {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .total-section {
+  border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme='dark'] .total-amount {
-  background: linear-gradient(to right, #4caf50, #81c784);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-[data-theme='light'] .price-summary-title {
-  background: linear-gradient(to right, #4caf50, #274028);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #81c784 !important;
 }
 
 @media (max-width: 768px) {
@@ -180,7 +198,7 @@
 
   .price-summary-title {
     text-align: center;
-    font-size: 1.125rem !important;
+    font-size: 1.75rem !important;
   }
 }
 
@@ -188,10 +206,10 @@
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }

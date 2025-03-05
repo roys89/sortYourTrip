@@ -1,8 +1,13 @@
 import {
   AlertTriangle,
+  Armchair,
+  Briefcase,
   Clock,
   Info,
-  MapPin, Plane, X
+  MapPin,
+  Plane, // Using Armchair icon instead of Seat which isn't available
+  Utensils,
+  X
 } from 'lucide-react';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,7 +22,140 @@ const FlightModal = () => {
   if (!isModalOpen || !flightData) return null;
 
   const formatTime = (date, time) => {
-    return time || 'Not available';
+    if (!date) return time || 'Not available';
+    try {
+      return new Date(date).toLocaleTimeString() || time || 'Not available';
+    } catch (error) {
+      return time || 'Not available';
+    }
+  };
+
+  // Helper function to render seat selection
+  const renderSeatSelection = (segment) => {
+    // Check if seats are available and selected
+    const seatMap = flightData.seatMap?.find(
+      map => map.origin === segment.origin && map.destination === segment.destination
+    );
+
+    const selectedSeats = flightData.selectedSeats?.find(
+      seats => seats.origin === segment.origin && seats.destination === segment.destination
+    );
+
+    if (!seatMap || !flightData.isSeatSelected) {
+      return (
+        <div className="modal-card">
+          <div className="flex items-center gap-2">
+            <Armchair size={18} className="modal-icon" />
+            <span className="modal-text-base">No Seat Selected</span>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Default Seat: Any available seat from {segment.baggage} class
+          </p>
+        </div>
+      );
+    }
+
+    // If seats are selected
+    return (
+      <div className="modal-card">
+        <div className="flex items-center gap-2 mb-2">
+                            <Armchair size={18} className="modal-icon" />
+          <span className="modal-text-strong">Selected Seats</span>
+        </div>
+        {selectedSeats?.rows?.map(row => 
+          row.seats.map(seat => (
+            <div key={seat.code} className="text-sm">
+              <span className="modal-text-base">
+                Seat {seat.code} - {seat.type.isWindow ? 'Window' : seat.type.isAisle ? 'Aisle' : 'Middle'}
+              </span>
+              <span className="text-gray-500 ml-2">₹{seat.price.toLocaleString()}</span>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to render meal selection
+  const renderMealSelection = (segment) => {
+    const mealOptions = flightData.mealOptions?.find(
+      meal => meal.origin === segment.origin && meal.destination === segment.destination
+    );
+
+    const selectedMeal = flightData.selectedMeal?.find(
+      meal => meal.origin === segment.origin && meal.destination === segment.destination
+    );
+
+    if (!mealOptions || !flightData.isMealSelected) {
+      return (
+        <div className="modal-card">
+          <div className="flex items-center gap-2">
+            <Utensils size={18} className="modal-icon" />
+            <span className="modal-text-base">No Meal Selected</span>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Default: Standard in-flight meal
+          </p>
+        </div>
+      );
+    }
+
+    // If meal is selected
+    return (
+      <div className="modal-card">
+        <div className="flex items-center gap-2 mb-2">
+          <Utensils size={18} className="modal-icon" />
+          <span className="modal-text-strong">Selected Meal</span>
+        </div>
+        {selectedMeal?.options?.map(meal => (
+          <div key={meal.code} className="text-sm">
+            <span className="modal-text-base">{meal.description}</span>
+            <span className="text-gray-500 ml-2">₹{meal.price.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Helper function to render baggage selection
+  const renderBaggageSelection = (segment) => {
+    const baggageOptions = flightData.baggageOptions?.find(
+      baggage => baggage.origin === segment.origin && baggage.destination === segment.destination
+    );
+
+    const selectedBaggage = flightData.selectedBaggage?.find(
+      baggage => baggage.origin === segment.origin && baggage.destination === segment.destination
+    );
+
+    if (!baggageOptions || !flightData.isBaggageSelected) {
+      return (
+        <div className="modal-card">
+          <div className="flex items-center gap-2">
+            <Briefcase size={18} className="modal-icon" />
+            <span className="modal-text-base">No Extra Baggage Selected</span>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Default: {segment.baggage} checked, {segment.cabinBaggage} cabin
+          </p>
+        </div>
+      );
+    }
+
+    // If baggage is selected
+    return (
+      <div className="modal-card">
+        <div className="flex items-center gap-2 mb-2">
+          <Briefcase size={18} className="modal-icon" />
+          <span className="modal-text-strong">Selected Baggage</span>
+        </div>
+        {selectedBaggage?.options?.map(baggage => (
+          <div key={baggage.code} className="text-sm">
+            <span className="modal-text-base">{baggage.description}</span>
+            <span className="text-gray-500 ml-2">₹{baggage.price.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -110,90 +248,122 @@ const FlightModal = () => {
             </div>
 
             {/* Flight Segments */}
-            <div className="modal-section">
-              <h3 className="modal-section-title">
-                <Plane size={18} className="modal-icon" />
-                Flight Segments
-              </h3>
-              <div className="space-y-4">
-                {flightData.segments.map((segment, index) => (
-                  <div key={segment.flightNumber} className="modal-card">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="modal-text-strong">
-                          {segment.origin} → {segment.destination}
-                        </h4>
-                        <p className="modal-text-base text-sm">
-                          Flight {segment.flightNumber}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="modal-text-base text-sm">
-                          Duration: {Math.floor(segment.duration / 60)}h {segment.duration % 60}m
-                        </p>
-                        {segment.groundTime > 0 && (
-                          <p className="text-sm text-blue-500">
-                            Layover: {Math.floor(segment.groundTime / 60)}h {segment.groundTime % 60}m
+            {flightData.segments && flightData.segments.length > 0 && (
+              <div className="modal-section">
+                <h3 className="modal-section-title">
+                  <Plane size={18} className="modal-icon" />
+                  Flight Segments
+                </h3>
+                <div className="space-y-4">
+                  {flightData.segments.map((segment, index) => (
+                    <div key={`${segment.flightNumber || index}`} className="modal-card">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="modal-text-strong">
+                            {segment.origin} → {segment.destination}
+                          </h4>
+                          <p className="modal-text-base text-sm">
+                            Flight {segment.flightNumber}
                           </p>
-                        )}
+                        </div>
+                        <div className="text-right">
+                          <p className="modal-text-base text-sm">
+                            Duration: {Math.floor(segment.duration / 60)}h {segment.duration % 60}m
+                          </p>
+                          {segment.groundTime > 0 && (
+                            <p className="text-sm text-blue-500">
+                              Layover: {Math.floor(segment.groundTime / 60)}h {segment.groundTime % 60}m
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="mt-4 modal-grid-2">
-                      <div>
-                        <p className="text-sm modal-text-strong">Departure</p>
-                        <p className="text-sm modal-text-base">
-                          {formatTime(segment.departureTime, new Date(segment.departureTime).toLocaleTimeString())}
-                        </p>
+                      
+                      <div className="mt-4 modal-grid-2">
+                        <div>
+                          <p className="text-sm modal-text-strong">Departure</p>
+                          <p className="text-sm modal-text-base">
+                            {formatTime(segment.departureTime, segment.departureTime)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm modal-text-strong">Arrival</p>
+                          <p className="text-sm modal-text-base">
+                            {formatTime(segment.arrivalTime, segment.arrivalTime)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm modal-text-strong">Arrival</p>
-                        <p className="text-sm modal-text-base">
-                          {formatTime(segment.arrivalTime, new Date(segment.arrivalTime).toLocaleTimeString())}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="mt-4 modal-grid-2">
-                      <div>
-                        <p className="text-sm modal-text-base">
-                          <span className="modal-text-strong">Baggage:</span> {segment.baggage}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm modal-text-base">
-                          <span className="modal-text-strong">Cabin:</span> {segment.cabinBaggage}
-                        </p>
+                      <div className="mt-4 modal-grid-2">
+                        <div>
+                          <p className="text-sm modal-text-base">
+                            <span className="modal-text-strong">Baggage:</span> {segment.baggage}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm modal-text-base">
+                            <span className="modal-text-strong">Cabin:</span> {segment.cabinBaggage}
+                          </p>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Seat Selection */}
+            {flightData.segments && flightData.segments.length > 0 && (
+              <div className="modal-section">
+                <h3 className="modal-section-title">
+                  <Armchair size={18} className="modal-icon" />
+                  Seat Selection
+                </h3>
+                {flightData.segments.map((segment, index) => (
+                  <div key={`seat-${segment.flightNumber || index}`}>
+                    <h4 className="modal-text-strong mb-2">
+                      {segment.origin} → {segment.destination}
+                    </h4>
+                    {renderSeatSelection(segment)}
                   </div>
                 ))}
               </div>
-            </div>
+            )}
 
-            {/* Fare Details */}
-            {/* <div className="modal-section">
-              <h3 className="modal-section-title">
-                <CreditCard size={18} className="modal-icon" />
-                Fare Details
-              </h3>
-              <div className="modal-card">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="modal-text-base">Base Fare:</span>
-                    <span className="modal-text-strong">₹{flightData.fareDetails.baseFare.toLocaleString()}</span>
+            {/* Meal Selection */}
+            {flightData.segments && flightData.segments.length > 0 && (
+              <div className="modal-section">
+                <h3 className="modal-section-title">
+                  <Utensils size={18} className="modal-icon" />
+                  Meal Selection
+                </h3>
+                {flightData.segments.map((segment, index) => (
+                  <div key={`meal-${segment.flightNumber || index}`}>
+                    <h4 className="modal-text-strong mb-2">
+                      {segment.origin} → {segment.destination}
+                    </h4>
+                    {renderMealSelection(segment)}
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="modal-text-base">Tax & Surcharges:</span>
-                    <span className="modal-text-strong">₹{flightData.fareDetails.taxAndSurcharge.toLocaleString()}</span>
-                  </div>
-                  <div className="pt-2 border-t border-gray-200 dark:border-gray-600 flex justify-between font-semibold">
-                    <span className="modal-text-strong">Total Fare:</span>
-                    <span className="modal-price">₹{flightData.fareDetails.finalFare.toLocaleString()}</span>
-                  </div>
-                </div>
+                ))}
               </div>
-            </div> */}
+            )}
+
+            {/* Baggage Selection */}
+            {flightData.segments && flightData.segments.length > 0 && (
+              <div className="modal-section">
+                <h3 className="modal-section-title">
+                  <Briefcase size={18} className="modal-icon" />
+                  Baggage Selection
+                </h3>
+                {flightData.segments.map((segment, index) => (
+                  <div key={`baggage-${segment.flightNumber || index}`}>
+                    <h4 className="modal-text-strong mb-2">
+                      {segment.origin} → {segment.destination}
+                    </h4>
+                    {renderBaggageSelection(segment)}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Refund Status */}
             <div className="modal-section">
@@ -205,24 +375,7 @@ const FlightModal = () => {
                 {flightData.isRefundable ? 'Refundable' : 'Non-Refundable'}
               </div>
             </div>
-
-            {/* Important Information */}
-            <div className="modal-section">
-              <h3 className="modal-section-title">
-                <Info size={18} className="modal-icon" />
-                Important Information
-              </h3>
-              <div className="modal-info-box">
-                <ul className="space-y-2">
-                  <li>• Check-in at least 2 hours before departure for domestic flights</li>
-                  <li>• Valid photo ID required for security verification</li>
-                  <li>• Baggage allowance may vary by segment</li>
-                  <li>• Fare rules and cancellation policies apply</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Fare Rules */}
+            
             {flightData.fareRules && (
               <div className="modal-section">
                 <h3 className="modal-section-title">
@@ -235,6 +388,22 @@ const FlightModal = () => {
                 />
               </div>
             )}
+
+            {/* Important Information */}
+            <div className="modal-section">
+              <h3 className="modal-section-title">
+                <Info size={18} className="modal-icon" />
+                Important Information
+              </h3>
+              <div className="modal-info-box">
+                <ul className="space-y-2">
+                  <li>• Check-in at least 2 hours before departure for international flights</li>
+                  <li>• Valid photo ID required for security verification</li>
+                  <li>• Baggage allowance may vary by segment</li>
+                  <li>• Fare rules and cancellation policies apply</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>

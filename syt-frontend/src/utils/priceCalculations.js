@@ -117,9 +117,6 @@ export const calculateItineraryTotal = (itinerary, markups, tcsRates) => {
     )
   );
 
-  // Calculate TCS
-  const { tcsAmount, effectiveRate } = calculateTieredTCS(baseTotal, tcsRates);
-
   // Calculate segment totals with markups
   const segmentTotals = {};
   Object.keys(segmentBaseTotals).forEach(segment => {
@@ -128,13 +125,16 @@ export const calculateItineraryTotal = (itinerary, markups, tcsRates) => {
     segmentTotals[segment] = Number((baseAmount + markupAmount).toFixed(2));
   });
 
-  // Calculate subtotal and grand total
+  // Calculate subtotal (total after markup)
   const subtotal = Number(
     Object.values(segmentTotals).reduce(
       (a, b) => Number((a + b).toFixed(2)), 
       0
     )
   );
+
+  // Calculate TCS on subtotal (after markup) instead of base total
+  const { tcsAmount, effectiveRate } = calculateTieredTCS(subtotal, tcsRates);
 
   return {
     segmentTotals,     // Totals for each segment with markup
@@ -148,7 +148,7 @@ export const calculateItineraryTotal = (itinerary, markups, tcsRates) => {
   };
 };
 
-// New addition: Update itinerary object with rechecked prices
+// Update itinerary object with rechecked prices
 export const updateItineraryPrices = (itinerary, flightResults, hotelResults) => {
   const updatedItinerary = JSON.parse(JSON.stringify(itinerary));
 
@@ -195,8 +195,7 @@ export const updateItineraryPrices = (itinerary, flightResults, hotelResults) =>
   return updatedItinerary;
 };
 
-
-// New addition: Calculate price differences
+// Calculate price differences
 export const getPriceCheckSummary = (
   itinerary, 
   flightResults, 

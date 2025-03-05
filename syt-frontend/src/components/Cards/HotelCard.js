@@ -1,4 +1,5 @@
-import { Baby, Bed, MapPin, Star, Users } from 'lucide-react';
+import { useTheme } from '@mui/material/styles';
+import { Baby, Bed, Eye, MapPin, Star, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -13,11 +14,21 @@ const HotelCard = ({
   inquiryToken,
   itineraryToken,
   travelersDetails,
-  showChange = false 
+  showChange = false
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const theme = useTheme();
   const [imageLoadError, setImageLoadError] = useState(false);
+
+  // Apply theme classes directly
+  const themeClass = theme.palette.mode === 'light' ? 'light-theme' : '';
+  const themeAttr = theme.palette.mode === 'light' ? 'light' : 'dark';
+
+  // Get theme-appropriate colors
+  const iconColor = theme.palette.mode === 'dark' 
+    ? theme.palette.primary.main  // Use teal from dark theme
+    : theme.palette.primary.main; // Use dark green from light theme
 
   // Looking at the data structure, hotel data is nested in the response
   const hotelDetails = hotel?.data?.items?.[0] || {};
@@ -25,9 +36,10 @@ const HotelCard = ({
   const traceId = hotel?.data?.traceId;
   const hotelId = hotel?.data?.staticContent?.[0].id;
   
-  // Get the selected room and rate info
-  const roomAndRate = hotelDetails?.selectedRoomsAndRates?.[0] || {};
-  const currentRoomPrice = roomAndRate?.rate?.finalRate || 0;
+  // Get all selected rooms and rates info - now support multiple rooms
+  const roomsAndRates = hotelDetails?.selectedRoomsAndRates || [];
+  // Calculate total price from all rooms
+  const totalRoomPrice = roomsAndRates.reduce((total, room) => total + (room?.rate?.finalRate || 0), 0);
 
   const getHotelName = () => hotelStatic?.name || 'Hotel Name Not Available';
   const getStarCount = () => parseInt(hotelStatic?.starRating) || 0;
@@ -45,13 +57,16 @@ const HotelCard = ({
   };
 
   const getRooms = () => {
-    if (!roomAndRate?.room) return [];
-    return [{
-      room_type: roomAndRate.room.name,
-      no_of_adults: roomAndRate.room.occupancy?.adults || roomAndRate.occupancy?.adults || 0,
-      no_of_children: roomAndRate.room.occupancy?.children || 0,
-      no_of_rooms: 1
-    }];
+    if (!roomsAndRates.length) return [];
+    
+    return roomsAndRates.map(roomAndRate => ({
+      room_type: roomAndRate.room?.name || 'Standard Room',
+      no_of_adults: roomAndRate.room?.occupancy?.adults || roomAndRate.occupancy?.adults || 0,
+      no_of_children: roomAndRate.room?.occupancy?.children || roomAndRate.occupancy?.childAges?.length || 0,
+      child_ages: roomAndRate.room?.occupancy?.childAges || roomAndRate.occupancy?.childAges || [],
+      no_of_rooms: 1,
+      board_basis: roomAndRate.rate?.boardBasis?.description || 'Room Only'
+    }));
   };
 
   const handleViewDetails = () => {
@@ -69,7 +84,7 @@ const HotelCard = ({
       travelersDetails,
       returnTo: '/itinerary',
       oldHotelCode: hotelDetails?.code,
-      existingHotelPrice: roomAndRate.rate?.finalRate,
+      existingHotelPrice: totalRoomPrice,
       checkIn: hotel.checkIn,
       checkOut: hotel.checkOut
     };
@@ -99,7 +114,7 @@ const HotelCard = ({
         checkIn: hotel.checkIn,
         checkOut: hotel.checkOut
       },
-      existingPrice: currentRoomPrice
+      existingPrice: totalRoomPrice
     }));
   };
 
@@ -107,104 +122,230 @@ const HotelCard = ({
     return null;
   }
 
+  // Get unique board basis descriptions
+  const uniqueBoardBasis = [...new Set(roomsAndRates.map(item => item.rate?.boardBasis?.description).filter(Boolean))];
+
   return (
-    <div className="common-card-base">
-      <div className="flex flex-col lg:flex-row h-full">
-        {/* Hotel Image */}
-        <div className="w-full lg:w-80 h-48 lg:h-auto relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-          <img
-            src={getImageUrl()}
-            alt={getHotelName()}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-110"
-            onError={() => setImageLoadError(true)}
+    <div className={`card-wrapper ${themeClass}`} data-theme={themeAttr}>
+      {/* Image Container */}
+      <div className="card-image-container">
+        <div className="card-image-overlay"></div>
+        <img
+          src={getImageUrl()}
+          alt={getHotelName()}
+          className="card-image"
+          loading="lazy"
+          onError={() => setImageLoadError(true)}
+        />
+        <div className="shine-effect"></div>
+        
+        {/* Star rating tag */}
+        {getStarCount() > 0 && (
+          <div className="activity-tag">
+            <Star size={14} color="#fff" />
+            <span>{getStarCount()}-Star</span>
+          </div>
+        )}
+      </div>
+
+      {/* Content Container */}
+      <div className="card-content-wrapper">
+        {/* Hotel Name and Date */}
+        <div className="flex justify-between items-start">
+          <h3 
+            className="text-xl font-bold"
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+          >
+            {getHotelName()}
+          </h3>
+          
+          {hotel.checkIn && (
+            <span 
+              className="text-sm whitespace-nowrap"
+              style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+            >
+              {new Date(hotel.checkIn).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
+              {' - '}
+              {new Date(hotel.checkOut).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
+            </span>
+          )}
+        </div>
+        
+        {/* Location */}
+        <div className="flex items-center gap-2 mt-2">
+          <MapPin 
+            size={16} 
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : iconColor }}
           />
+          <span 
+            className="text-sm"
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+          >
+            {getAddress()}
+          </span>
         </div>
 
-        {/* Content Container */}
-        <div className="flex-1 p-6 flex flex-col">
-          <div className="flex-grow space-y-4">
-            {/* Hotel Name and Stars */}
-            <div>
-              <h3 className="text-xl font-bold text-white">
-                {getHotelName()}
-              </h3>
-              <div className="flex flex-wrap items-center gap-4 mt-2">
-                <div className="flex items-center text-yellow-400">
-                  {[...Array(getStarCount())].map((_, i) => (
-                    <Star key={i} size={16} fill="currentColor" />
-                  ))}
+        {/* Room Details - Scrollable container for multiple rooms */}
+        <div className="overflow-x-auto mt-2 pb-2">
+          <div className="flex gap-4" style={{ minWidth: 'fit-content' }}>
+            {getRooms().map((room, index) => (
+              <div key={index} className="hotel-room p-2 border border-gray-200 rounded-lg min-w-48">
+                <div className="flex items-center gap-2">
+                  <Bed 
+                    size={16} 
+                    style={{ color: theme.palette.mode === 'light' ? '#093923' : iconColor }}
+                  />
+                  <span 
+                    className="text-sm font-medium"
+                    style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                  >
+                    {room.room_type}
+                  </span>
                 </div>
-                <div className="flex items-center text-gray-100">
-                  <MapPin size={16} className="text-blue-500 mr-1" />
-                  <span className="text-sm">{getAddress()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Room Types */}
-            <div className="space-y-2">
-              {getRooms().map((room, index) => (
-                <div key={index} className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-100">
-                  <div className="flex items-center">
-                    <Bed size={16} className="text-blue-500 mr-2 flex-shrink-0" />
-                    <span className="font-medium">{room.room_type}</span>
+                
+                <div className="hotel-info mt-1 ml-6">
+                  <div className="hotel-info-item flex items-center gap-1">
+                    <Users 
+                      size={14} 
+                      style={{ color: theme.palette.mode === 'light' ? '#093923' : iconColor }}
+                    />
+                    <span 
+                      className="text-xs"
+                      style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                    >
+                      {room.no_of_adults} {room.no_of_adults === 1 ? 'Adult' : 'Adults'}
+                    </span>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center">
-                      <Users size={16} className="text-blue-500 mr-1 flex-shrink-0" />
-                      <span>x{room.no_of_adults}</span>
+                  {room.no_of_children > 0 && (
+                    <div className="hotel-info-item flex items-center gap-1">
+                      <Baby 
+                        size={14} 
+                        style={{ color: theme.palette.mode === 'light' ? '#093923' : iconColor }}
+                      />
+                      <span 
+                        className="text-xs"
+                        style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                      >
+                        {room.no_of_children} {room.no_of_children === 1 ? 'Child' : 'Children'}
+                        {room.child_ages && room.child_ages.length > 0 && (
+                          <span className="text-xs opacity-75"> (Ages: {room.child_ages.join(', ')})</span>
+                        )}
+                      </span>
                     </div>
-                    {room.no_of_children > 0 && (
-                      <div className="flex items-center">
-                        <Baby size={16} className="text-blue-500 mr-1 flex-shrink-0" />
-                        <span>x{room.no_of_children}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center">
-                      <Bed size={16} className="text-blue-500 mr-1 flex-shrink-0" />
-                      <span>x{room.no_of_rooms}</span>
-                    </div>
+                  )}
+                  
+                  {/* Show board basis per room */}
+                  <div className="mt-1">
+                    <span 
+                      className="inline-block text-xs px-2 py-1 rounded-full"
+                      style={{ 
+                        color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db',
+                        backgroundColor: theme.palette.mode === 'light' ? 'rgba(9, 57, 35, 0.1)' : 'rgba(59, 130, 246, 0.2)',
+                        borderColor: theme.palette.mode === 'light' ? 'rgba(9, 57, 35, 0.2)' : 'rgba(59, 130, 246, 0.2)'
+                      }}
+                    >
+                      {room.board_basis}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Boarding Details */}
-            {roomAndRate?.rate?.boardBasis?.description && (
-              <div>
-                <span className="inline-block bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-sm backdrop-blur-sm border border-blue-500/20">
-                  {roomAndRate.rate.boardBasis.description}
-                </span>
               </div>
-            )}
+            ))}
           </div>
         </div>
-
-        {/* Buttons Container */}
-        <div className="flex flex-col justify-center p-4 space-y-2">
-          <button
-            onClick={handleViewDetails}
-            className="common-button-base common-button-view"
-          >
-            View Details
-          </button>
-          {showChange && (
-            <button
-              onClick={handleChangeHotel}
-              className="common-button-base common-button-change"
-            >
-              Change Hotel
-            </button>
-          )}
-          <button
-            onClick={handleRoomChange}
-            className="common-button-base common-button-change"
-          >
-            Change Room
-          </button>
+        
+        {/* TripAdvisor Rating and Action Buttons in the same line */}
+        <div className="card-footer">
+  {/* TripAdvisor Rating */}
+  <div className="card-rating">
+    <div className="flex items-center">
+      <span 
+        className="text-sm font-bold mr-2"
+        style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+      >
+        TripAdvisor
+      </span>
+      <div className="flex items-center">
+        {/* Full stars */}
+        {[1, 2, 3, 4].map((_, index) => (
+          <Star 
+            key={index} 
+            size={16} 
+            fill="#FFC107" 
+            color="#FFC107" 
+            style={{ marginRight: '2px' }}
+          />
+        ))}
+        {/* Half star - more accurate representation */}
+        <div className="relative" style={{ marginRight: '2px' }}>
+          {/* Empty star as background */}
+          <Star 
+            size={16} 
+            fill="transparent" 
+            color="#FFC107" 
+          />
+          {/* Half-filled star overlaid */}
+          <div className="absolute top-0 left-0 overflow-hidden" style={{ width: '50%' }}>
+            <Star 
+              size={16} 
+              fill="#FFC107" 
+              color="#FFC107" 
+            />
+          </div>
         </div>
+        <span 
+          className="ml-1 font-bold"
+          style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+        >
+          4.5
+        </span>
+      </div>
+    </div>
+  </div>
+  
+  {/* Action Buttons */}
+  <div className="card-actions">
+    <button
+      onClick={handleViewDetails}
+      className="premium-button btn-view"
+    >
+      <div className="btn-icon-container">
+        <Eye size={16} />
+      </div>
+    </button>
+    
+    {showChange && (
+      <button
+        onClick={handleChangeHotel}
+        className="premium-button btn-change"
+      >
+        <div className="btn-icon-container">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 4v6h6" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+          <span>Change Hotel</span>
+        </div>
+      </button>
+    )}
+    
+    <button
+      onClick={handleRoomChange}
+      className="premium-button btn-change"
+    >
+      <div className="btn-icon-container">
+        <Bed size={16} />
+        <span>Change Room</span>
+      </div>
+    </button>
+  </div>
+</div>
       </div>
     </div>
   );

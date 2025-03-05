@@ -1,20 +1,59 @@
-import { ArrowRight, Clock, Plane, Timer } from 'lucide-react';
+import { useTheme } from '@mui/material/styles';
+import {
+  Briefcase,
+  Clock,
+  Eye,
+  Plane
+} from 'lucide-react';
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { openSeatModal, setSelectedFlight } from '../../redux/slices/flightSlice';
 import './Card.css';
 
+// Map of airline names to image paths
+const AIRLINE_IMAGES = {
+  'SpiceJet': '/assets/images/airlines/spicejet.jpg',
+  'Air India': '/assets/images/airlines/airindia.jpg',
+  'Oman Aviation': '/assets/images/airlines/oman.jpg',
+  'AI Express': '/assets/images/airlines/airindiaexpress.jpg',
+  'Saudi Arabian Airlines': '/assets/images/airlines/saudia.jpg',
+  'Etihad Airways': '/assets/images/airlines/etihad.jpg',
+  'Srilankan Airlines': '/assets/images/airlines/srilankan.jpg',
+  'Azerbaijan Airlines': '/assets/images/airlines/azerbaijan.jpg',
+  'Indigo': '/assets/images/airlines/indigo.jpg',
+  'Kuwait Airways': '/assets/images/airlines/kuwait.jpg',
+  'Lufthansa': '/assets/images/airlines/lufthansa.jpg',
+  'Emirates Airlines': '/assets/images/airlines/emirates.jpg'
+};
+
+// Default image if airline not in map
+const DEFAULT_AIRLINE_IMAGE = '/api/placeholder/400/300';
+
+// Flight path images
+const FLIGHT_PATH_IMAGES = {
+  light: '/assets/images/light_flight.png',
+  dark: '/assets/images/dark_flight.png'
+};
+
 const FlightCard = ({ 
   flight, 
   inquiryToken,
   itineraryToken,
   travelersDetails,
-  showChange = false 
+  showChange = false,
+  showTimelineIcon = false
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const theme = useTheme();
   const flightData = flight?.flightData;
+
+  // Apply theme classes directly
+  const themeClass = theme.palette.mode === 'light' ? 'light-theme' : '';
+  const themeAttr = theme.palette.mode === 'light' ? 'light' : 'dark';
+
+
 
   if (!flightData) return null;
 
@@ -26,6 +65,21 @@ const FlightCard = ({
       minute: '2-digit', 
       hour12: true 
     });
+  };
+
+  const formatDate = (time) => {
+    if (!time) return 'Not available';
+    const dateTime = new Date(time);
+    return dateTime.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getAirlineImage = () => {
+    // Check if the airline name exists in our mapping
+    return AIRLINE_IMAGES[flightData.airline] || DEFAULT_AIRLINE_IMAGE;
   };
 
   const handleViewDetails = () => {
@@ -74,106 +128,234 @@ const FlightCard = ({
     )
   );
 
+  const renderTimelineIcon = () => {
+    if (!showTimelineIcon) return null;
+    
+    return (
+      <>
+        <div className="timeline-line"></div>
+        <div className="timeline-icon">
+          <Plane size={22} />
+        </div>
+        <div className="timeline-label">Flight</div>
+      </>
+    );
+  };
+
+  // Get only the first segment for simplicity
+  const mainSegment = flightData.segments[0];
+
+  // Get current theme mode flight path image
+  const flightPathImage = theme.palette.mode === 'light' 
+    ? FLIGHT_PATH_IMAGES.light 
+    : FLIGHT_PATH_IMAGES.dark;
+
   return (
-    <div className="common-card-base">
-      <div className="p-6">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-          {/* Main Content */}
-          <div className="flex-grow space-y-6">
-            {/* Airline Info */}
-            <div className="flex items-center space-x-3">
-              <Plane size={24} className="text-blue-500" />
-              <div>
-                <h3 className="text-xl font-bold text-white">
-                  {flightData.airline}
-                </h3>
-                <span className="text-gray-300 text-sm">
-                  Flight {flightData.flightCode}
-                </span>
+    // Removed padding-left from timeline-container style
+    <div className={`card-wrapper ${themeClass}`} data-theme={themeAttr}>
+      {renderTimelineIcon()}
+      
+      <div className="card-wrapper">
+        {/* Flight Image */}
+        <div className="card-image-container">
+          
+          <img 
+            src={getAirlineImage()} 
+            alt={`${flightData.airline} flight`}
+            className="card-image" 
+          />
+          <div className="shine-effect"></div>
+          
+          {/* Flight badge */}
+          <div className="flight-badge">
+            <Plane size={14} />
+            <span>{flightData.flightCode}</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="card-content-wrapper">
+          {/* Airline and Date */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <h3 
+                className="text-xl font-bold"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+              >
+                {flightData.airline}
+              </h3>
+            </div>
+            
+            {flightData.departureDate && (
+              <div 
+                className="text-sm whitespace-nowrap"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+              >
+                {new Date(flightData.departureDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Flight Route - Exact match to reference image */}
+          <div className="travel-info">
+            <div className="travel-route">
+              {/* Origin */}
+              <div className="travel-endpoint">
+                <div 
+                  className="endpoint-city"
+                  style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+                >
+                  {mainSegment.origin}
+                </div>
+                <div 
+                  className="endpoint-time"
+                  style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                >
+                  {formatTime(mainSegment.departureTime)}
+                </div>
+                <div 
+                  className="endpoint-date"
+                  style={{ color: theme.palette.mode === 'light' ? '#477667' : '#9ca3af' }}
+                >
+                  {new Date(mainSegment.departureTime).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </div>
+              </div>
+
+              {/* Duration */}
+              <div className="travel-duration">
+                <div 
+                  className="duration-text"
+                  style={{ color: theme.palette.mode === 'light' ? '#477667' : '#9ca3af' }}
+                >
+                  {`${Math.floor(mainSegment.duration / 60)}h ${mainSegment.duration % 60}m`}
+                </div>
+                <div className="flight-path-container">
+                  <img 
+                    src={flightPathImage}
+                    alt="Flight path"
+                    className="flight-path-image"
+                  />
+                </div>
+              </div>
+
+              {/* Destination */}
+              <div className="travel-endpoint">
+                <div 
+                  className="endpoint-city"
+                  style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+                >
+                  {mainSegment.destination}
+                </div>
+                <div 
+                  className="endpoint-time"
+                  style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                >
+                  {formatTime(mainSegment.arrivalTime)}
+                </div>
+                <div 
+                  className="endpoint-date"
+                  style={{ color: theme.palette.mode === 'light' ? '#477667' : '#9ca3af' }}
+                >
+                  {new Date(mainSegment.arrivalTime).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Flight Segments */}
-            {flightData.segments.map((segment, index) => (
-              <div key={segment.flightNumber}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                  {/* Departure */}
-                  <div className="space-y-1">
-                    <p className="font-semibold text-lg text-white">
-                      {segment.origin}
-                    </p>
-                    <div className="flex items-center space-x-2 text-gray-100">
-                      <Timer size={16} className="text-blue-500" />
-                      <span>{formatTime(segment.departureTime)}</span>
-                    </div>
-                  </div>
-
-                  {/* Flight Duration */}
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <span className="text-sm text-gray-300">
-                      {`${Math.floor(segment.duration / 60)}h ${segment.duration % 60}m`}
-                    </span>
-                    <div className="w-full flex items-center justify-center relative">
-                      <div className="h-[2px] bg-gray-700 w-full relative">
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                          <Plane size={16} className="text-blue-500 transform rotate-90" />
-                        </div>
-                      </div>
-                      <ArrowRight size={16} className="text-blue-500 absolute right-0 top-1/2 transform -translate-y-1/2" />
-                    </div>
-                  </div>
-
-                  {/* Arrival */}
-                  <div className="space-y-1 md:text-right">
-                    <p className="font-semibold text-lg text-white">
-                      {segment.destination}
-                    </p>
-                    <div className="flex items-center space-x-2 text-gray-100 md:justify-end">
-                      <Timer size={16} className="text-blue-500" />
-                      <span>{formatTime(segment.arrivalTime)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Layover Information */}
-                {index < flightData.segments.length - 1 && segment.groundTime && (
-                  <div className="flex justify-center my-4">
-                    <div className="flex items-center space-x-2 text-gray-300 bg-gray-700 bg-opacity-50 px-4 py-2 rounded-full">
-                      <Clock size={16} className="text-blue-500" />
-                      <span className="text-sm">
-                        Layover: {Math.floor(segment.groundTime / 60)}h {segment.groundTime % 60}m
-                      </span>
-                    </div>
-                  </div>
-                )}
+          {/* Baggage Info */}
+          <div className="flex flex-wrap gap-x-4 gap-y-2 justify-end">
+            <div className="flex items-center gap-2">
+              <Briefcase 
+                size={14} 
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#3cd0be' }}
+              />
+              <span 
+                className="text-xs"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+              >
+                Check-in: {mainSegment.baggage}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Briefcase 
+                size={14} 
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#3cd0be' }}
+              />
+              <span 
+                className="text-xs"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+              >
+                Cabin: {mainSegment.cabinBaggage}
+              </span>
+            </div>
+            
+            {flightData.segments.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Clock 
+                  size={14} 
+                  style={{ color: theme.palette.mode === 'light' ? '#093923' : '#3cd0be' }}
+                />
+                <span 
+                  className="text-xs"
+                  style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                >
+                  {flightData.segments.length - 1} {flightData.segments.length - 1 === 1 ? 'Layover' : 'Layovers'}
+                </span>
               </div>
-            ))}
+            )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col space-y-4 sm:w-auto w-full lg:min-w-[140px]">
+          <div className="card-actions justify-end">
             <button 
               onClick={handleViewDetails}
-              className="common-button-base common-button-view"
+              className="premium-button btn-view"
             >
-              View Details
+              <div className="btn-icon-container">
+                <Eye size={16} />
+              </div>
             </button>
             
             {hasAvailableSeats && (
               <button 
                 onClick={handleChooseSeats}
-                className="common-button-base common-button-view"
+                className="premium-button btn-view"
               >
-                {flightData.isSeatSelected ? 'Change Seats' : 'Choose Seats'}
+                <div className="btn-icon-container">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 9h-6.5a3.5 3.5 0 0 0 0 7h.5" />
+                    <path d="M16 16v1a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  <span>{flightData.isSeatSelected ? 'Change Seats' : 'Choose Seats'}</span>
+                </div>
               </button>
             )}
             
             {showChange && (
               <button 
                 onClick={handleChangeFlight}
-                className="common-button-base common-button-change"
+                className="premium-button btn-change"
               >
-                Change Flight
+                <div className="btn-icon-container">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 4v6h6" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  <span>Change Flight</span>
+                </div>
               </button>
             )}
           </div>

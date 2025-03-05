@@ -1,6 +1,5 @@
 import { Typography } from '@mui/material';
 import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMarkupSettings } from '../../redux/slices/markupSlice';
@@ -130,7 +129,7 @@ const PriceSummary = ({ itinerary }) => {
         Price Summary
       </Typography>
 
-      <div className="segment-totals">
+      {/* <div className="segment-totals">
         {Object.entries(totals.segmentTotals).map(([segment, amount], index) => {
           const hasFlightBreakdown = segment === 'flights' && 
             itinerary.cities.some(city => 
@@ -185,7 +184,63 @@ const PriceSummary = ({ itinerary }) => {
             </React.Fragment>
           );
         })}
-      </div>
+      </div> */}
+
+      {/* <div className="segment-totals">
+        {Object.entries(totals.segmentTotals).map(([segment, amount], index) => {
+          const hasFlightBreakdown = segment === 'flights' && 
+            itinerary.cities.some(city => 
+              city.days.some(day => 
+                day.flights?.some(flight => flight.flightData)
+              )
+            );
+
+          return (
+            <React.Fragment key={segment}>
+              <motion.div variants={itemVariants} className="segment-item-container">
+                <div 
+                  className="segment-header"
+                  onClick={() => hasFlightBreakdown && setExpandedSegment(expandedSegment === segment ? null : segment)}
+                >
+                  <div className="segment-icon-wrapper">
+                    <Typography className="segment-name">
+                      {segment.charAt(0).toUpperCase() + segment.slice(1)}
+                    </Typography>
+                    {hasFlightBreakdown && (
+                      expandedSegment === segment ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    )}
+                  </div>
+                  <Typography className="segment-amount">
+                    {formatAmount(amount)}
+                  </Typography>
+                </div>
+          
+                {expandedSegment === segment && hasFlightBreakdown && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {itinerary.cities.map((city, cityIndex) => 
+                      city.days.map((day, dayIndex) => 
+                        day.flights?.map((flight, flightIndex) => (
+                          <div key={`${cityIndex}-${dayIndex}-${flightIndex}`}>
+                            {renderFlightBreakdown(flight)}
+                          </div>
+                        ))
+                      )
+                    )}
+                  </motion.div>
+                )}
+              </motion.div>
+              {index < Object.entries(totals.segmentTotals).length - 1 && (
+                <div className="segment-divider" />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div> */}
 
       <div className="summary-section">
         <div className="summary-row">

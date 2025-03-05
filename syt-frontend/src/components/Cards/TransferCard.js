@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { Clock, Info, MapPin } from 'lucide-react';
+import { Clock, Eye, Info, MapPin } from 'lucide-react';
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { setChangeTransfer, setSelectedTransfer } from '../../redux/slices/transferSlice';
@@ -7,7 +7,7 @@ import './Card.css';
 
 const PLACEHOLDER_IMAGE = '/assets/images/api/placeholder/400/320';
 
-const truncateAddress = (address, maxLength = 30) => {
+const truncateAddress = (address, maxLength = 40) => {
   return address && address.length > maxLength 
     ? `${address.slice(0, maxLength)}...`
     : address;
@@ -17,10 +17,14 @@ const TransferCard = ({ transfer }) => {
   const dispatch = useDispatch();
   const theme = useTheme();
 
+  // Apply theme classes directly
+  const themeClass = theme.palette.mode === 'light' ? 'light-theme' : '';
+  const themeAttr = theme.palette.mode === 'light' ? 'light' : 'dark';
+
   // Determine icon colors based on theme
   const iconColor = theme.palette.mode === 'dark' 
-    ? '#60A5FA'  // Light blue for dark mode
-    : '#1D4ED8'; // Darker blue for light mode
+    ? theme.palette.primary.main  // Teal in dark mode
+    : theme.palette.primary.main; // Dark green in light mode
 
   const formatTransferType = (type) => {
     return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -29,112 +33,220 @@ const TransferCard = ({ transfer }) => {
   const vehicle = transfer.details.selectedQuote?.quote?.vehicle;
 
   return (
-    <div className="common-card-base">
-      <div className="flex flex-col lg:flex-row h-full">
-        {/* Image Container */}
-        <div className="w-full lg:w-80 h-48 lg:h-auto relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-          <img 
-            src={vehicle?.vehicleImages?.ve_im_url || PLACEHOLDER_IMAGE}
-            alt={vehicle?.ve_similar_types || 'Transfer vehicle'}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-110"
-          />
-        </div>
+    <div className={`card-wrapper ${themeClass}`} data-theme={themeAttr}>
+      {/* Image Container */}
+      <div className="card-image-container">
+        <div className="card-image-overlay"></div>
+        <img 
+          src={vehicle?.vehicleImages?.ve_im_url || PLACEHOLDER_IMAGE}
+          alt={vehicle?.ve_similar_types || 'Transfer vehicle'}
+          className="card-image"
+        />
+        <div className="shine-effect"></div>
+        
+        {/* Duration tag */}
+        {transfer.details.duration && (
+          <div className="activity-tag">
+            <Clock size={14} color="#fff" />
+            <span>{transfer.details.duration} min</span>
+          </div>
+        )}
+      </div>
 
-        {/* Content Container */}
-        <div className="flex-1 p-6 flex flex-col">
-          <div className="flex-grow space-y-6">
-            {/* Title and Vehicle Info */}
-            <div>
-              <h3 className="text-xl font-bold text-white">
-                {formatTransferType(transfer.type)}
-              </h3>
-              <p className="mt-2 text-gray-300">
-                {vehicle?.ve_class} - {vehicle?.ve_similar_types}
-              </p>
+      {/* Content Container */}
+      <div className="card-content-wrapper">
+        {/* Title and Vehicle Info */}
+        <div className="flex justify-between items-center">
+          <h3 
+            className="text-xl font-bold"
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+          >
+            {formatTransferType(transfer.type)}
+          </h3>
+          
+          {/* Show pickup date and time from selectedQuote data */}
+          {transfer.details.selectedQuote?.routeDetails?.pickup_date && (
+            <div 
+              className="text-sm whitespace-nowrap"
+              style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+            >
+              {new Date(transfer.details.selectedQuote.routeDetails.pickup_date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })} {' '}
+              {new Date(transfer.details.selectedQuote.routeDetails.pickup_date).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              })}
             </div>
+          )}
+          {/* Fallback to date if pickup_date is not available */}
+          {!transfer.details.selectedQuote?.routeDetails?.pickup_date && transfer.details.date && (
+            <div 
+              className="text-sm whitespace-nowrap"
+              style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+            >
+              {new Date(transfer.details.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Vehicle type */}
+        {vehicle?.ve_class && (
+          <div 
+            className="text-sm"
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+          >
+            {vehicle?.ve_class} - {vehicle?.ve_similar_types}
+          </div>
+        )}
 
-            {/* Main Details Grid */}
-            <div className="space-y-4">
-              {/* Route Info */}
-              <div className="flex items-center space-x-2">
-                <MapPin size={16} color={iconColor} className="flex-shrink-0" />
-                <div className="flex flex-col w-full">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2">
-                    <span className="text-sm text-gray-100 mb-1 sm:mb-0">
-                      From: {truncateAddress(transfer.details.origin?.display_address)}
-                    </span>
-                    <div className="hidden sm:flex items-center mx-2">
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="24" 
-                        height="24" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke={iconColor} 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        className="lucide lucide-arrow-right"
-                      >
-                        <path d="M5 12h14" />
-                        <path d="m12 5 7 7-7 7" />
-                      </svg>
-                    </div>
-                    <div className="sm:hidden flex items-center self-center w-full justify-center my-1">
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="24" 
-                        height="24" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke={iconColor} 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        className="lucide lucide-arrow-down"
-                      >
-                        <path d="M12 5v14" />
-                        <path d="m19 12-7 7-7-7" />
-                      </svg>
-                    </div>
-                    <span className="text-sm text-gray-100">
-                      To: {truncateAddress(transfer.details.destination?.display_address)}
-                    </span>
-                  </div>
-                </div>
+     {/* Transfer Route with origin-destination - horizontal layout */}
+     <div className="mt-3 flex justify-between items-center gap-6">
+          {/* Origin */}
+          <div className="flex items-start gap-2">
+            <div style={{ marginTop: "2px" }}>
+              <div 
+                style={{ 
+                  width: "10px", 
+                  height: "10px", 
+                  borderRadius: "50%", 
+                  backgroundColor: theme.palette.mode === 'light' ? '#093923' : '#2A9D8F'
+                }}
+              ></div>
+            </div>
+            <div>
+              <div 
+                className="text-sm font-medium"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+              >
+                From:
               </div>
-
-              {/* Journey Details */}
-              <div className="flex items-center space-x-4 text-gray-100">
-                <div className="flex items-center space-x-2">
-                  <Clock size={16} color={iconColor} className="flex-shrink-0" />
-                  <span className="text-sm">{transfer.details.duration} minutes</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Info size={16} color={iconColor} className="flex-shrink-0" />
-                  <span className="text-sm">{transfer.details.distance}</span>
-                </div>
+              <div 
+                className="text-sm"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+              >
+                {truncateAddress(transfer.details.origin?.display_address, 25)}
+              </div>
+            </div>
+          </div>
+          
+          {/* Connection Arrow */}
+          <div className="flex items-center">
+            <div 
+              style={{ 
+                width: "40px", 
+                height: "2px", 
+                backgroundColor: theme.palette.mode === 'light' ? '#093923' : '#2A9D8F'
+              }}
+            ></div>
+            <div 
+              style={{ 
+                width: "0", 
+                height: "0", 
+                borderTop: "5px solid transparent",
+                borderBottom: "5px solid transparent",
+                borderLeft: `8px solid ${theme.palette.mode === 'light' ? '#093923' : '#2A9D8F'}`
+              }}
+            ></div>
+          </div>
+          
+          {/* Destination */}
+          <div className="flex items-start gap-2">
+            <div style={{ marginTop: "2px" }}>
+              <div 
+                style={{ 
+                  width: "10px", 
+                  height: "10px", 
+                  borderRadius: "50%", 
+                  backgroundColor: theme.palette.mode === 'light' ? '#d32f2f' : '#E63946'
+                }}
+              ></div>
+            </div>
+            <div>
+              <div 
+                className="text-sm font-medium"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#FFFFFF' }}
+              >
+                To:
+              </div>
+              <div 
+                className="text-sm"
+                style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+              >
+                {truncateAddress(transfer.details.destination?.display_address, 25)}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Buttons Container - Right-most side */}
-        <div className="flex flex-col justify-center p-4 space-y-2">
-          <button 
-            onClick={() => dispatch(setSelectedTransfer(transfer))}
-            className="common-button-base common-button-view w-full"
+        {/* Journey Details and Action Buttons in one row */}
+        <div className="card-footer">
+  {/* Journey Details */}
+  <div className="card-details">
+    <div className="flex items-center gap-4">
+      {transfer.details.distance && (
+        <div className="flex items-center gap-2">
+          <MapPin 
+            size={16} 
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : iconColor }}
+          />
+          <span 
+            className="text-sm"
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
           >
-            View Details
-          </button>
-          <button 
-            onClick={() => dispatch(setChangeTransfer(transfer))}
-            className="common-button-base common-button-change w-full"
-          >
-            Change Transfer
-          </button>
+            {transfer.details.distance}
+          </span>
         </div>
+      )}
+      
+      {transfer.details.serviceLevel && (
+        <div className="flex items-center gap-2">
+          <Info 
+            size={16} 
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : iconColor }}
+          />
+          <span 
+            className="text-sm"
+            style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+          >
+            {transfer.details.serviceLevel}
+          </span>
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* Action Buttons */}
+  <div className="card-actions">
+    <button 
+      onClick={() => dispatch(setSelectedTransfer(transfer))}
+      className="premium-button btn-view"
+    >
+      <div className="btn-icon-container">
+        <Eye size={16} />
+      </div>
+    </button>
+    
+    <button 
+      onClick={() => dispatch(setChangeTransfer(transfer))}
+      className="premium-button btn-change"
+    >
+      <div className="btn-icon-container">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 4v6h6" />
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </svg>
+        <span>Change Transfer</span>
+      </div>
+    </button>
+  </div>
+</div>
+
       </div>
     </div>
   );

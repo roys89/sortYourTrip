@@ -1,278 +1,428 @@
-/* Card.css - Generic reusable styles for cards */
+/* Updated Card.css with full-height image */
 
-/* Base card styles for common card-like elements */
-.common-card-base {
-    background-color: rgba(17, 24, 39, 0.5);
-    backdrop-filter: blur(12px);
-    border-radius: 0.75rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    overflow: hidden;
-    border: 1px solid rgba(55, 65, 81, 0.5);
+/* Timeline layout */
+.timeline-container {
+  position: relative;
+  padding-left: 100px;
+  margin-bottom: 2rem;
+}
+
+/* Updated card design with FULL HEIGHT image */
+.card-wrapper {
+  display: flex;
+  margin-bottom: 2rem;
+  width: 100%;
+  /* Add a min-height to ensure consistency */
+  min-height: 180px;
+}
+
+/* Image container with full height and rounded corners */
+.card-image-container {
+  position: relative;
+  overflow: hidden;
+  width: 250px;
+  /* Remove fixed height to allow full height */
+  height: auto;
+  border-radius: 12px;
+  flex-shrink: 0;
+  /* Enhanced box shadow for more depth */
+  box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.25),
+    0 6px 6px rgba(0, 0, 0, 0.22),
+    0 0 15px rgba(0, 0, 0, 0.2) inset;
+  margin-right: 20px;
+  /* Ensure it takes full height of parent */
+  align-self: stretch;
+}
+
+@media (max-width: 768px) {
+  .card-image-container {
+
+    box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.25),
+    0 6px 6px rgba(0, 0, 0, 0.22),
+    0 0 15px rgba(0, 0, 0, 0.2) inset;
+  }
+}
+
+/* Image with shine effect - adjusted for full height */
+.card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Subtle overlay for better text visibility on image */
+.card-image-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.2) 0%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  z-index: 2;
+}
+
+/* Shine effect container */
+.shine-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Shine effect */
+.shine-effect::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -150%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 35%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 65%,
+    transparent 100%
+  );
+  transform: rotate(30deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-image-container:hover .shine-effect::after {
+  opacity: 1;
+  animation: shine 1.5s ease-out forwards;
+}
+
+@keyframes shine {
+  to {
+    left: 150%;
+  }
+}
+
+/* Card content - ensure it takes full height */
+.card-content-wrapper {
+  flex: 1;
+  padding: 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  /* Ensure proper vertical spacing */
+  justify-content: space-between;
+}
+
+/* Activity/Flight badge - positioned on image */
+.activity-tag,
+.flight-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 4;
+  background-color: rgba(42, 157, 143, 0.7);
+  color: white;
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  backdrop-filter: blur(4px);
+}
+
+[data-theme='light'] .activity-tag,
+[data-theme='light'] .flight-badge,
+.light-theme .activity-tag,
+.light-theme .flight-badge {
+  background-color: rgba(9, 57, 35, 0.7);
+}
+
+/* Card actions in horizontal layout */
+.card-actions {
+  display: flex;
+  gap: 0.625rem;
+  padding-top: 0.5rem;
+
+}
+
+/* Premium button styles */
+.premium-button {
+  position: relative;
+  padding: 0.5rem 0.75rem;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  overflow: hidden;
+  z-index: 1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 36px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.premium-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.premium-button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Button fill effect */
+.premium-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  z-index: -1;
+  transition: width 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.premium-button:hover::before {
+  width: 100%;
+}
+
+/* Button styles */
+.btn-view {
+  background-color: #2A9D8F;
+}
+
+.btn-view::before {
+  background-color: #1C6B61;
+}
+
+.btn-change {
+  background-color: #264653;
+}
+
+.btn-change::before {
+  background-color: #1A2F38;
+}
+
+/* Light theme button styles */
+[data-theme='light'] .btn-view,
+.light-theme .btn-view {
+  background-color: #093923 !important;
+  color: white !important;
+}
+
+[data-theme='light'] .btn-view::before,
+.light-theme .btn-view::before {
+  background-color: #0F6742 !important;
+}
+
+[data-theme='light'] .btn-change,
+.light-theme .btn-change {
+  background-color: #072E1C !important;
+  color: white !important;
+}
+
+[data-theme='light'] .btn-change::before,
+.light-theme .btn-change::before {
+  background-color: #0F6742 !important;
+}
+
+/* Remove button styling */
+.btn-remove {
+  background-color: #E63946;
+  color: white;
+}
+
+.btn-remove::before {
+  background-color: #C11D28;
+}
+
+.btn-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #6B7280;
+}
+
+.btn-remove:disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn-remove:disabled:hover::before {
+  width: 0;
+}
+
+/* Button icon container */
+.btn-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+}
+
+/* Travel info styles */
+.travel-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.travel-route {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.travel-endpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+  width: 33%;
+}
+
+.travel-endpoint:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.endpoint-city {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.endpoint-time {
+  font-size: 1rem;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+.endpoint-date {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.travel-duration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0.5rem;
+  flex: 1;
+  max-width: 33%;
+}
+
+.duration-text {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  padding-bottom: 1.5rem;
+  white-space: nowrap;
+}
+
+/* New flight path container to hold the image */
+.flight-path-container {
+  width: 100%;
+  height: 30px;
+  padding-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Flight path image styling */
+.flight-path-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Card footer components - for better mobile responsiveness */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.card-rating,
+.card-details {
+  flex-grow: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .timeline-container {
+    padding-left: 60px;
   }
   
-  /* Light mode card styles */
-  [data-theme='light'] .common-card-base {
-    background-color: rgba(229, 231, 235, 0.5);
-    border: 1px solid rgba(156, 163, 175, 0.5);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  .card-wrapper {
+    flex-direction: column;
+    min-height: auto;
   }
   
-  /* Text color adjustments for light mode */
-  [data-theme='light'] .common-card-base .text-white {
-    color: #1F2937; /* Dark gray for light mode headers/important text */
-  }
-  
-  [data-theme='light'] .common-card-base .text-gray-300 {
-    color: #4B5563; /* Darker gray for secondary text in light mode */
-  }
-  
-  [data-theme='light'] .common-card-base .text-gray-100 {
-    color: #374151; /* Even darker gray for light mode details */
-  }
-  
-  .common-card-base:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    transform: translateY(-0.25rem);
-  }
-  
-  /* Rest of the CSS remains the same as in the previous implementation */
-  .common-image-container {
+  .card-image-container {
     width: 100%;
-    height: 12rem;
-    position: relative;
-    overflow: hidden;
+    height: 160px; /* On mobile, revert to fixed height */
+    margin-bottom: 1rem;
+    margin-right: 0;
+    box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.25),
+    0 6px 6px rgba(0, 0, 0, 0.22),
+    0 0 15px rgba(0, 0, 0, 0.2) inset;
   }
   
-  @media (min-width: 1024px) {
-    .common-image-container {
-      width: 20rem;
-      height: auto;
-    }
+  .card-content-wrapper {
+    padding: 0.5rem 0;
   }
   
-  .common-image-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-    z-index: 10;
+  .card-actions {
+    flex-wrap: wrap;
   }
   
-  .common-image {
-    position: absolute;
-    inset: 0;
+  .premium-button {
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  /* Mobile footer layout */
+  .card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .card-rating,
+  .card-details {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
   }
   
-  .common-image:hover {
-    transform: scale(1.1);
-  }
-  
-  /* Generic price styles */
-  .common-price-base {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: rgb(147, 197, 253);
-  }
-  
-  /* Light mode price styles */
-  [data-theme='light'] .common-price-base {
-    color: rgb(37, 99, 235);
-  }
-  
-  /* Generic button styles remain the same */
-  .common-button-base {
-    padding: 0.5rem 1rem;
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(6px);
-  }
-  
-  .common-button-base:hover {
-    transform: scale(1.05);
-  }
-  
-  .common-button-view {
-    background-color: rgba(59, 130, 246, 0.8);
-  }
-  
-  .common-button-view:hover {
-    background-color: rgba(59, 130, 246, 0.9);
-  }
-  
-  .common-button-change {
-    background-color: rgba(34, 197, 94, 0.8);
-  }
-  
-  .common-button-change:hover {
-    background-color: rgba(34, 197, 94, 0.9);
-  }
-  
-  .common-button-remove {
-    background-color: rgba(239, 68, 68, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  
-  .common-button-remove:hover {
-    background-color: rgba(239, 68, 68, 0.9);
-  }
-  
-  .common-button-remove:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  .common-button-remove:disabled:hover {
-    transform: none;
-  }
-  
-  /* Generic error section */
-  .common-error-base {
-    padding: 0.75rem;
-    background-color: rgba(127, 29, 29, 0.3);
-    color: rgb(254, 202, 202);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    border: 1px solid rgba(185, 28, 28, 0.5);
-  }/* Card.css - Generic reusable styles for cards */
-  
-  /* Base card styles for common card-like elements */
-  .common-card-base {
-    background-color: rgba(17, 24, 39, 0.5);
-    backdrop-filter: blur(12px);
-    border-radius: 0.75rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    overflow: hidden;
-    border: 1px solid rgba(55, 65, 81, 0.5);
-  }
-  
-  /* Light mode card styles */
-  [data-theme='light'] .common-card-base {
-    background-color: rgba(229, 231, 235, 0.5);
-    border: 1px solid rgba(156, 163, 175, 0.5);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-  }
-  
-  .common-card-base:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    transform: translateY(-0.25rem);
-  }
-  
-  /* Generic image container for consistent image styling */
-  .common-image-container {
+  .card-actions {
     width: 100%;
-    height: 12rem;
-    position: relative;
-    overflow: hidden;
+    justify-content: flex-start;
+  }
+
+  .description-container {
+    display: none;
   }
   
-  @media (min-width: 1024px) {
-    .common-image-container {
-      width: 20rem;
-      height: auto;
-    }
-  }
-  
-  .common-image-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-    z-index: 10;
-  }
-  
-  .common-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-  }
-  
-  .common-image:hover {
-    transform: scale(1.1);
-  }
-  
-  /* Generic price styles */
-  .common-price-base {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: rgb(147, 197, 253);
-  }
-  
-  /* Light mode price styles */
-  [data-theme='light'] .common-price-base {
-    color: rgb(37, 99, 235);
-  }
-  
-  /* Generic button styles */
-  .common-button-base {
-    padding: 0.5rem 1rem;
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(6px);
-  }
-  
-  .common-button-base:hover {
-    transform: scale(1.05);
-  }
-  
-  .common-button-view {
-    background-color: rgba(59, 130, 246, 0.8);
-  }
-  
-  .common-button-view:hover {
-    background-color: rgba(59, 130, 246, 0.9);
-  }
-  
-  .common-button-change {
-    background-color: rgba(34, 197, 94, 0.8);
-  }
-  
-  .common-button-change:hover {
-    background-color: rgba(34, 197, 94, 0.9);
-  }
-  
-  .common-button-remove {
-    background-color: rgba(239, 68, 68, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  
-  .common-button-remove:hover {
-    background-color: rgba(239, 68, 68, 0.9);
-  }
-  
-  .common-button-remove:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  .common-button-remove:disabled:hover {
-    transform: none;
-  }
-  
-  /* Generic error section */
-  .common-error-base {
-    padding: 0.75rem;
-    background-color: rgba(127, 29, 29, 0.3);
-    color: rgb(254, 202, 202);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    border: 1px solid rgba(185, 28, 28, 0.5);
-  }
+}

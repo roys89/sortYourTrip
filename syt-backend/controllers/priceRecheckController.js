@@ -53,9 +53,26 @@ exports.recheckFlightPrices = async (req, res) => {
       authToken
     );
 
-    // Respond with the price check results
+    // Determine overall success based on details
+    const hasSuccessfulResults = flightPrices.details.some(
+      detail => detail.status === 'success'
+    );
+
+    const hasAllErrors = flightPrices.details.every(
+      detail => detail.status === 'error'
+    );
+
+    // Modify response based on results
+    if (hasAllErrors) {
+      return res.status(422).json({
+        success: false,
+        data: flightPrices,
+        message: "Unable to recheck flight prices"
+      });
+    }
+
     res.json({
-      success: true,
+      success: hasSuccessfulResults,
       data: flightPrices
     });
 
@@ -133,9 +150,26 @@ exports.recheckHotelPrices = async (req, res) => {
       authToken
     );
 
-    // Respond with the price check results
+    // Determine overall success based on details
+    const hasSuccessfulResults = hotelPrices.details.some(
+      detail => detail.status === 'success'
+    );
+
+    const hasAllErrors = hotelPrices.details.every(
+      detail => detail.status === 'error'
+    );
+
+    // Modify response based on results
+    if (hasAllErrors) {
+      return res.status(422).json({
+        success: false,
+        data: hotelPrices,
+        message: "Unable to recheck hotel prices"
+      });
+    }
+
     res.json({
-      success: true,
+      success: hasSuccessfulResults,
       data: hotelPrices
     });
 

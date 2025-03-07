@@ -283,68 +283,76 @@ const BookingSummary = ({ itinerary }) => {
   };
 
   // Trip overview section
-  const renderTripOverview = () => {
-    const dates = getTripDates();
-    if (!dates) return null;
-    
-    return (
-      <div className="rounded-xl mb-5 overflow-hidden">
-        <div 
-          className="p-3"
-          style={{ 
-            backgroundColor: 
-              theme.palette.mode === "dark"
-                ? `rgba(${theme.palette.primary.main}, 0.3)`
-                : "rgba(251, 203, 173, 0.3)"
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" style={{ color: theme.palette.primary.main }} />
-            <span className="font-medium">Trip Overview</span>
-          </div>
-        </div>
-        
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="text-gray-500 w-4 h-4" />
-              <span className="text-sm text-gray-600">Duration</span>
-            </div>
-            <span className="text-sm font-medium">{getTripDuration()} Days</span>
-          </div>
-          
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Users className="text-gray-500 w-4 h-4" />
-              <span className="text-sm text-gray-600">Travelers</span>
-            </div>
-            <span className="text-sm font-medium">
-              {itinerary?.travelersDetails?.rooms?.reduce((total, room) => {
-                const adults = room.adults?.length || 0;
-                const children = room.children?.length || 0;
-                return total + adults + children;
-              }, 0) || 0}
-            </span>
-          </div>
-          
-          <div className="border-t border-gray-100 mt-3 pt-3">
-            <div className="text-sm text-gray-600 mb-2">Destinations</div>
-            {itinerary?.cities?.map((city, index) => (
-              <div key={index} className="flex items-start gap-2 mb-2">
-                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: theme.palette.primary.main }} />
-                <div>
-                  <div className="font-medium text-sm">{city.city}, {city.country}</div>
-                  <div className="text-xs text-gray-500">
-                    {formatDate(city.startDate)} - {formatDate(city.endDate)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+ // Trip overview section
+const renderTripOverview = () => {
+  const dates = getTripDates();
+  if (!dates) return null;
+  
+  return (
+    <div className="rounded-xl mb-5 overflow-hidden">
+      <div 
+        className="p-3"
+        style={{ 
+          backgroundColor: 
+            theme.palette.mode === "dark"
+              ? `rgba(${theme.palette.primary.main}, 0.3)`
+              : "rgba(251, 203, 173, 0.3)"
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5" style={{ color: theme.palette.primary.main }} />
+          <span className="font-medium">Trip Overview</span>
         </div>
       </div>
-    );
-  };
+      
+      <div className="p-4"
+        style={{ 
+          backgroundColor: 
+            theme.palette.mode === "dark"
+              ? theme.palette.grey[800]
+              : theme.palette.grey[50]
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-gray-500 w-4 h-4" />
+            <span className="text-sm text-gray-600">Duration</span>
+          </div>
+          <span className="text-sm font-medium">{getTripDuration()} Days</span>
+        </div>
+        
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Users className="text-gray-500 w-4 h-4" />
+            <span className="text-sm text-gray-600">Travelers</span>
+          </div>
+          <span className="text-sm font-medium">
+            {itinerary?.travelersDetails?.rooms?.reduce((total, room) => {
+              const adults = room.adults?.length || 0;
+              const children = room.children?.length || 0;
+              return total + adults + children;
+            }, 0) || 0}
+          </span>
+        </div>
+        
+        <div className="border-t border-gray-100 mt-3 pt-3">
+          <div className="text-sm text-gray-600 mb-2">Destinations</div>
+          {itinerary?.cities?.map((city, index) => (
+            <div key={index} className="flex items-start gap-2 mb-2">
+              <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: theme.palette.primary.main }} />
+              <div>
+                <div className="font-medium text-sm">{city.city}, {city.country}</div>
+                <div className="text-xs text-gray-500">
+                  {formatDate(city.startDate)} - {formatDate(city.endDate)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
   const renderPriceSummary = () => (
     <div className="rounded-xl overflow-hidden">

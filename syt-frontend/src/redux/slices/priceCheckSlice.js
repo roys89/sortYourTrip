@@ -74,6 +74,7 @@ export const recheckFlightPrices = createAsyncThunk(
           }));
 
         } catch (error) {
+          // CHANGE: No special handling for specific error codes - treat all errors the same
           results.push({
             ...flightDetails,
             error: error.response?.data?.message || error.message,
@@ -171,6 +172,7 @@ export const recheckHotelPrices = createAsyncThunk(
           }));
 
         } catch (error) {
+          // CHANGE: No special handling for specific error codes - treat all errors the same
           results.push({
             ...hotelDetails,
             error: error.response?.data?.message || error.message,
@@ -196,6 +198,7 @@ export const recheckHotelPrices = createAsyncThunk(
     }
   }
 );
+
 // Initial state with priceSummary
 const initialState = {
   flights: {
@@ -227,7 +230,8 @@ const initialState = {
     newTotals: null,
     difference: 0,
     percentageChange: 0,
-    hasPriceChanged: false
+    hasPriceChanged: false,
+    updatedItinerary: null // CHANGE: Added to store updated itinerary after replacements
   },
   overallStatus: 'idle' // idle, checking, completed, failed
 };
@@ -286,12 +290,19 @@ const priceCheckSlice = createSlice({
       };
     },
 
-    // New reducer to update price summary
+    // Reducer to update price summary
     updatePriceSummary: (state, action) => {
       state.priceSummary = {
         ...state.priceSummary,
         ...action.payload
       };
+    },
+    
+    // CHANGE: Added for updating the itinerary after replacements
+    updateItinerary: (state, action) => {
+      if (state.priceSummary) {
+        state.priceSummary.updatedItinerary = action.payload;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -341,7 +352,8 @@ export const {
   incrementRetryCount,
   updateFlightCheckProgress,
   updateHotelCheckProgress,
-  updatePriceSummary
+  updatePriceSummary,
+  updateItinerary
 } = priceCheckSlice.actions;
 
 // Selectors

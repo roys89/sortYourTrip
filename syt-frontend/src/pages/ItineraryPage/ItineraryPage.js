@@ -63,21 +63,41 @@ import "./ItineraryPage.css";
 const renderActivityIcon = (activityType, theme, size = 20) => {
   switch (activityType?.toLowerCase()) {
     case "flight":
-      return <FlightIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />;
+      return (
+        <FlightIcon
+          sx={{ color: theme.palette.primary.main, fontSize: size }}
+        />
+      );
     case "transport":
-      return <TransportIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />;
+      return (
+        <TransportIcon
+          sx={{ color: theme.palette.primary.main, fontSize: size }}
+        />
+      );
     case "hotel":
     case "accommodation":
-      return <HotelIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />;
+      return (
+        <HotelIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />
+      );
     case "food":
     case "restaurant":
-      return <FoodIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />;
+      return (
+        <FoodIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />
+      );
     case "attraction":
     case "activity":
     case "sightseeing":
-      return <AttractionsIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />;
+      return (
+        <AttractionsIcon
+          sx={{ color: theme.palette.primary.main, fontSize: size }}
+        />
+      );
     default:
-      return <LuggageIcon sx={{ color: theme.palette.primary.main, fontSize: size }} />;
+      return (
+        <LuggageIcon
+          sx={{ color: theme.palette.primary.main, fontSize: size }}
+        />
+      );
   }
 };
 
@@ -530,18 +550,18 @@ const ItineraryPage = () => {
             className={`toggle-button ${sidebarOpen ? "open" : ""}`}
             style={{
               backgroundColor:
-              theme.palette.mode === "dark"
-                ? `rgba(${theme.palette.grey[800]}, 0.5)`
-                : "rgba(251, 203, 173, 0.5)",
+                theme.palette.mode === "dark"
+                  ? `rgba(${theme.palette.grey[800]}, 0.5)`
+                  : "rgba(251, 203, 173, 0.5)",
               boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
             }}
           >
-            <ChevronRightIcon 
+            <ChevronRightIcon
               sx={{
                 fontSize: 28,
-                transition: 'transform 0.3s ease',
-                transform: sidebarOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-              }} 
+                transition: "transform 0.3s ease",
+                transform: sidebarOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
               className="arrow-icon"
             />
           </IconButton>
@@ -572,10 +592,13 @@ const ItineraryPage = () => {
           <div className="sidebar-header">
             <Typography
               variant="h6"
-              sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 1, mt: 4 }}
-            >
-              
-            </Typography>
+              sx={{
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                mb: 1,
+                mt: 4,
+              }}
+            ></Typography>
           </div>
 
           <div className="sidebar-content">
@@ -594,11 +617,11 @@ const ItineraryPage = () => {
               >
                 <AccordionSummary
                   expandIcon={
-                    <ChevronDownIcon 
-                      sx={{ 
+                    <ChevronDownIcon
+                      sx={{
                         fontSize: 18,
                         color: theme.palette.primary.main,
-                        transition: 'transform 0.3s ease'
+                        transition: "transform 0.3s ease",
                       }}
                     />
                   }
@@ -619,17 +642,20 @@ const ItineraryPage = () => {
                       gap: "0.5rem",
                     }}
                   >
-                    <MapPinIcon 
-                      sx={{ 
+                    <MapPinIcon
+                      sx={{
                         color: theme.palette.primary.main,
                         fontSize: 18,
-                        animation: expandedCity === cityIndex ? 'pulse 2s infinite' : 'none',
-                        '@keyframes pulse': {
-                          '0%': { opacity: 0.7 },
-                          '50%': { opacity: 1 },
-                          '100%': { opacity: 0.7 }
-                        }
-                      }} 
+                        animation:
+                          expandedCity === cityIndex
+                            ? "pulse 2s infinite"
+                            : "none",
+                        "@keyframes pulse": {
+                          "0%": { opacity: 0.7 },
+                          "50%": { opacity: 1 },
+                          "100%": { opacity: 0.7 },
+                        },
+                      }}
                     />
                     {city.city}, {city.country}
                   </Typography>
@@ -647,9 +673,9 @@ const ItineraryPage = () => {
                           mb: 0.5,
                           "&:hover": {
                             backgroundColor: `${theme.palette.primary.main}10`,
-                            "& .day-icon": { transform: "scale(1.1)" }
+                            "& .day-icon": { transform: "scale(1.1)" },
                           },
-                          transition: "all 0.2s ease"
+                          transition: "all 0.2s ease",
                         }}
                       >
                         <CalendarIcon
@@ -658,7 +684,7 @@ const ItineraryPage = () => {
                             marginRight: "8px",
                             color: theme.palette.primary.main,
                             fontSize: 18,
-                            transition: "transform 0.2s ease"
+                            transition: "transform 0.2s ease",
                           }}
                         />
                         <ListItemText
@@ -756,11 +782,11 @@ const ItineraryPage = () => {
                     gap: "0.5rem",
                   }}
                 >
-                  <CalendarIcon 
-                    sx={{ 
+                  <CalendarIcon
+                    sx={{
                       color: theme.palette.primary.main,
-                      fontSize: 20
-                    }} 
+                      fontSize: 20,
+                    }}
                   />
                   <Typography variant="body1">
                     <strong>{getTripDuration(itinerary.cities)}</strong> Days
@@ -774,10 +800,10 @@ const ItineraryPage = () => {
                     gap: "0.5rem",
                   }}
                 >
-                  <MapPinIcon 
-                    sx={{ 
+                  <MapPinIcon
+                    sx={{
                       color: theme.palette.primary.main,
-                      fontSize: 20
+                      fontSize: 20,
                     }}
                   />
                   <Typography variant="body1">
@@ -793,11 +819,11 @@ const ItineraryPage = () => {
                     gap: "0.5rem",
                   }}
                 >
-                  <PeopleIcon 
-                    sx={{ 
+                  <PeopleIcon
+                    sx={{
                       color: theme.palette.primary.main,
-                      fontSize: 20
-                    }} 
+                      fontSize: 20,
+                    }}
                   />
                   <Typography variant="body1">
                     <strong>
@@ -816,10 +842,7 @@ const ItineraryPage = () => {
             <Grid item xs={12} md={9}>
               {/* Display all cities and days */}
               {itinerary.cities.map((city, cityIndex) => (
-                <div 
-                  key={`city-${cityIndex}`} 
-                  className="city-section"
-                >
+                <div key={`city-${cityIndex}`} className="city-section">
                   {/* City Header */}
                   <div
                     className="city-header"
@@ -828,7 +851,7 @@ const ItineraryPage = () => {
                         theme.palette.mode === "dark"
                           ? theme.palette.grey[800]
                           : theme.palette.grey[50],
-                      color: theme.palette.text.primary
+                      color: theme.palette.text.primary,
                     }}
                   >
                     <div className="city-title">
@@ -840,13 +863,13 @@ const ItineraryPage = () => {
                         }}
                       >
                         <MapPinIcon
-                          sx={{ 
+                          sx={{
                             color: theme.palette.primary.main,
                             fontSize: 24,
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              transform: 'scale(1.1)'
-                            }
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              transform: "scale(1.1)",
+                            },
                           }}
                           className="city-icon"
                         />
@@ -855,7 +878,8 @@ const ItineraryPage = () => {
                         </Typography>
                       </div>
                       <Typography variant="h6" className="city-dates">
-                        {formatDate(city.startDate)} - {formatDate(city.endDate)}
+                        {formatDate(city.startDate)} -{" "}
+                        {formatDate(city.endDate)}
                       </Typography>
                     </div>
                   </div>
@@ -911,11 +935,11 @@ const ItineraryPage = () => {
                   <Button
                     variant="outlined"
                     startIcon={
-                      <EditIcon 
-                        sx={{ 
+                      <EditIcon
+                        sx={{
                           fontSize: 20,
-                          transition: 'transform 0.3s ease'
-                        }} 
+                          transition: "transform 0.3s ease",
+                        }}
                       />
                     }
                     onClick={() => setIsModificationModalOpen(true)}
@@ -936,7 +960,7 @@ const ItineraryPage = () => {
                         borderColor: theme.palette.primary.main,
                         backgroundColor: `${theme.palette.primary.main}10`,
                         transform: "translateY(-2px)",
-                        "& .MuiSvgIcon-root": { transform: "scale(1.1)" }
+                        "& .MuiSvgIcon-root": { transform: "scale(1.1)" },
                       },
                       transition: "all 0.3s ease",
                     }}
@@ -1025,10 +1049,10 @@ const ItineraryPage = () => {
                         }}
                       >
                         <DollarIcon
-                          sx={{ 
+                          sx={{
                             color: theme.palette.primary.main,
                             fontSize: 20,
-                            marginRight: "0.75rem" 
+                            marginRight: "0.75rem",
                           }}
                         />
                         <div>
@@ -1056,11 +1080,11 @@ const ItineraryPage = () => {
                             }}
                           >
                             <HeartIcon
-                              sx={{ 
+                              sx={{
                                 color: theme.palette.primary.main,
                                 fontSize: 20,
                                 marginRight: "0.75rem",
-                                marginTop: "0.2rem" 
+                                marginTop: "0.2rem",
                               }}
                             />
                             <div>
@@ -1108,13 +1132,51 @@ const ItineraryPage = () => {
                   style={{ marginTop: "1.5rem" }}
                 >
                   <Button
+                    variant="contained"
+                    startIcon={
+                      isBooking ? null : (
+                        <FlightIcon
+                          sx={{
+                            fontSize: 22,
+                            transition: "transform 0.3s ease",
+                          }}
+                        />
+                      )
+                    }
+                    onClick={handleBookTrip}
+                    disabled={isBooking}
+                    className="action-button book-button"
+                    fullWidth
+                    sx={{
+                      backgroundColor: theme.palette.primary.main,
+                      "&:hover": {
+                        backgroundColor: theme.palette.primary.dark,
+                        "& .MuiSvgIcon-root": { transform: "translateX(4px)" },
+                      },
+                    }}
+                  >
+                    {isBooking ? (
+                      <>
+                        <CircularProgress
+                          size={20}
+                          color="inherit"
+                          sx={{ mr: 1 }}
+                        />
+                        Processing...
+                      </>
+                    ) : (
+                      "Book Your Trip"
+                    )}
+                  </Button>
+
+                  <Button
                     variant="outlined"
                     startIcon={
-                      <PdfIcon 
-                        sx={{ 
+                      <PdfIcon
+                        sx={{
                           fontSize: 22,
-                          transition: "transform 0.3s ease"
-                        }} 
+                          transition: "transform 0.3s ease",
+                        }}
                       />
                     }
                     onClick={handleDownloadPDF}
@@ -1127,7 +1189,7 @@ const ItineraryPage = () => {
                       "&:hover": {
                         borderColor: theme.palette.primary.main,
                         backgroundColor: `${theme.palette.primary.main}10`,
-                        "& .MuiSvgIcon-root": { transform: "scale(1.1)" }
+                        "& .MuiSvgIcon-root": { transform: "scale(1.1)" },
                       },
                     }}
                   >
@@ -1135,47 +1197,13 @@ const ItineraryPage = () => {
                   </Button>
 
                   <Button
-                    variant="contained"
-                    startIcon={
-                      isBooking ? null : (
-                        <FlightIcon 
-                          sx={{ 
-                            fontSize: 22,
-                            transition: "transform 0.3s ease" 
-                          }} 
-                        />
-                      )
-                    }
-                    onClick={handleBookTrip}
-                    disabled={isBooking}
-                    className="action-button book-button"
-                    fullWidth
-                    sx={{
-                      backgroundColor: theme.palette.primary.main,
-                      "&:hover": {
-                        backgroundColor: theme.palette.primary.dark,
-                        "& .MuiSvgIcon-root": { transform: "translateX(4px)" }
-                      },
-                    }}
-                  >
-                    {isBooking ? (
-                      <>
-                        <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-                        Processing...
-                      </>
-                    ) : (
-                      "Book Your Trip"
-                    )}
-                  </Button>
-
-                  <Button
                     variant="outlined"
                     startIcon={
-                      <SupportIcon 
-                        sx={{ 
+                      <SupportIcon
+                        sx={{
                           fontSize: 22,
-                          transition: "transform 0.3s ease" 
-                        }} 
+                          transition: "transform 0.3s ease",
+                        }}
                       />
                     }
                     className="action-button contact-button"
@@ -1186,7 +1214,7 @@ const ItineraryPage = () => {
                       "&:hover": {
                         borderColor: theme.palette.primary.main,
                         backgroundColor: `${theme.palette.primary.main}10`,
-                        "& .MuiSvgIcon-root": { transform: "scale(1.1)" }
+                        "& .MuiSvgIcon-root": { transform: "scale(1.1)" },
                       },
                     }}
                   >

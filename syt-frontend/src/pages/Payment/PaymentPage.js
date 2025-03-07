@@ -3,24 +3,35 @@ import {
   Alert,
   Box,
   Button,
-  Card,
   Checkbox,
   CircularProgress,
   Container,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
   FormControlLabel,
+  Grid,
   IconButton,
+  Paper,
   Snackbar,
   Stack,
   Typography,
   alpha,
-  useTheme,
+  useTheme
 } from "@mui/material";
-import { CreditCard, Lock, Shield, X } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CreditCard,
+  FileText,
+  Receipt,
+  Shield,
+  Wallet,
+  X
+} from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from 'react-dom/client';
 import { useDispatch, useSelector } from "react-redux";
@@ -39,133 +50,453 @@ import {
   validateItineraryComponents,
   verifyPayment
 } from "../../redux/slices/paymentSlice";
-import "./PaymentPage.css";
+
 
 // Dialog Components
-const ErrorDialog = ({ components, onClose }) => (
-  <Dialog open={true} maxWidth="sm" fullWidth>
-    <DialogTitle>Components Need Reallocation</DialogTitle>
-    <DialogContent>
-      <Typography variant="body1" gutterBottom>
-        Some components require immediate reallocation due to errors:
-      </Typography>
-      {components.map((component, index) => (
-        <Typography key={index} variant="body2" color="error" gutterBottom>
-          {component.type === 'flight' 
-            ? `Flight: ${component.flight.flightData.origin} → ${component.flight.flightData.destination}` 
-            : `Hotel: ${component.hotel.data.hotelDetails.name}`}
-          <br />
-          {component.error?.message || 'Validation error occurred'}
+const ErrorDialog = ({ components, onClose }) => {
+  const theme = useTheme();
+  
+  return (
+    <Dialog 
+      open={true} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: { 
+          borderRadius: "16px",
+          overflow: "hidden"
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        backgroundColor: alpha(theme.palette.error.main, 0.05),
+        py: 2.5,
+        px: 3,
+        borderBottom: `1px solid ${alpha(theme.palette.error.main, 0.1)}`
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: alpha(theme.palette.error.main, 0.1),
+            }}
+          >
+            <AlertTriangle size={20} style={{ color: theme.palette.error.main }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontFamily: "Montserrat", fontWeight: 600 }}>
+            Components Need Reallocation
+          </Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 3 }}>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          Some components require immediate reallocation due to errors:
         </Typography>
-      ))}
-    </DialogContent>
-    <DialogActions>
-      <Button 
-        variant="contained" 
-        color="primary"
-        onClick={() => onClose(true)}
-      >
-        Proceed to Reallocation
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+        
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          {components.map((component, index) => (
+            <Paper
+              key={index}
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: "10px",
+                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                backgroundColor: alpha(theme.palette.error.main, 0.05),
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {component.type === 'flight' 
+                  ? `Flight: ${component.flight.flightData.origin} → ${component.flight.flightData.destination}` 
+                  : `Hotel: ${component.hotel.data.hotelDetails.name}`}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {component.error?.message || 'Validation error occurred'}
+              </Typography>
+            </Paper>
+          ))}
+        </Stack>
+        
+        <Button 
+          variant="contained" 
+          fullWidth
+          size="large"
+          onClick={() => onClose(true)}
+          endIcon={<ArrowRight size={18} />}
+          sx={{
+            backgroundColor: theme.palette.primary.main,
+            color: "#fff",
+            borderRadius: "10px",
+            py: 1.5,
+            fontWeight: 600,
+            textTransform: "none",
+            transition: "all 0.2s ease",
+            boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.3)}`,
+            "&:hover": {
+              backgroundColor: theme.palette.primary.dark,
+              transform: "translateY(-2px)",
+              boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+            }
+          }}
+        >
+          Proceed to Reallocation
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
-const ImmediateDialog = ({ components, onClose }) => (
-  <Dialog open={true} maxWidth="sm" fullWidth>
-    <DialogTitle>Immediate Reallocation Required</DialogTitle>
-    <DialogContent>
-      <Typography variant="body1" gutterBottom>
-        These components need immediate reallocation (less than 2 minutes remaining):
-      </Typography>
-      {components.map((component, index) => (
-        <Typography key={index} variant="body2" color="error" gutterBottom>
-          {component.type === 'flight' 
-            ? `Flight: ${component.origin} → ${component.destination}` 
-            : `Hotel: ${component.name}`}
-          {component.remainingTime !== null && (
-            <> - {component.remainingTime} minute{component.remainingTime !== 1 ? 's' : ''} remaining</>
-          )}
+const ImmediateDialog = ({ components, onClose }) => {
+  const theme = useTheme();
+  
+  return (
+    <Dialog 
+      open={true} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: { 
+          borderRadius: "16px",
+          overflow: "hidden"
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        backgroundColor: alpha(theme.palette.warning.main, 0.05),
+        py: 2.5,
+        px: 3,
+        borderBottom: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: alpha(theme.palette.warning.main, 0.1),
+            }}
+          >
+            <AlertTriangle size={20} style={{ color: theme.palette.warning.main }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontFamily: "Montserrat", fontWeight: 600 }}>
+            Immediate Reallocation Required
+          </Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 3 }}>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          These components need immediate reallocation (less than 2 minutes remaining):
         </Typography>
-      ))}
-    </DialogContent>
-    <DialogActions>
-      <Button 
-        variant="contained" 
-        color="primary"
-        onClick={() => onClose(true)}
-      >
-        Proceed to Reallocation
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+        
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          {components.map((component, index) => (
+            <Paper
+              key={index}
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: "10px",
+                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                backgroundColor: alpha(theme.palette.warning.main, 0.05),
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {component.type === 'flight' 
+                  ? `Flight: ${component.origin} → ${component.destination}` 
+                  : `Hotel: ${component.name}`}
+              </Typography>
+              {component.remainingTime !== null && (
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    display: "inline-block",
+                    px: 1, 
+                    py: 0.5, 
+                    borderRadius: "16px",
+                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                    color: theme.palette.warning.main,
+                    fontWeight: 500
+                  }}
+                >
+                  {component.remainingTime} minute{component.remainingTime !== 1 ? 's' : ''} remaining
+                </Typography>
+              )}
+            </Paper>
+          ))}
+        </Stack>
+        
+        <Button 
+          variant="contained" 
+          fullWidth
+          size="large"
+          onClick={() => onClose(true)}
+          endIcon={<ArrowRight size={18} />}
+          color="warning"
+          sx={{
+            borderRadius: "10px",
+            py: 1.5,
+            fontWeight: 600,
+            textTransform: "none",
+            transition: "all 0.2s ease",
+            "&:hover": {
+              transform: "translateY(-2px)",
+              boxShadow: `0 6px 20px ${alpha(theme.palette.warning.main, 0.4)}`,
+            }
+          }}
+        >
+          Proceed to Reallocation
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
-const WarningDialog = ({ components, onClose }) => (
-  <Dialog open={true} maxWidth="sm" fullWidth>
-    <DialogTitle>Limited Time Warning</DialogTitle>
-    <DialogContent>
-      <Typography variant="body1" gutterBottom>
-        These components have limited time remaining:
-      </Typography>
-      {components.map((component, index) => (
-        <Typography key={index} variant="body2" color="warning.main" gutterBottom>
-          {component.type === 'flight' 
-            ? `Flight: ${component.origin} → ${component.destination}` 
-            : `Hotel: ${component.name}`}
-           - {component.remainingTime} minutes remaining
+const WarningDialog = ({ components, onClose }) => {
+  const theme = useTheme();
+  
+  return (
+    <Dialog 
+      open={true} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: { 
+          borderRadius: "16px",
+          overflow: "hidden"
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        backgroundColor: alpha(theme.palette.warning.main, 0.05),
+        py: 2.5,
+        px: 3,
+        borderBottom: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: alpha(theme.palette.warning.main, 0.1),
+            }}
+          >
+            <AlertTriangle size={20} style={{ color: theme.palette.warning.main }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontFamily: "Montserrat", fontWeight: 600 }}>
+            Limited Time Warning
+          </Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 3 }}>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          These components have limited time remaining:
         </Typography>
-      ))}
-      <Typography variant="body1" sx={{ mt: 2 }}>
-        Can you complete the payment within 2 minutes?
-      </Typography>
-    </DialogContent>
-    <DialogActions>
-      <Button 
-        variant="outlined" 
-        color="secondary"
-        onClick={() => onClose(false)}
-      >
-        No, Reallocate
-      </Button>
-      <Button 
-        variant="contained" 
-        color="primary"
-        onClick={() => onClose(true)}
-      >
-        Yes, Continue
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+        
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          {components.map((component, index) => (
+            <Paper
+              key={index}
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: "10px",
+                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                backgroundColor: alpha(theme.palette.warning.main, 0.05),
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {component.type === 'flight' 
+                  ? `Flight: ${component.origin} → ${component.destination}` 
+                  : `Hotel: ${component.name}`}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  display: "inline-block",
+                  px: 1, 
+                  py: 0.5, 
+                  borderRadius: "16px",
+                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                  color: theme.palette.warning.main,
+                  fontWeight: 500
+                }}
+              >
+                {component.remainingTime} minutes remaining
+              </Typography>
+            </Paper>
+          ))}
+        </Stack>
+        
+        <Typography variant="body1" sx={{ mb: 3, fontWeight: 500 }}>
+          Can you complete the payment within 2 minutes?
+        </Typography>
+        
+        <Stack direction="row" spacing={2}>
+          <Button 
+            variant="outlined" 
+            onClick={() => onClose(false)}
+            size="large"
+            startIcon={<X size={18} />}
+            sx={{
+              flex: 1,
+              borderColor: alpha(theme.palette.text.primary, 0.2),
+              color: theme.palette.text.primary,
+              borderRadius: "10px",
+              py: 1.5,
+              fontWeight: 500,
+              textTransform: "none",
+              "&:hover": {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: alpha(theme.palette.text.primary, 0.05),
+              }
+            }}
+          >
+            No, Reallocate
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={() => onClose(true)}
+            size="large"
+            color="primary"
+            endIcon={<CheckCircle2 size={18} />}
+            sx={{
+              flex: 1,
+              borderRadius: "10px",
+              py: 1.5,
+              fontWeight: 600,
+              textTransform: "none",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+              }
+            }}
+          >
+            Yes, Continue
+          </Button>
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
-const InfoDialog = ({ components, onClose }) => (
-  <Dialog open={true} maxWidth="sm" fullWidth>
-    <DialogTitle>Time Information</DialogTitle>
-    <DialogContent>
-      <Typography variant="body1" gutterBottom>
-        Please note the remaining time for these components:
-      </Typography>
-      {components.map((component, index) => (
-        <Typography key={index} variant="body2" gutterBottom>
-          {component.type === 'flight' 
-            ? `Flight: ${component.origin} → ${component.destination}` 
-            : `Hotel: ${component.name}`}
-           - {component.remainingTime} minutes remaining
+const InfoDialog = ({ components, onClose }) => {
+  const theme = useTheme();
+  
+  return (
+    <Dialog 
+      open={true} 
+      maxWidth="sm" 
+      fullWidth
+      PaperProps={{
+        sx: { 
+          borderRadius: "16px",
+          overflow: "hidden"
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        backgroundColor: alpha(theme.palette.info.main, 0.05),
+        py: 2.5,
+        px: 3,
+        borderBottom: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: alpha(theme.palette.info.main, 0.1),
+            }}
+          >
+            <AlertTriangle size={20} style={{ color: theme.palette.info.main }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontFamily: "Montserrat", fontWeight: 600 }}>
+            Time Information
+          </Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 3 }}>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          Please note the remaining time for these components:
         </Typography>
-      ))}
-    </DialogContent>
-    <DialogActions>
-      <Button 
-        variant="contained" 
-        color="primary"
-        onClick={() => onClose(true)}
-      >
-        Proceed with Payment
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+        
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          {components.map((component, index) => (
+            <Paper
+              key={index}
+              elevation={0}
+              sx={{
+                p: 2,
+                borderRadius: "10px",
+                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                backgroundColor: alpha(theme.palette.info.main, 0.05),
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {component.type === 'flight' 
+                  ? `Flight: ${component.origin} → ${component.destination}` 
+                  : `Hotel: ${component.name}`}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  display: "inline-block",
+                  px: 1, 
+                  py: 0.5, 
+                  borderRadius: "16px",
+                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                  color: theme.palette.info.main,
+                  fontWeight: 500
+                }}
+              >
+                {component.remainingTime} minutes remaining
+              </Typography>
+            </Paper>
+          ))}
+        </Stack>
+        
+        <Button 
+          variant="contained" 
+          fullWidth
+          size="large"
+          onClick={() => onClose(true)}
+          endIcon={<ArrowRight size={18} />}
+          color="info"
+          sx={{
+            borderRadius: "10px",
+            py: 1.5,
+            fontWeight: 600,
+            textTransform: "none",
+            transition: "all 0.2s ease",
+            "&:hover": {
+              transform: "translateY(-2px)",
+              boxShadow: `0 6px 20px ${alpha(theme.palette.info.main, 0.4)}`,
+            }
+          }}
+        >
+          Proceed with Payment
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const PaymentPage = () => {
   const theme = useTheme();
@@ -490,235 +821,393 @@ const PaymentPage = () => {
     }
   }, [bookingId, itinerary, navigate]);
 
-  const styles = {
-    pageContainer: {
-      minHeight: "100vh",
-      py: 4,
-      backgroundImage: `linear-gradient(to bottom, ${alpha(
-        theme.palette.common.black,
-        0.6
-      )}, ${alpha(
-        theme.palette.common.black,
-        0.6
-      )}), url('/assets/images/hero/w1.jpg')`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-      color: theme.palette.common.white,
-      paddingTop: "80px",
-      position: "relative",
-      "&::before": {
-        content: '""',
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: "100px",
-        background: `linear-gradient(180deg,
-                ${alpha(theme.palette.common.black, 1)} 0%,
-                ${alpha(theme.palette.common.black, 0.75)} 50%,
-                ${alpha(theme.palette.common.black, 0.2)} 90%,
-                transparent 100%
-              )`,
-        opacity: 0.99,
-        zIndex: 999,
-        pointerEvents: "none",
-        transform: "translateY(-20px)",
-      },
-    },
-    contentContainer: {
-      position: "relative",
-      zIndex: 1,
-    },
-    mainCard: {
-      p: 3,
-      mb: 3,
-      borderRadius: 3,
-      boxShadow: theme.shadows[3],
-      background: alpha(theme.palette.background.paper, 0.5),
-      backdropFilter: "blur(10px)",
-      position: "relative",
-      overflow: "hidden",
-      marginRight: { xs: 0, lg: "24px" },
-      "&::before": {
-        content: '""',
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 4,
-        background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-      },
-    },
-    paymentCard: {
-      p: 3,
-      borderRadius: 3,
-      boxShadow: theme.shadows[3],
-      background: alpha(theme.palette.background.paper, 0.8),
-      backdropFilter: "blur(10px)",
-      border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-      mb: { xs: 3, lg: 0 },
-      position: { xs: "static", lg: "fixed" },
-      top: { lg: "100px" },
-      right: { lg: "calc((100% - 1200px) / 12 + 24px)" },
-      width: { xs: "100%", lg: "380px" },
-      maxHeight: { lg: "calc(100vh - 120px)" },
-      overflowY: { lg: "auto" },
-      zIndex: { lg: 998 },
-    },
-    securityBadge: {
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-      color: theme.palette.success.main,
-      bgcolor: alpha(theme.palette.success.main, 0.1),
-      p: 1,
-      borderRadius: 2,
-      mb: 2,
-    },
-    paymentButton: {
-      mt: 3,
-      py: 1.5,
-      borderRadius: 3,
-      background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
-      transition: "transform 0.2s ease, box-shadow 0.2s ease",
-      "&:hover": {
-        transform: "translateY(-2px)",
-        boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`,
-      },
-      "&.Mui-disabled": {
-        background: theme.palette.action.disabledBackground,
-      },
-    },
-    securityInfo: {
-      mt: 3,
-      p: 2,
-      borderRadius: 2,
-      bgcolor: alpha(theme.palette.info.main, 0.05),
-      border: `1px dashed ${alpha(theme.palette.info.main, 0.2)}`,
-    },
-  };
-
   if (!bookingId || !itinerary) {
     return null;
   }
 
   return (
-    <Box sx={styles.pageContainer}>
+    <Box 
+      sx={{ 
+        backgroundColor: theme.palette.grey[50],
+        minHeight: "100vh",
+        py: 5,
+        pt: { xs: 10, md: 8 }
+      }}
+    >
       <Container maxWidth="xl">
-        <Box sx={styles.contentContainer}>
-          {/* Main Content Card */}
-          <Box flex={1} sx={{ 
-            pr: { 
-              xs: 0,
-              lg: '424px' 
-            } 
-          }}>
-            <Card sx={styles.mainCard}>
-              <Stack spacing={2}>
-                <Typography variant="h4" fontWeight="500">
-                  Review Your Booking
-                </Typography>
-                <BookingSummary itinerary={itinerary} />
-              </Stack>
-            </Card>
-          </Box>
-  
-          {/* Payment Card */}
-          <Card sx={styles.paymentCard}>
-            <Stack spacing={3}>
-              <Box sx={styles.securityBadge}>
-                <Lock size={20} />
-                <Typography variant="body2" fontWeight="500">
-                  Secure Payment
-                </Typography>
-              </Box>
-  
-              <Stack spacing={1}>
-                <Typography variant="h5" fontWeight="500">
-                  Payment Details
-                </Typography>
-  
-                <Stack spacing={0.5}>
-                  <Typography variant="body2" color="text.secondary">
-                    Booking ID
-                  </Typography>
-                  <Typography variant="h6">
-                    {bookingId}
-                  </Typography>
-                </Stack>
-              </Stack>
-  
-              <Divider />
-  
-              <Stack spacing={0.5}>
-                <Typography variant="body1" fontWeight="500">
-                  Amount to Pay
-                </Typography>
-                <Typography variant="h4" color="primary.main" fontWeight="600">
-                  ₹{itinerary.priceTotals.grandTotal.toLocaleString()}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  (Includes TCS @ {itinerary.priceTotals.tcsRate}%)
-                </Typography>
-              </Stack>
-  
-              <Divider />
-  
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={termsAccepted}
-                    onChange={(e) => dispatch(setTermsAccepted(e.target.checked))}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    I accept the{' '}
-                    <Button
-                      color="primary"
-                      onClick={() => setShowTerms(true)}
-                      sx={{ p: 0, minWidth: 'auto', textTransform: 'none', textDecoration: 'underline' }}
-                    >
-                      terms and conditions
-                    </Button>
-                  </Typography>
-                }
-              />
-  
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<CreditCard />}
-                disabled={loading || !termsAccepted}
-                onClick={handlePayment}
-                sx={styles.paymentButton}
+        
+
+        <Grid container spacing={4}>
+          {/* Main Content */}
+          <Grid item xs={12} md={7} lg={8}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  mb: 4
+                }}
               >
-                {loading ? (
-                  <>
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                    Processing...
-                  </>
-                ) : (
-                  'Proceed to Payment'
-                )}
-              </Button>
-  
-              <Box sx={styles.securityInfo}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Shield size={20} />
-                  <Typography variant="body2" color="text.secondary">
-                    Your payment is protected by bank-level security
-                  </Typography>
-                </Stack>
-              </Box>
-            </Stack>
-          </Card>
-        </Box>
+                <Box 
+                  sx={{ 
+                    p: 3,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.03),
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    display: "flex",
+                    alignItems: "center",
+                    height: 86
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 42,
+                        height: 42,
+                        borderRadius: "12px",
+                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      }}
+                    >
+                      <Receipt size={22} style={{ color: theme.palette.primary.main }} />
+                    </Box>
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontFamily: "Montserrat", 
+                        fontWeight: 600,
+                        color: theme.palette.text.primary,
+                      }}
+                    >
+                      Complete Your Payment
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Box sx={{ p: 3 }}>
+                  <BookingSummary itinerary={itinerary} />
+                </Box>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Payment Card */}
+          <Grid item xs={12} md={5} lg={4}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              style={{ position: "sticky" }}
+            >
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                  boxShadow: `0 8px 40px ${alpha(theme.palette.common.black, 0.06)}`,
+                  height: "100%"
+                }}
+              >
+                {/* Header */}
+                <Box 
+                  sx={{ 
+                    p: 3, 
+                    backgroundColor: theme.palette.primary.main,
+                    display: "flex",
+                    alignItems: "center",
+                    height: 86
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 42,
+                        height: 42,
+                        borderRadius: "12px",
+                        backgroundColor: alpha(theme.palette.common.white, 0.2),
+                      }}
+                    >
+                      <CreditCard size={22} style={{ color: theme.palette.common.white }} />
+                    </Box>
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontFamily: "Montserrat", 
+                        fontWeight: 600,
+                        color: theme.palette.common.white,
+                      }}
+                    >
+                      Payment Details
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Content */}
+                <Box sx={{ p: 3 }}>
+                  {/* Security Badge */}
+                  <Box 
+                    sx={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: 1.5,
+                      p: 2,
+                      mb: 3,
+                      borderRadius: "12px",
+                      backgroundColor: alpha(theme.palette.success.main, 0.05),
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.1)}`,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 36,
+                          height: 36,
+                          borderRadius: "10px",
+                          backgroundColor: alpha(theme.palette.success.main, 0.1),
+                        }}
+                      >
+                        <img 
+                          src="/assets/images/razorpay-logo.png" 
+                          alt="Razorpay" 
+                          style={{ 
+                            width: '24px', 
+                            height: '24px',
+                            objectFit: 'contain' 
+                          }} 
+                        />
+                      </Box>
+                      <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
+                        Secure Payment via Razorpay
+                      </Typography>
+                    </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Booking ID */}
+                  <Box 
+                    sx={{ 
+                      p: 2,
+                      mb: 3,
+                      borderRadius: "12px",
+                      backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                    }}
+                  >
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        mb: 0.5
+                      }}
+                    >
+                      Booking ID
+                    </Typography>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        fontFamily: "Montserrat",
+                        fontWeight: 600
+                      }}
+                    >
+                      {bookingId}
+                    </Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 3 }} />
+
+                  {/* Payment Amount */}
+                  <Box sx={{ mb: 3 }}>
+                    <Grid container alignItems="center" justifyContent="space-between">
+                      <Grid item>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            color: theme.palette.text.secondary,
+                            fontWeight: 500
+                          }}
+                        >
+                          Subtotal
+                        </Typography>
+                      </Grid>
+                      <Grid item>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            fontWeight: 600
+                          }}
+                        >
+                          ₹{itinerary.priceTotals.subtotal.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+
+                    <Grid container alignItems="center" justifyContent="space-between" sx={{ mt: 1.5 }}>
+                      <Grid item>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: theme.palette.text.secondary
+                          }}
+                        >
+                          TCS ({itinerary.priceTotals.tcsRate}%)
+                        </Typography>
+                      </Grid>
+                      <Grid item>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: theme.palette.text.secondary,
+                            fontWeight: 500
+                          }}
+                        >
+                          ₹{itinerary.priceTotals.tcsAmount.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+
+                  {/* Total Amount */}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: "12px",
+                      backgroundColor: alpha(theme.palette.primary.main, 0.03),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                      mb: 3
+                    }}
+                  >
+                    <Grid container alignItems="center" justifyContent="space-between">
+                      <Grid item>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                          <Wallet size={20} style={{ color: theme.palette.primary.main }} />
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            Total Amount
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            color: theme.palette.primary.main,
+                            fontWeight: 700
+                          }}
+                        >
+                          ₹{itinerary.priceTotals.grandTotal.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+
+                  {/* Terms & Payment Button */}
+                  <Box sx={{ mt: 3 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={termsAccepted}
+                          onChange={(e) => dispatch(setTermsAccepted(e.target.checked))}
+                          color="primary"
+                          sx={{ 
+                            '&.Mui-checked': {
+                              color: theme.palette.primary.main,
+                            }
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography variant="body2">
+                          I accept the{' '}
+                          <Button
+                            color="primary"
+                            onClick={() => setShowTerms(true)}
+                            sx={{ 
+                              p: 0, 
+                              minWidth: 'auto', 
+                              textTransform: 'none', 
+                              textDecoration: 'underline',
+                              fontWeight: 500,
+                              '&:hover': {
+                                backgroundColor: 'transparent',
+                                textDecoration: 'underline',
+                              }
+                            }}
+                          >
+                            terms and conditions
+                          </Button>
+                        </Typography>
+                      }
+                    />
+
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      disabled={loading || !termsAccepted}
+                      onClick={handlePayment}
+                      endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CreditCard size={20} />}
+                      sx={{
+                        mt: 3,
+                        py: 1.5,
+                        borderRadius: "10px",
+                        backgroundColor: theme.palette.primary.main,
+                        color: "#fff",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        fontSize: "1rem",
+                        transition: "all 0.3s ease",
+                        boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+                        "&:hover": {
+                          backgroundColor: theme.palette.primary.dark,
+                          transform: "translateY(-3px)",
+                          boxShadow: `0 8px 25px ${alpha(theme.palette.primary.main, 0.5)}`,
+                        },
+                        "&.Mui-disabled": {
+                          backgroundColor: alpha(theme.palette.action.disabled, 0.24),
+                        }
+                      }}
+                    >
+                      {loading ? 'Processing...' : 'Proceed to Payment'}
+                    </Button>
+                  </Box>
+
+                  {/* Security Notice */}
+                  <Box 
+                    sx={{ 
+                      mt: 3,
+                      p: 2,
+                      borderRadius: "10px",
+                      border: `1px dashed ${alpha(theme.palette.text.secondary, 0.2)}`,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                    }}
+                  >
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Shield size={20} style={{ color: theme.palette.text.secondary }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Payments are secured with bank-level encryption and security measures.
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Box>
+              </Paper>
+            </motion.div>
+          </Grid>
+        </Grid>
       </Container>
-  
+
       {/* Terms & Conditions Dialog */}
       <Dialog
         open={showTerms}
@@ -727,41 +1216,149 @@ const PaymentPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            boxShadow: theme.shadows[5],
+            borderRadius: "16px",
+            boxShadow: `0 15px 50px ${alpha(theme.palette.common.black, 0.15)}`,
+            overflow: "hidden"
           },
         }}
       >
-        <DialogTitle>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6" fontWeight="500">
-              Terms and Conditions
-            </Typography>
-            <IconButton onClick={() => setShowTerms(false)} size="small">
-              <X size={20} />
+        <DialogTitle sx={{ 
+          py: 2.5,
+          px: 3,
+          backgroundColor: alpha(theme.palette.primary.main, 0.05),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+        }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 40,
+                  height: 40,
+                  borderRadius: "10px",
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                }}
+              >
+                <FileText size={20} style={{ color: theme.palette.primary.main }} />
+              </Box>
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  fontFamily: "Montserrat", 
+                  fontWeight: 600,
+                  color: theme.palette.text.primary,
+                }}
+              >
+                Terms and Conditions
+              </Typography>
+            </Box>
+            
+            <IconButton 
+              onClick={() => setShowTerms(false)} 
+              size="small"
+              sx={{
+                backgroundColor: alpha(theme.palette.divider, 0.1),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.divider, 0.2),
+                }
+              }}
+            >
+              <X size={18} />
             </IconButton>
-          </Stack>
+          </Box>
         </DialogTitle>
-        <DialogContent>
-          <Stack spacing={3}>
+        <DialogContent sx={{ p: 3 }}>
+          <Stack spacing={4}>
             <Box>
-              <Typography variant="h6" gutterBottom>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  mb: 2,
+                  pb: 1,
+                  fontFamily: "Montserrat",
+                  fontWeight: 600,
+                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                }}
+              >
                 1. Booking Confirmation
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Your booking will be confirmed only after successful payment
-                • Prices are subject to change until payment is completed
-              </Typography>
+              <Stack spacing={1.5}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                  <Box 
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: theme.palette.primary.main,
+                      mt: 1.2
+                    }}
+                  />
+                  <Typography variant="body1">
+                    Your booking will be confirmed only after successful payment.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                  <Box 
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: theme.palette.primary.main,
+                      mt: 1.2
+                    }}
+                  />
+                  <Typography variant="body1">
+                    Prices are subject to change until payment is completed.
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
   
             <Box>
-              <Typography variant="h6" gutterBottom>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  mb: 2,
+                  pb: 1,
+                  fontFamily: "Montserrat",
+                  fontWeight: 600,
+                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                }}
+              >
                 2. Cancellation Policy
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Cancellation charges will apply as per individual service providers
-                • Refunds will be processed within 7-14 business days
-              </Typography>
+              <Stack spacing={1.5}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                  <Box 
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: theme.palette.primary.main,
+                      mt: 1.2
+                    }}
+                  />
+                  <Typography variant="body1">
+                    Cancellation charges will apply as per individual service providers.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                  <Box 
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: theme.palette.primary.main,
+                      mt: 1.2
+                    }}
+                  />
+                  <Typography variant="body1">
+                    Refunds will be processed within 7-14 business days.
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
           </Stack>
         </DialogContent>
@@ -778,8 +1375,8 @@ const PaymentPage = () => {
           severity={snackbar.severity}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           sx={{
-            borderRadius: 2,
-            boxShadow: theme.shadows[3],
+            borderRadius: "12px",
+            boxShadow: `0 4px 20px ${alpha(theme.palette.common.black, 0.1)}`,
           }}
         >
           {snackbar.message}

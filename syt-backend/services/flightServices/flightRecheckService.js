@@ -37,9 +37,33 @@ class FlightRecheckService {
             responseData: response.data
           });
 
-          if (!response.data.results) {
+          // Enhanced error handling for different response scenarios
+          if (response.data.error) {
+            const errorResponse = this.handleErrorResponse(response.data.error, query);
+            results.push(errorResponse);
+
+            apiLogger.logApiData({
+              inquiryToken: query.inquiryToken,
+              apiType: 'flight_price_recheck_error',
+              date: new Date().toISOString().split('T')[0],
+              searchId: query.traceId,
+              itineraryCode: query.itineraryCode,
+              requestData: { traceId: query.traceId },
+              responseData: {
+                error: response.data.error,
+                errorType: errorResponse.type
+              }
+            });
+
+            continue;
+          }
+
+          // Check for valid results
+          if (!response.data.results || response.data.results.length === 0) {
             console.error('No results in response:', response.data);
-            throw new Error('Invalid response format');
+            const noResultsError = this.handleNoResultsError(query);
+            results.push(noResultsError);
+            continue;
           }
 
           const {
@@ -50,7 +74,7 @@ class FlightRecheckService {
             baseFare,
             taxAndSurcharge,
             insuranceAmount = 0
-          } = response.data.results;
+          } = response.data.results; 
 
           results.push({
             itineraryCode: query.itineraryCode,
@@ -111,6 +135,41 @@ class FlightRecheckService {
     }
   }
 
+  static handleErrorResponse(errorData, query) {
+    const errorResponse = {
+      itineraryCode: query.itineraryCode,
+      traceId: query.traceId,
+      status: 'error',
+      message: errorData.error?.errorMessage || 'Unknown error occurred'
+    };
+
+    // Map specific error codes
+    switch (errorData.error?.errorCode) {
+      case 6:
+        errorResponse.type = 'RESULTS_EXPIRED';
+        errorResponse.message = 'Results have expired. Please try again.';
+        break;
+      case 1000:
+        errorResponse.type = 'AVAILABILITY';
+        errorResponse.message = 'Flight no longer available';
+        break;
+      default:
+        errorResponse.type = 'API_ERROR';
+    }
+
+    return errorResponse;
+  }
+
+  static handleNoResultsError(query) {
+    return {
+      itineraryCode: query.itineraryCode,
+      traceId: query.traceId,
+      status: 'error',
+      type: 'NO_RESULTS',
+      message: 'No flight results available'
+    };
+  }
+
   static handleFareQuoteError(error, query) {
     const errorResponse = {
       itineraryCode: query.itineraryCode,
@@ -127,6 +186,19 @@ class FlightRecheckService {
       errorResponse.type = 'RATE_LIMIT';
     } else if (!error.response) {
       errorResponse.type = 'NETWORK_ERROR';
+    } else if (error.response?.data?.error) {
+      // Handle error responses with specific error objects
+      const errorData = error.response.data.error;
+      errorResponse.message = errorData.errorMessage || errorResponse.message;
+      
+      switch (errorData.errorCode) {
+        case 6:
+          errorResponse.type = 'RESULTS_EXPIRED';
+          errorResponse.message = 'Results have expired. Please try again.';
+          break;
+        default:
+          errorResponse.type = 'API_ERROR';
+      }
     } else {
       errorResponse.type = 'API_ERROR';
     }

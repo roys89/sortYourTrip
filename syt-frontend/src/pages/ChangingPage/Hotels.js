@@ -322,6 +322,7 @@ const HotelsPage = () => {
           `http://localhost:5000/api/itinerary/hotels/${inquiryToken}/${city}/${checkIn}/${checkOut}?page=${pageNum}`,
           {
             headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
               "X-Inquiry-Token": inquiryToken,
             },
           }
@@ -529,6 +530,7 @@ const HotelsPage = () => {
         {
           method: "POST",
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             "Content-Type": "application/json",
             "X-Inquiry-Token": inquiryToken || "",
           },
@@ -600,6 +602,7 @@ const HotelsPage = () => {
         {
           method: "PUT",
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             "Content-Type": "application/json",
             "X-Inquiry-Token": inquiryToken,
           },

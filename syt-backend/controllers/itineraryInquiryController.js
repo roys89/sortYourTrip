@@ -12,7 +12,7 @@ exports.createItineraryInquiry = async (req, res) => {
     }
 
     // Generate a unique token for the itinerary inquiry
-    const itineraryInquiryToken = uuidv4();
+    const itineraryInquiryToken = Math.random().toString(36).substring(2, 10).toUpperCase();
 
     // Add the generated token to the itinerary data
     const itinerary = new ItineraryInquiry({

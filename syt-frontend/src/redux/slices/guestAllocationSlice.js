@@ -110,20 +110,7 @@ export const allocateHotelRooms = createAsyncThunk(
         throw new Error('Invalid hotel data');
       }
 
-      // Extract travelers directly from form data
-      const travelers = formData.rooms.flatMap(room => room.travelers);
-
-      // Validate travelers
-      if (!travelers || travelers.length === 0) {
-        throw new Error('No travelers found for hotel allocation');
-      }
-
-      // Transform hotel data for API
-      const hotelData = transformHotelBookings(
-        hotel.data,
-        travelers,
-        hotel
-      );
+      const hotelData = transformHotelBookings(hotel.data, formData.rooms, hotel);
 
       // Prepare API payload
       const payload = {

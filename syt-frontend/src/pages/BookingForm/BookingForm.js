@@ -477,10 +477,9 @@ const BookingForm = () => {
   };
 
   const generateBookingId = () => {
-    const timestamp = Date.now();
-    const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
-    return `BK-${timestamp}-${randomPart}`;
-  };
+    // Generate a random 8-character alphanumeric string
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();

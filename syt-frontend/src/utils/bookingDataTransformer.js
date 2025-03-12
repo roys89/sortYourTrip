@@ -132,27 +132,30 @@ export const transformTravelers = (travelers) => {
 };
 
 // Transform hotel bookings
-const transformHotelBookings = (hotelData, travelers, hotelContext) => {
+const transformHotelBookings = (hotelData, rooms, hotelContext) => {
   // Validate inputs
-  if (!hotelData || !travelers || travelers.length === 0) {
-    console.error('Invalid hotel data or travelers');
+  if (!hotelData || !rooms || rooms.length === 0) {
+    console.error('Invalid hotel data or rooms');
     return [];
   }
 
   return [{
     hotelId: hotelData.staticContent[0].id,
     city: hotelData.hotelDetails?.address?.city?.name,
-    checkin: hotelContext.checkIn || new Date().toISOString().split('T')[0],
-    checkout: hotelContext.checkOut || new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0],
+    checkin: hotelContext.checkIn || hotelContext.data?.searchRequestLog?.checkIn,
+    checkout: hotelContext.checkOut || hotelContext.data?.searchRequestLog?.checkOut,
     bookingStatus: 'pending',
     itineraryCode: hotelData.code,
     bookingArray: [{
       traceId: hotelData.traceId,
-      roomsAllocations: hotelData.items[0].selectedRoomsAndRates.map((roomRate, roomIndex) => ({
-        rateId: roomRate.rate.id,
-        roomId: roomRate.room.id,
-        guests: travelers.slice(0, roomRate.room.maxOccupancy).map((traveler, guestIndex) => {
-          const guestData = {
+      roomsAllocations: hotelData.items[0].selectedRoomsAndRates.map((roomRate, roomIndex) => {
+        // Use travelers from the correct room only
+        const roomTravelers = roomIndex < rooms.length ? rooms[roomIndex].travelers : [];
+        
+        return {
+          rateId: roomRate.rate.id,
+          roomId: roomRate.room.id,
+          guests: roomTravelers.map((traveler, guestIndex) => ({
             title: traveler.title,
             firstName: traveler.firstName,
             lastName: traveler.lastName,
@@ -164,22 +167,9 @@ const transformHotelBookings = (hotelData, travelers, hotelContext) => {
             panCardNumber: traveler.panNumber || null,
             passportNumber: traveler.passportNumber || null,
             passportExpiry: traveler.passportExpiryDate || null
-          };
-
-          // Only add gstDetails if traveler is adult and has gstNumber
-          // if (traveler.type === 'adult' && traveler.gstNumber) {
-          //   guestData.gstDetails = {
-          //     gstNumber: traveler.gstNumber,
-          //     companyName: traveler.gstCompanyName,
-          //     companyAddress: traveler.gstCompanyAddress,
-          //     companyEmail: traveler.gstCompanyEmail,
-          //     companyContactNumber: traveler.gstCompanyContactNumber
-          //   };
-          // }
-
-          return guestData;
-        })
-      })),
+          }))
+        };
+      }),
       specialRequests: null
     }]
   }];

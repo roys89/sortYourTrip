@@ -516,7 +516,7 @@ async function createHotelToAirportTransfer(flight, hotel, inquiry, inquiryToken
 exports.createItinerary = async (req, res) => {
   try {
     const { inquiryToken } = req.params;
-    const inquiry = await ItineraryInquiry.findOne({
+    const inquiry = await ItineraryInquiry.findOne({ 
       itineraryInquiryToken: inquiryToken,
     });
 
@@ -524,8 +524,8 @@ exports.createItinerary = async (req, res) => {
       return res.status(404).json({ message: "Itinerary inquiry not found" });
     }
 
-    const itineraryToken = uuidv4();
-
+    const itineraryToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
     // Initialize activity tracker for each city at the start
     const cityActivitiesTracker = {};
     inquiry.selectedCities.forEach(city => {

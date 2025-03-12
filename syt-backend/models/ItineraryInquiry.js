@@ -40,7 +40,7 @@ const itineraryInquirySchema = new mongoose.Schema({
     budget: String,
   },
   includeInternational: { type: Boolean, default: false },
-  includeGroundTransfer: { type: Boolean, default: false },
+  includeGroundTransfer: { type: Boolean, default: true },
   includeFerryTransport: { type: Boolean, default: false },
   userInfo: {
     userId: String,

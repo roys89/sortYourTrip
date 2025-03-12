@@ -105,8 +105,7 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
       : []),
     ...(isAuthenticated
       ? [
-          { to: "/profile", label: "Profile" },
-          { to: "/trips", label: "My Trips" },
+          { to: "/profile", label: "Profile & Trips" },
           { label: "Logout", onClick: handleLogout },
         ]
       : [
@@ -131,8 +130,7 @@ const Navbar = ({ handleThemeToggle, darkMode }) => {
         </>
       ),
     },
-    { to: "/profile", label: "Profile" },
-    { to: "/trips", label: "My Trips" },
+    { to: "/profile", label: "Profile & Trips" },
     { label: "Logout", onClick: handleLogout },
   ];
 

@@ -1,154 +1,215 @@
-/* Layout styles */
-.hotels-page {
-    margin-top: 100px;
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Hotel card styles - extended with premium effects */
+.hotel-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  overflow: hidden;
+}
+
+.hotel-card:hover {
+  transform: translateY(-5px);
+}
+
+.hotel-card:hover .hotel-image {
+  transform: scale(1.05);
+}
+
+.hotel-image {
+  transition: transform 0.5s ease-in-out;
+}
+
+/* Star rating with animation */
+.star-rating {
+  display: inline-flex;
+  align-items: center;
+}
+
+.star-rating span {
+  display: inline-block;
+  margin-right: 2px;
+  animation: fadeIn 0.5s ease forwards;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+/* Price display with visual emphasis */
+.price-amount {
+  position: relative;
+  display: inline-block;
+}
+
+.price-amount::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.hotel-card:hover .price-amount::after {
+  transform: scaleX(1);
+}
+
+/* Modal styles with enhanced transitions */
+.hotel-modal {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Loading state */
+.hotels-loading {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.loading-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-effect::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0) 100%);
+  animation: shimmer 1.5s infinite;
+  background-size: 200% 100%;
+}
+
+/* Filter and sort controls */
+.filter-controls {
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.filter-controls:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Enhanced button effects */
+.action-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.action-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.action-button:hover::after {
+  transform: translateX(0);
+}
+
+/* No results styling */
+.no-results {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Custom scrollbar for all containers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Grid view with staggered animation */
+.hotels-grid > * {
+  opacity: 0;
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.hotels-grid > *:nth-child(1) { animation-delay: 0.1s; }
+.hotels-grid > *:nth-child(2) { animation-delay: 0.2s; }
+.hotels-grid > *:nth-child(3) { animation-delay: 0.3s; }
+.hotels-grid > *:nth-child(4) { animation-delay: 0.4s; }
+.hotels-grid > *:nth-child(5) { animation-delay: 0.5s; }
+.hotels-grid > *:nth-child(6) { animation-delay: 0.6s; }
+
+/* Responsive adjustments with smooth transitions */
+@media (max-width: 960px) {
+  .hotels-page {
+    padding-top: 60px;
   }
   
-  /* Header styles */
   .hotels-header {
-    margin-bottom: 2rem;
+    flex-direction: column;
+    gap: 1rem;
   }
-  
-  /* Hotel card styles */
+}
+
+@media (max-width: 600px) {
   .hotel-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    transition: box-shadow 0.3s ease;
-    margin-bottom: 1rem;
-  }
-  
-  .hotel-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    flex-direction: column;
   }
   
   .hotel-image-container {
     width: 100%;
-    height: 200px;
+    height: 180px;
   }
-  
-  @media (min-width: 768px) {
-    .hotel-image-container {
-      width: 256px;
-      height: 192px;
-    }
-  }
-  
-  .hotel-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .hotel-content {
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  
-  /* Star rating styles */
-  .star-rating {
-    color: #fbbf24;
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-  
-  /* Button styles */
-  .load-more-button {
-    margin: 2rem auto;
-    min-width: 200px;
-  }
-  
-  /* Filter menu styles */
-  .filter-menu-container {
-    margin-left: auto;
-  }
-  
-  /* Loading spinner container */
-  .loading-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 200px;
-  }
-  
-  /* Error message styles */
-  .error-container {
-    text-align: center;
-    padding: 2rem;
-    margin-top: 2rem;
-  }
-  
-  /* No results message */
-  .no-results {
-    text-align: center;
-    padding: 3rem 0;
-    color: #6b7280;
-  }
-  
-  /* Grid view styles */
-  .hotels-grid {
-    display: grid;
-    gap: 1.5rem;
-    grid-template-columns: 1fr;
-  }
-  
-  @media (min-width: 1024px) {
-    .hotels-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-  
-  /* Price display styles */
-  .price-container {
-    margin-top: auto;
-  }
-  
-  .starting-price {
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-  
-  .price-amount {
-    color: #2563eb;
-    font-weight: 600;
-    font-size: 1.25rem;
-  }
-  
-  /* Boarding details styles */
-  .boarding-details {
-    color: #6b7280;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-  }
-  
-  /* Back button styles */
-  .back-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  /* Modal styles */
-  .hotel-modal {
-    max-width: 90vw;
-    max-height: 90vh;
-    margin: 2rem auto;
-    overflow-y: auto;
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 640px) {
-    .hotels-page {
-      margin-top: 1rem;
-    }
-  
-    .hotel-content {
-      padding: 0.75rem;
-    }
-  
-    .hotels-header {
-      margin-bottom: 1.5rem;
-    }
-  }
+}

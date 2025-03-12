@@ -46,6 +46,7 @@ const HotelDetailModal = ({
               checkIn: date,
             },
             headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
               "X-Inquiry-Token": inquiryToken,
             },
           }
@@ -112,6 +113,7 @@ const HotelDetailModal = ({
         requestData,
         {
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             "X-Inquiry-Token": inquiryToken,
           },
         }
@@ -150,6 +152,7 @@ const HotelDetailModal = ({
         replaceHotelRequest,
         {
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             "X-Inquiry-Token": inquiryToken,
           },
         }

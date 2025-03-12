@@ -18,11 +18,11 @@ module.exports = {
       type,
       oldFlightCode,
       existingFlightPrice,
-      travelersDetails
+      travelersDetails,
+      // Chunk parameters for progressive loading
+      chunkIndex = 0,
+      chunkSize = 100
     } = req.body;
-    
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
   
     try {
       if (!inquiryToken || !origin || !destination || !departureDate) {
@@ -86,27 +86,56 @@ module.exports = {
         throw new Error(searchResponse.error || "Flight search failed");
       }
   
-      // Get all flights for the current page
+      // Get all flights from search response
       const allFlights = searchResponse.data.results.outboundFlights;
       const totalFlights = allFlights.length;
       
-      // Calculate pagination
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedFlights = allFlights.slice(startIndex, endIndex);
+      logger.info(`Retrieved ${totalFlights} total flights`);
+      
+      // Calculate which chunk to return
+      const startIndex = chunkIndex * chunkSize;
+      const endIndex = Math.min(startIndex + chunkSize, totalFlights);
+      const flightChunk = allFlights.slice(startIndex, endIndex);
+      
+      logger.info(`Returning chunk ${chunkIndex}: ${startIndex}-${endIndex} (${flightChunk.length} flights)`);
+      
+      // Get metadata for the entire dataset (for filter UI)
+      
+      // Calculate price ranges from ALL flights
+      const allPrices = allFlights.map(f => f.pF).filter(Boolean);
+      const minPrice = Math.min(...allPrices);
+      const maxPrice = Math.max(...allPrices);
+      
+      // Get all available airlines for filter options from ALL flights
+      const allAirlines = [...new Set(allFlights.map(f => f.sg[0].al.alN))];
+      
+      // Count occurrence of each stop count (0, 1, 2+) from ALL flights
+      const stopCounts = {
+        0: allFlights.filter(f => f.sg.length === 1).length,
+        1: allFlights.filter(f => f.sg.length === 2).length,
+        "2+": allFlights.filter(f => f.sg.length > 2).length
+      };
   
       res.json({
         success: true,
         data: {
-          flights: paginatedFlights,
+          flights: flightChunk,
           traceId: searchResponse.data.traceId,
           isDomestic: searchResponse.data.isDomestic,
           totalTravelers: searchResponse.data.paxCount,
           pagination: {
-            page,
-            limit,
+            chunkIndex,
+            chunkSize, 
             total: totalFlights,
             hasMore: endIndex < totalFlights
+          },
+          priceRange: {
+            min: minPrice,
+            max: maxPrice
+          },
+          availableFilters: {
+            airlines: allAirlines,
+            stopCounts
           },
           context: {
             oldFlightCode,
@@ -124,6 +153,8 @@ module.exports = {
     }
   },
 
+  // All other methods remain the same...
+  
   getFareRules: async (req, res) => {
     const { inquiryToken } = req.params;
     const { traceId, resultIndex, cityName, date } = req.query;
@@ -294,62 +325,60 @@ module.exports = {
     }
   },
 
-  // Add this method to the existing exports
-getFlightItineraryDetails: async (req, res) => {
-  const {
-    inquiryToken,
-    cityName, 
-    date, 
-    itineraryCode, 
-    traceId 
-  } = req.body;
+  getFlightItineraryDetails: async (req, res) => {
+    const {
+      inquiryToken,
+      cityName, 
+      date, 
+      itineraryCode, 
+      traceId 
+    } = req.body;
 
-  try {
-    // Validate input
-    if (!itineraryCode || !traceId) {
-      return res.status(400).json({
+    try {
+      // Validate input
+      if (!itineraryCode || !traceId) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required parameters: itineraryCode or traceId"
+        });
+      }
+
+      // Get auth token
+      const authToken = await FlightTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await FlightAuthService.login();
+          return authResponse.token;
+        }
+      );
+
+      // Call service method to get itinerary details
+      const itineraryDetails = await FlightCreateItineraryService.getItineraryDetails(
+        itineraryCode,
+        traceId,
+        authToken,
+        inquiryToken,
+        cityName,
+        date
+      );
+
+      // Log the details for additional tracking if needed
+      logger.info('Flight Itinerary Details:', JSON.stringify(itineraryDetails, null, 2));
+      const data = itineraryDetails.data
+      
+      // Return the response
+      res.json({
+        success: true,
+        data,
+      });
+
+    } catch (error) {
+      logger.error('Error fetching flight itinerary details:', error);
+      
+      res.status(500).json({
         success: false,
-        message: "Missing required parameters: itineraryCode or traceId"
+        message: error.message || 'Failed to fetch flight itinerary details',
+        details: error.details || {}
       });
     }
-
-
-    // Get auth token
-    const authToken = await FlightTokenManager.getOrSetToken(
-      async () => {
-        const authResponse = await FlightAuthService.login();
-        return authResponse.token;
-      }
-    );
-
-    // Call service method to get itinerary details
-    const itineraryDetails = await FlightCreateItineraryService.getItineraryDetails(
-      itineraryCode,
-      traceId,
-      authToken,
-      inquiryToken,
-      cityName,
-      date
-    );
-
-    // Log the details for additional tracking if needed
-    logger.info('Flight Itinerary Details:', JSON.stringify(itineraryDetails, null, 2));
-    const data = itineraryDetails.data
-    // Return the response
-    res.json({
-      success: true,
-      data,
-
-    });
-
-  } catch (error) {
-    logger.error('Error fetching flight itinerary details:', error);
-    
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to fetch flight itinerary details',
-      details: error.details || {}
-    });
   }
-}
 };

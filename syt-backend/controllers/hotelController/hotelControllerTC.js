@@ -235,7 +235,7 @@ async function selectRoomRatesWithRetry(itineraryResponse, travelersDetails, par
       console.log(`Trying with a different hotel. Attempt ${hotelAttempts + 1}/${MAX_HOTEL_ATTEMPTS}`);
       
       // Get a new hotel and create new itinerary
-      const newHotel = searchResponse.results[0].similarHotels[hotelAttempts];
+      const newHotel = searchResponse.results[0].data[hotelAttempts];
       if (!newHotel) {
         throw new Error('No more hotels available to try');
       }
@@ -368,7 +368,7 @@ module.exports = {
 
       // Select best matching hotel
       const selectedHotel = selectBestHotel(
-        searchResponse.results[0].similarHotels,
+        searchResponse.results[0].data,
         preferences?.budget
       );
 

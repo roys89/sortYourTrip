@@ -19,6 +19,7 @@ const hotelRoutes = require('./routes/itineraryRoutes/hotelRoutes');
 const guestAllocationRoutes = require('./routes/guestAllocationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const voucherRoutes = require('./routes/itineraryRoutes/voucherRoutes');
+const tripAdvisorRoutes = require('./routes/TripAdvisorRoutes'); 
 const app = express();
 
 // Increase payload size limit - Add these lines before other middleware
@@ -54,6 +55,7 @@ app.use('/api/flights', flightRoutes);
 app.use('/api/hotels', hotelRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/voucher', voucherRoutes);
+app.use('/api/tripadvisor', tripAdvisorRoutes); 
 // 404 route handler
 app.use((req, res, next) => {
   res.status(404).send({ message: 'Route not found' });

@@ -1,13 +1,166 @@
-import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
-
+import {
+  Box,
+  Button,
+  Card,
+  Grid,
+  Paper,
+  Tab,
+  Tabs,
+  Typography,
+  styled
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { Plane, ShoppingBag, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import {
   closeSeatModal,
   updateFlightSeats,
 } from "../../redux/slices/flightSlice";
-import './SeatSelectionModal.css';
+
+// Styled components using MUI theme
+const ModalOverlay = styled(Box)(({ theme }) => ({
+  position: "fixed",
+  inset: 0,
+  backgroundColor: "rgba(0, 0, 0, 0.5)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 50,
+  padding: theme.spacing(2),
+  overflowY: "auto",
+  marginTop: theme.spacing(8)
+}));
+
+const ModalContainer = styled(Paper)(({ theme }) => ({
+  width: "100%",
+  maxWidth: "56rem",
+  maxHeight: "90vh",
+  display: "flex",
+  flexDirection: "column",
+  borderRadius: theme.spacing(2),
+  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+  overflow: "hidden",
+  transition: "all 0.3s ease",
+  backgroundColor: theme.palette.background.paper
+}));
+
+const ModalHeader = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
+  backgroundColor: theme.palette.mode === 'light' ? 
+    theme.palette.grey[100] : 
+    theme.palette.grey[800],
+  borderBottom: `1px solid ${theme.palette.divider}`
+}));
+
+const ModalContent = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  overflowY: "auto",
+  backgroundColor: theme.palette.background.paper
+}));
+
+const ModalFooter = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
+  backgroundColor: theme.palette.mode === 'light' ? 
+    theme.palette.grey[100] : 
+    theme.palette.grey[800],
+  borderTop: `1px solid ${theme.palette.divider}`
+}));
+
+const StyledTab = styled(Tab)(({ theme }) => ({
+  flex: 1,
+  padding: theme.spacing(2),
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: theme.spacing(1),
+  color: theme.palette.text.primary,
+  backgroundColor: theme.palette.background.paper,
+  transition: "all 0.2s ease",
+  "&:hover:not(.Mui-selected)": {
+    backgroundColor: theme.palette.mode === 'light' ? 
+      theme.palette.grey[100] : 
+      theme.palette.grey[700]
+  },
+  "&.Mui-selected": {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText
+  }
+}));
+
+const SeatButton = styled(Button)(({ theme, selected, isAisle, disabled }) => ({
+  width: "3rem",
+  height: "3rem",
+  borderRadius: theme.spacing(1),
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  border: `1px solid ${theme.palette.divider}`,
+  backgroundColor: selected ? 
+    theme.palette.primary.main : 
+    theme.palette.background.paper,
+  color: selected ? 
+    theme.palette.primary.contrastText : 
+    theme.palette.text.primary,
+  transition: "all 0.2s ease",
+  marginLeft: isAisle ? theme.spacing(2) : 0,
+  "&:hover:not(:disabled)": {
+    backgroundColor: selected ? 
+      theme.palette.primary.main : 
+      (theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[700])
+  },
+  "&:disabled": {
+    backgroundColor: theme.palette.grey[500],
+    cursor: "not-allowed",
+    opacity: 0.5
+  }
+}));
+
+const OptionCard = styled(Button)(({ theme, selected }) => ({
+  width: "100%",
+  padding: theme.spacing(2),
+  borderRadius: theme.spacing(1),
+  backgroundColor: selected ? 
+    theme.palette.primary.main : 
+    (theme.palette.mode === 'light' ? theme.palette.grey[50] : theme.palette.grey[800]),
+  border: `1px solid ${theme.palette.divider}`,
+  color: selected ? 
+    theme.palette.primary.contrastText : 
+    theme.palette.text.primary,
+  transition: "all 0.2s ease",
+  textAlign: "left",
+  textTransform: "none",
+  "&:hover:not(.selected):not(:disabled)": {
+    backgroundColor: theme.palette.mode === 'light' ? 
+      theme.palette.grey[100] : 
+      theme.palette.grey[700]
+  }
+}));
+
+const ConfirmButton = styled(Button)(({ theme }) => ({
+  padding: `${theme.spacing(1)} ${theme.spacing(3)}`,
+  borderRadius: theme.spacing(1),
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  transition: "all 0.2s ease",
+  "&:hover:not(:disabled)": {
+    opacity: 0.9,
+    backgroundColor: theme.palette.primary.main
+  },
+  "&:disabled": {
+    opacity: 0.5,
+    cursor: "not-allowed"
+  }
+}));
+
+const SeatPrice = styled(Typography)(({ theme, selected }) => ({
+  fontSize: "0.75rem",
+  color: selected ? 
+    theme.palette.primary.contrastText : 
+    theme.palette.text.secondary
+}));
 
 const SeatSelectionModal = ({
   isOpen,
@@ -17,6 +170,7 @@ const SeatSelectionModal = ({
   inquiryToken,
   itineraryToken,
 }) => {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const [activeView, setActiveView] = useState("seats");
   const [activeFlightSegment, setActiveFlightSegment] = useState(0);
@@ -35,7 +189,7 @@ const SeatSelectionModal = ({
         destination: segment.destination,
         resultIdentifier: segment.resultIdentifier,
         rows: segment.rows.map(row => ({
-          seats: row.seats.filter(seat => seat.code !== null).map(seat => ({  // Add filter here
+          seats: row.seats.filter(seat => seat.code !== null).map(seat => ({
             ...seat,
             isSelected: matchingSelectedSegment?.rows.some(selectedRow => 
               selectedRow.seats.some(selectedSeat => 
@@ -251,240 +405,289 @@ const SeatSelectionModal = ({
     dispatch(closeSeatModal());
   };
 
+  // Handle tab change
+  const handleViewChange = (event, newValue) => {
+    setActiveView(newValue);
+  };
 
   return (
-    <div className="seat-modal-overlay">
-      <div className="seat-modal-container">
-        {/* Header - Remains the same */}
-        <div className="seat-modal-header">
-          <div>
-            <h2 className="seat-modal-title">Select Your Seats & Extras</h2>
-            <p className="seat-modal-subtitle">
+    <ModalOverlay>
+      <ModalContainer>
+        {/* Header */}
+        <ModalHeader sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold' }}>
+              Select Your Seats & Extras
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
               {flightData.airline} - Flight {flightData.flightCode}
-            </p>
-          </div>
-          <button onClick={handleClose} className="modal-close-btn">
+            </Typography>
+          </Box>
+          <Button onClick={handleClose} sx={{ minWidth: 'auto', p: 1 }}>
             <X size={24} />
-          </button>
-        </div>
+          </Button>
+        </ModalHeader>
   
-        {/* Error Alert - Remains the same */}
+        {/* Error Alert */}
         {error && (
-          <div className="p-4">
+          <Box sx={{ p: 2 }}>
             <Alert variant="destructive">
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-          </div>
+          </Box>
         )}
   
-        {/* Main Tabs Navigation - Remains the same */}
-        <div className="seat-modal-tabs">
-          <button
-            onClick={() => setActiveView("seats")}
-            className={`seat-modal-tab ${activeView === "seats" ? 'active' : ''}`}
-          >
-            <Plane size={18} />
-            Seat Selection
-          </button>
-          <button
-            onClick={() => setActiveView("baggage")}
-            className={`seat-modal-tab ${activeView === "baggage" ? 'active' : ''}`}
-          >
-            <ShoppingBag size={18} />
-            Baggage Options
-          </button>
+        {/* Main Tabs Navigation */}
+        <Tabs 
+          value={activeView}
+          onChange={handleViewChange}
+          variant="fullWidth"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <StyledTab 
+            value="seats" 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Plane size={18} />
+                <span>Seat Selection</span>
+              </Box>
+            }
+          />
+          <StyledTab 
+            value="baggage" 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ShoppingBag size={18} />
+                <span>Baggage Options</span>
+              </Box>
+            }
+          />
           {selectedMeal.length > 0 && (
-            <button
-              onClick={() => setActiveView("meal")}
-              className={`seat-modal-tab ${activeView === "meal" ? 'active' : ''}`}
-            >
-              <ShoppingBag size={18} />
-              Meal Options
-            </button>
+            <StyledTab 
+              value="meal" 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ShoppingBag size={18} />
+                  <span>Meal Options</span>
+                </Box>
+              }
+            />
           )}
-        </div>
+        </Tabs>
   
         {/* Scrollable Content Area */}
-        <div className="seat-modal-content">
+        <ModalContent>
           {/* Seats View */}
           {activeView === "seats" && (
-            <div className="p-6 space-y-6">
+            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Flight segment tabs */}
-              <div className="flex space-x-2 border-b border-modal-border">
+              <Tabs
+                value={activeFlightSegment}
+                onChange={(e, newValue) => setActiveFlightSegment(newValue)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ borderBottom: 1, borderColor: 'divider' }}
+              >
                 {selectedSeats?.map((segment, index) => (
-                  <button
+                  <StyledTab
                     key={`${segment.origin}-${segment.destination}`}
-                    onClick={() => setActiveFlightSegment(index)}
-                    className={`seat-modal-tab ${activeFlightSegment === index ? 'active' : ''}`}
-                  >
-                    {segment.origin} → {segment.destination}
-                  </button>
+                    value={index}
+                    label={`${segment.origin} → ${segment.destination}`}
+                  />
                 ))}
-              </div>
+              </Tabs>
   
               {/* Active segment seat selection */}
               {selectedSeats?.[activeFlightSegment] && (
-                <div className="option-card">
-                  <h3 className="text-lg font-semibold mb-4">
+                <Card sx={{ p: 2 }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                     {selectedSeats[activeFlightSegment].origin} → {selectedSeats[activeFlightSegment].destination}
-                  </h3>
-                  <div className="grid gap-4">
+                  </Typography>
+                  <Grid container spacing={2} justifyContent="center">
                     {selectedSeats[activeFlightSegment].rows.map((row, rowIndex) => (
-                      <div key={rowIndex} className="flex justify-center items-center gap-2">
+                      <Grid item xs={12} key={rowIndex} sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
                         {row.seats.filter(seat => seat.code !== null).map((seat, seatIndex) => (
-  <button
-    key={seat.code}
-    onClick={() => handleSeatClick(activeFlightSegment, rowIndex, seatIndex, seat.isBooked)}
-    disabled={seat.isBooked || isLoading}
-    className={`seat-button ${seat.isSelected ? 'selected' : ''} ${seat.type?.isAisle ? 'aisle' : ''}`}
-  >
-    <span>{seat.code}</span>
-    {!seat.isBooked && (
-      <span className="seat-price">₹{seat.price}</span>
-    )}
-  </button>
-))}
-                      </div>
+                          <SeatButton
+                            key={seat.code}
+                            onClick={() => handleSeatClick(activeFlightSegment, rowIndex, seatIndex, seat.isBooked)}
+                            disabled={seat.isBooked || isLoading}
+                            selected={seat.isSelected}
+                            isAisle={seat.type?.isAisle}
+                          >
+                            <Typography variant="body2">{seat.code}</Typography>
+                            {!seat.isBooked && (
+                              <SeatPrice variant="caption" selected={seat.isSelected}>
+                                ₹{seat.price}
+                              </SeatPrice>
+                            )}
+                          </SeatButton>
+                        ))}
+                      </Grid>
                     ))}
-                  </div>
-                </div>
+                  </Grid>
+                </Card>
               )}
-            </div>
+            </Box>
           )}
   
-          {/* Baggage View - Updated with tabs */}
+          {/* Baggage View */}
           {activeView === "baggage" && (
-            <div className="p-6 space-y-6">
+            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Flight segment tabs for baggage */}
-              <div className="flex space-x-2 border-b border-modal-border">
+              <Tabs
+                value={activeFlightSegment}
+                onChange={(e, newValue) => setActiveFlightSegment(newValue)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ borderBottom: 1, borderColor: 'divider' }}
+              >
                 {selectedBaggage.map((segment, index) => (
-                  <button
+                  <StyledTab
                     key={`${segment.origin}-${segment.destination}`}
-                    onClick={() => setActiveFlightSegment(index)}
-                    className={`seat-modal-tab ${activeFlightSegment === index ? 'active' : ''}`}
-                  >
-                    {segment.origin} → {segment.destination}
-                  </button>
+                    value={index}
+                    label={`${segment.origin} → ${segment.destination}`}
+                  />
                 ))}
-              </div>
+              </Tabs>
   
               {/* Active segment baggage options */}
               {selectedBaggage[activeFlightSegment] && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {selectedBaggage[activeFlightSegment].options.map((option) => {
-                      const isSelected = selectedBaggage[activeFlightSegment].selectedOption?.code === option.code;
-                      return (
-                        <button
-                          key={option.code}
+                <Grid container spacing={2}>
+                  {selectedBaggage[activeFlightSegment].options.map((option) => {
+                    const isSelected = selectedBaggage[activeFlightSegment].selectedOption?.code === option.code;
+                    return (
+                      <Grid item xs={12} key={option.code}>
+                        <OptionCard
                           onClick={() => handleBaggageSelect(activeFlightSegment, option)}
                           disabled={isLoading}
-                          className={`option-card ${isSelected ? 'selected' : ''}`}
+                          selected={isSelected}
+                          fullWidth
                         >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <div className="font-semibold">
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <Box>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                 {option.description}
-                              </div>
-                              <div className="text-sm opacity-75">
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.75 }}>
                                 Weight: {option.weight}kg
-                              </div>
-                            </div>
-                            <div className="font-bold">
+                              </Typography>
+                            </Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                               ₹{option.price.toLocaleString()}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                            </Typography>
+                          </Box>
+                        </OptionCard>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
               )}
-            </div>
+            </Box>
           )}
   
-          {/* Meal View - Updated with tabs */}
+          {/* Meal View */}
           {activeView === "meal" && (
-            <div className="p-6 space-y-6">
+            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Flight segment tabs for meals */}
-              <div className="flex space-x-2 border-b border-modal-border">
+              <Tabs
+                value={activeFlightSegment}
+                onChange={(e, newValue) => setActiveFlightSegment(newValue)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ borderBottom: 1, borderColor: 'divider' }}
+              >
                 {selectedMeal.map((segment, index) => (
-                  <button
+                  <StyledTab
                     key={`${segment.origin}-${segment.destination}`}
-                    onClick={() => setActiveFlightSegment(index)}
-                    className={`seat-modal-tab ${activeFlightSegment === index ? 'active' : ''}`}
-                  >
-                    {segment.origin} → {segment.destination}
-                  </button>
+                    value={index}
+                    label={`${segment.origin} → ${segment.destination}`}
+                  />
                 ))}
-              </div>
+              </Tabs>
   
               {/* Active segment meal options */}
               {selectedMeal[activeFlightSegment] && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {selectedMeal[activeFlightSegment].options.map((option) => {
-                      const isSelected = selectedMeal[activeFlightSegment].selectedOption?.code === option.code;
-                      return (
-                        <button
-                          key={option.code}
+                <Grid container spacing={2}>
+                  {selectedMeal[activeFlightSegment].options.map((option) => {
+                    const isSelected = selectedMeal[activeFlightSegment].selectedOption?.code === option.code;
+                    return (
+                      <Grid item xs={12} key={option.code}>
+                        <OptionCard
                           onClick={() => handleMealSelect(activeFlightSegment, option)}
                           disabled={isLoading}
-                          className={`option-card ${isSelected ? 'selected' : ''}`}
+                          selected={isSelected}
+                          fullWidth
                         >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <div className="font-semibold">
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <Box>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                 {option.description}
-                              </div>
-                              <div className="text-sm opacity-75">
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.75 }}>
                                 {option.details}
-                              </div>
-                            </div>
-                            <div className="font-bold">
+                              </Typography>
+                            </Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                               ₹{option.price.toLocaleString()}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                            </Typography>
+                          </Box>
+                        </OptionCard>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
               )}
-            </div>
+            </Box>
           )}
-        </div>
+        </ModalContent>
   
-        {/* Footer - Remains the same */}
-        <div className="seat-modal-footer">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-semibold">Total Additional Cost:</p>
-              <p className="text-lg font-bold text-[#2A9D8F]">
+        {/* Footer */}
+        <ModalFooter>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Total Additional Cost:
+              </Typography>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 700, 
+                  color: theme.palette.primary.main 
+                }}
+              >
                 ₹{additionalCost.toLocaleString()}
-              </p>
-            </div>
-            <div className="space-x-4">
-              <button
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
                 onClick={handleClose}
                 disabled={isLoading}
-                className="px-4 py-2 rounded-lg hover:bg-gray-100"
+                variant="text"
+                sx={{ 
+                  px: 2, 
+                  py: 1, 
+                  borderRadius: 2,
+                  "&:hover": {
+                    backgroundColor: theme.palette.mode === 'light' ? 
+                      theme.palette.grey[100] : 
+                      theme.palette.grey[700]
+                  }
+                }}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <ConfirmButton
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className="confirm-button"
               >
                 {isLoading ? "Processing..." : "Confirm Selection"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              </ConfirmButton>
+            </Box>
+          </Box>
+        </ModalFooter>
+      </ModalContainer>
+    </ModalOverlay>
   );
 };
 

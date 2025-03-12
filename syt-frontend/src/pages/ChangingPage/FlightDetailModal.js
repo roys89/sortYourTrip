@@ -74,6 +74,7 @@ const FlightDetailModal = ({
               date
             },
             headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
               'X-Inquiry-Token': inquiryToken
             }
           }
@@ -109,6 +110,7 @@ const FlightDetailModal = ({
         },
         {
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             'X-Inquiry-Token': inquiryToken
           }
         } 
@@ -130,6 +132,7 @@ const FlightDetailModal = ({
         },
         {
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             'X-Inquiry-Token': inquiryToken
           }
         }

@@ -18,7 +18,6 @@ import {
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
-  ArrowRight,
   Check,
   ChevronLeft,
   Clock,
@@ -143,7 +142,7 @@ const FlightProgressRow = ({ flight, isChecking, result, error }) => {
                       : theme.palette.success.main
                   }}
                 >
-                  ₹{result.newPrice.toLocaleString()}
+                  {result.difference > 0 ? '+' : '-'}₹{Math.abs(result.difference).toLocaleString()}
                   <Typography 
                     component="span" 
                     variant="caption" 
@@ -279,7 +278,7 @@ const HotelProgressRow = ({ hotel, isChecking, result, error }) => {
                       : theme.palette.success.main
                   }}
                 >
-                  ₹{result.newPrice.toLocaleString()}
+                  {result.difference > 0 ? '+' : '-'}₹{Math.abs(result.difference).toLocaleString()}
                   <Typography 
                     component="span" 
                     variant="caption" 
@@ -385,68 +384,62 @@ const PriceChangeRow = ({ label, original = 0, current = 0, isLoading, error, ch
           )}
           
           {!isLoading && !error && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-                ₹{(original || 0).toLocaleString()}
-              </Typography>
-              
-              <Box sx={{ 
-                display: "flex", 
-                alignItems: "center", 
-                bgcolor: alpha(theme.palette.background.default, 0.5),
-                borderRadius: "50%",
-                p: 0.5
-              }}>
-                <ArrowRight style={{ color: theme.palette.text.disabled }} size={18} />
-              </Box>
-              
-              <Box sx={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 0.5,
-                borderRadius: "20px",
-                py: 0.5,
-                px: 1.5,
-                backgroundColor: difference !== 0 
-                  ? (difference > 0 
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              {difference === 0 ? (
+                <Chip 
+                  label="No price change" 
+                  size="medium" 
+                  color="default" 
+                  variant="outlined" 
+                  sx={{ 
+                    fontSize: "0.8rem",
+                    height: 32,
+                    backgroundColor: alpha(theme.palette.text.disabled, 0.05)
+                  }} 
+                />
+              ) : (
+                <Box sx={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 0.5,
+                  borderRadius: "20px",
+                  py: 0.5,
+                  px: 1.5,
+                  backgroundColor: difference > 0 
                     ? alpha(theme.palette.error.light, 0.1) 
-                    : alpha(theme.palette.success.light, 0.1))
-                  : "transparent"
-              }}>
-                <Typography 
-                  sx={{
-                    fontWeight: 600,
-                    color: difference !== 0 
-                      ? (difference > 0 
+                    : alpha(theme.palette.success.light, 0.1),
+                  border: `1px solid ${difference > 0 
+                    ? alpha(theme.palette.error.main, 0.2)
+                    : alpha(theme.palette.success.main, 0.2)}`
+                }}>
+                  {difference > 0 
+                    ? <TrendingUp size={18} style={{ color: theme.palette.error.main }} />
+                    : <TrendingDown size={18} style={{ color: theme.palette.success.main }} />
+                  }
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: difference > 0 
                         ? theme.palette.error.main 
-                        : theme.palette.success.main)
-                      : theme.palette.text.primary
-                  }}
-                >
-                  ₹{(current || 0).toLocaleString()}
-                </Typography>
-                
-                {difference !== 0 && (
-                  <Box sx={{ display: "flex", alignItems: "center", ml: 0.5 }}>
-                    {difference > 0 
-                      ? <TrendingUp size={14} style={{ color: theme.palette.error.main }} />
-                      : <TrendingDown size={14} style={{ color: theme.palette.success.main }} />
-                    }
+                        : theme.palette.success.main
+                    }}
+                  >
+                    {difference > 0 ? "Increased by " : "Decreased by "}
+                    ₹{Math.abs(difference).toLocaleString()}
                     <Typography 
+                      component="span" 
                       variant="caption" 
                       sx={{ 
                         ml: 0.5,
-                        fontWeight: 500,
-                        color: difference > 0 
-                          ? theme.palette.error.main 
-                          : theme.palette.success.main
+                        fontWeight: 500
                       }}
                     >
-                      {difference > 0 ? '+' : ''}{percentageChange.toFixed(1)}%
+                      ({difference > 0 ? '+' : ''}{percentageChange.toFixed(1)}%)
                     </Typography>
-                  </Box>
-                )}
-              </Box>
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
           

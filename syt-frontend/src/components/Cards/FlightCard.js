@@ -18,7 +18,7 @@ const AIRLINE_IMAGES = {
   'Oman Aviation': '/assets/images/airlines/oman.jpg',
   'AI Express': '/assets/images/airlines/airindiaexpress.jpg',
   'Saudi Arabian Airlines': '/assets/images/airlines/saudia.jpg',
-  'Etihad Airways': '/assets/images/airlines/etihad.jpg',
+  'ETIHAD AIRWAYS': '/assets/images/airlines/etihad.jpg',
   'Srilankan Airlines': '/assets/images/airlines/srilankan.jpg',
   'Azerbaijan Airlines': '/assets/images/airlines/azerbaijan.jpg',
   'Indigo': '/assets/images/airlines/indigo.jpg',

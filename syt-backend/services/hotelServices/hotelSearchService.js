@@ -14,7 +14,6 @@ class HotelSearchService {
           subLocationIds: null,
           ratings: searchParams.ratings,  // Use ratings based on budget preference
           facilities: null,
-          type: "hotel",
           tags: null,
           reviewRatings: [4,5]
         },

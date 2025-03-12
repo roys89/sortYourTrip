@@ -6,13 +6,42 @@ const HotelItineraryService = require("../../services/hotelServices/hotelItinera
 const HotelRoomRatesService = require("../../services/hotelServices/hotelRoomRatesService");
 const ItineraryInquiry = require("../../models/ItineraryInquiry");
 const Itinerary = require("../../models/Itinerary");
+const logger = require('../../utils/logger');
 
-// Make sure all controller functions are exported
+// Helper function to safely extract amenities from various data formats
+const extractAmenities = (hotel) => {
+  const facilities = hotel.facilities;
+  
+  if (typeof facilities === 'string') {
+    // If it's a string, split by semicolon
+    return facilities.split(';').map(a => a.trim()).filter(Boolean);
+  } else if (Array.isArray(facilities)) {
+    // If it's already an array, use it directly
+    return facilities.map(f => 
+      typeof f === 'string' ? f.trim() : 
+      (f && f.name ? f.name.trim() : String(f))
+    ).filter(Boolean);
+  } else if (facilities && typeof facilities === 'object') {
+    // If it's an object with amenities/facilities data
+    if (facilities.amenities && Array.isArray(facilities.amenities)) {
+      return facilities.amenities.map(a => 
+        typeof a === 'string' ? a.trim() : 
+        (a && a.name ? a.name.trim() : String(a))
+      ).filter(Boolean);
+    }
+  }
+  
+  // Default to empty array if no valid facilities found
+  return [];
+};
+
 module.exports = {
   searchAvailableHotels: async (req, res) => {
     const { inquiryToken, cityName, checkIn, checkOut } = req.params;
+    
+    // Changed to load 100 hotels per page
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 100; // Default to 100 hotels per page
 
     try {
       // Get inquiry details
@@ -60,7 +89,7 @@ module.exports = {
         })),
         cityName,
         page,
-        limit,
+        limit, // Setting to 100 per page
       };
 
       // Search hotels
@@ -70,21 +99,55 @@ module.exports = {
         inquiryToken
       );
 
+      logger.info(`Retrieved ${hotels.results[0].data.length} hotels for page ${page}`);
+
+      // Get all hotel data
+      const allHotels = hotels.results[0].data || [];
+      const totalHotels = hotels.results[0].totalCount || allHotels.length;
+      
+      // Calculate price ranges from ALL hotels
+      const allPrices = allHotels
+        .map(h => h.rates?.[0]?.price || 0)
+        .filter(price => price > 0);
+      
+      const minPrice = allPrices.length ? Math.min(...allPrices) : 0;
+      const maxPrice = allPrices.length ? Math.max(...allPrices) : 10000;
+      
+      // Get all available amenities for filter options
+      const allAmenities = [...new Set(
+        allHotels.flatMap(hotel => extractAmenities(hotel))
+      )].slice(0, 10); // Limit to top 10 amenities
+      
+      // Get all property types from hotels
+      const allPropertyTypes = [...new Set(
+        allHotels
+          .map(h => h.accommodationType || 'Hotel')
+          .filter(Boolean)
+      )];
+
       res.json({
         success: true,
         data: {
-          hotels: hotels.results[0].similarHotels,
+          hotels: allHotels,
           traceId: hotels.results[0].traceId,
           pagination: {
             page,
             limit,
-            total: hotels.results[0].totalCount,
-            hasMore: hotels.results[0].similarHotels.length >= limit,
+            total: totalHotels,
+            hasMore: page * limit < totalHotels,
           },
           dates: {
             checkIn,
             checkOut,
           },
+          priceRange: {
+            min: minPrice,
+            max: maxPrice
+          },
+          availableFilters: {
+            amenities: allAmenities,
+            propertyTypes: allPropertyTypes
+          }
         },
       });
     } catch (error) {
@@ -97,7 +160,7 @@ module.exports = {
     }
   },
 
-  // Add stubs for other required functions
+  // Other functions remain the same
   getHotelDetails: async (req, res) => {
     const { inquiryToken, hotelId } = req.params;
     const { traceId, cityName, checkIn } = req.query;
@@ -199,7 +262,6 @@ module.exports = {
               descriptions: staticContent?.descriptions,
               images: staticContent?.images,
               facilities: staticContent?.facilities,
-              // nearByAttractions: staticContent?.nearByAttractions
             },
           ],
           bookingStatus: "pending",
@@ -221,101 +283,101 @@ module.exports = {
       });
     }
   },
-};
 
-module.exports.getHotelRooms = async (req, res) => {
-  const { inquiryToken, hotelId } = req.params;
-  const { traceId, cityName, checkIn } = req.query;
+  getHotelRooms: async (req, res) => {
+    const { inquiryToken, hotelId } = req.params;
+    const { traceId, cityName, checkIn } = req.query;
 
-  try {
-    // Get auth token
-    const authToken = await HotelTokenManager.getOrSetToken(async () => {
-      const authResponse = await HotelAuthService.getAuthToken();
-      return authResponse.token;
-    });
-
-    // Prepare params for itinerary creation
-    const itineraryParams = {
-      hotelId: hotelId,
-      traceId: traceId,
-      cityName: cityName,
-      startDate: checkIn,
-    };
-
-    // Get room details using HotelItineraryService
-    const hotelDetails = await HotelItineraryService.createItinerarySequential(
-      itineraryParams,
-      authToken,
-      inquiryToken
-    );
-
-    res.json({
-      success: true,
-      data: hotelDetails,
-    });
-  } catch (error) {
-    console.error("Error fetching hotel rooms:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to fetch hotel rooms",
-      details: error.details || {},
-    });
-  }
-};
-
-module.exports.getItineraryDetails = async (req, res) => {
-  const { itineraryToken } = req.params;
-  const { 
-    itineraryCode,
-    traceId,
-    hotelId,
-    cityName,
-    date,
-    inquiryToken 
-  } = req.body;
-
-  try {
-    // Get auth token
-    const authToken = await HotelTokenManager.getOrSetToken(
-      async () => {
+    try {
+      // Get auth token
+      const authToken = await HotelTokenManager.getOrSetToken(async () => {
         const authResponse = await HotelAuthService.getAuthToken();
         return authResponse.token;
-      }
-    );
+      });
 
-    // Get itinerary details using HotelItineraryService
-    const itineraryDetails = await HotelItineraryService.getItineraryDetails(
+      // Prepare params for itinerary creation
+      const itineraryParams = {
+        hotelId: hotelId,
+        traceId: traceId,
+        cityName: cityName,
+        startDate: checkIn,
+      };
+
+      // Get room details using HotelItineraryService
+      const hotelDetails = await HotelItineraryService.createItinerarySequential(
+        itineraryParams,
+        authToken,
+        inquiryToken
+      );
+
+      res.json({
+        success: true,
+        data: hotelDetails,
+      });
+    } catch (error) {
+      console.error("Error fetching hotel rooms:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch hotel rooms",
+        details: error.details || {},
+      });
+    }
+  },
+
+  getItineraryDetails: async (req, res) => {
+    const { itineraryToken } = req.params;
+    const { 
       itineraryCode,
       traceId,
-      authToken,
-      inquiryToken,
+      hotelId,
       cityName,
-      date
-    );
+      date,
+      inquiryToken 
+    } = req.body;
 
-    // Format and validate the response
-    const result = itineraryDetails?.results?.[0];
-    if (!result) {
-      throw new Error('No itinerary details found');
+    try {
+      // Get auth token
+      const authToken = await HotelTokenManager.getOrSetToken(
+        async () => {
+          const authResponse = await HotelAuthService.getAuthToken();
+          return authResponse.token;
+        }
+      );
+
+      // Get itinerary details using HotelItineraryService
+      const itineraryDetails = await HotelItineraryService.getItineraryDetails(
+        itineraryCode,
+        traceId,
+        authToken,
+        inquiryToken,
+        cityName,
+        date
+      );
+
+      // Format and validate the response
+      const result = itineraryDetails?.results?.[0];
+      if (!result) {
+        throw new Error('No itinerary details found');
+      }
+
+      // Extract remaining time from trace ID details if available
+      const traceIdDetails = result.traceIdDetails || [];
+      const remainingTime = traceIdDetails.length > 0 ? traceIdDetails[0].remainingTime : null;
+
+      res.json({
+        success: true,
+        results: [{
+          ...result
+        }]
+      });
+
+    } catch (error) {
+      console.error("Error fetching hotel itinerary details:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch hotel itinerary details",
+        details: error.details || {}
+      });
     }
-
-    // Extract remaining time from trace ID details if available
-    const traceIdDetails = result.traceIdDetails || [];
-    const remainingTime = traceIdDetails.length > 0 ? traceIdDetails[0].remainingTime : null;
-
-    res.json({
-      success: true,
-      results: [{
-        ...result
-      }]
-    });
-
-  } catch (error) {
-    console.error("Error fetching hotel itinerary details:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to fetch hotel itinerary details",
-      details: error.details || {}
-    });
   }
 };

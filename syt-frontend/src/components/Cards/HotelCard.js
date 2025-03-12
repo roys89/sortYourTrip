@@ -1,6 +1,7 @@
+import { CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Baby, Bed, Eye, MapPin, Star, Users } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setChangeHotel, setSelectedHotel } from '../../redux/slices/hotelSlice';
@@ -20,6 +21,8 @@ const HotelCard = ({
   const navigate = useNavigate();
   const theme = useTheme();
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [tripAdvisorData, setTripAdvisorData] = useState(null);
+  const [isTripAdvisorLoading, setIsTripAdvisorLoading] = useState(false);
 
   // Apply theme classes directly
   const themeClass = theme.palette.mode === 'light' ? 'light-theme' : '';
@@ -41,6 +44,7 @@ const HotelCard = ({
   // Calculate total price from all rooms
   const totalRoomPrice = roomsAndRates.reduce((total, room) => total + (room?.rate?.finalRate || 0), 0);
 
+  // Helper functions
   const getHotelName = () => hotelStatic?.name || 'Hotel Name Not Available';
   const getStarCount = () => parseInt(hotelStatic?.starRating) || 0;
   const getAddress = () => {
@@ -49,12 +53,71 @@ const HotelCard = ({
     return [location.line1, location.line2, location.city?.name].filter(Boolean).join(', ');
   };
 
+  const getCountry = () => {
+    return hotelStatic?.address?.country?.name || '';
+  };
+
   const getImageUrl = () => {
     if (imageLoadError) return '/api/placeholder/400/300';
     return hotel?.data?.staticContent?.[0]?.heroImage || 
            hotel?.data?.staticContent?.[0]?.images?.[0]?.links?.[0]?.url || 
            '/api/placeholder/400/300';
   };
+
+  // Fetch TripAdvisor rating when component mounts
+  useEffect(() => {
+    const fetchTripAdvisorData = async () => {
+      const hotelName = getHotelName();
+      if (!hotelName || !city) return;
+      
+      setIsTripAdvisorLoading(true);
+      try {
+        // Get country and address from the hotel data
+        const address = getAddress();
+        const country = getCountry();
+        
+        // Create request body
+        const requestBody = {
+          name: hotelName,
+          city,
+          country,
+          category: 'hotels'
+        };
+        
+        // Only add address if it exists
+        if (address) {
+          requestBody.address = address;
+        }
+        
+        const response = await fetch(
+          'http://localhost:5000/api/tripadvisor/hotel/rating',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestBody)
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch TripAdvisor data');
+        }
+        
+        const data = await response.json();
+        if (data && data.success) {
+          setTripAdvisorData(data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching TripAdvisor data:', err);
+      } finally {
+        setIsTripAdvisorLoading(false);
+      }
+    };
+    
+    fetchTripAdvisorData();
+  }, [hotel]); // Re-run when hotel data changes
 
   const getRooms = () => {
     if (!roomsAndRates.length) return [];
@@ -75,7 +138,6 @@ const HotelCard = ({
 
   const handleChangeHotel = () => {
     const hotelDetails = hotel?.data?.items?.[0];
-    const roomAndRate = hotelDetails?.selectedRoomsAndRates?.[0] || {};
   
     const navigationState = {
       city,
@@ -97,7 +159,7 @@ const HotelCard = ({
       travelersDetails,
       oldHotelCode: hotelDetails?.code
     }));
-  
+    console.log('Navigating to /hotels with state:', JSON.stringify(navigationState));
     navigate('/hotels', { state: navigationState });
   };
 
@@ -121,9 +183,6 @@ const HotelCard = ({
   if (!hotelDetails || !hotelStatic) {
     return null;
   }
-
-  // Get unique board basis descriptions
-  const uniqueBoardBasis = [...new Set(roomsAndRates.map(item => item.rate?.boardBasis?.description).filter(Boolean))];
 
   return (
     <div className={`card-wrapper ${themeClass}`} data-theme={themeAttr}>
@@ -262,90 +321,137 @@ const HotelCard = ({
         
         {/* TripAdvisor Rating and Action Buttons in the same line */}
         <div className="card-footer">
-  {/* TripAdvisor Rating */}
-  <div className="card-rating">
-    <div className="flex items-center">
-      <span 
-        className="text-sm font-bold mr-2"
-        style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
-      >
-        TripAdvisor
-      </span>
-      <div className="flex items-center">
-        {/* Full stars */}
-        {[1, 2, 3, 4].map((_, index) => (
-          <Star 
-            key={index} 
-            size={16} 
-            fill="#FFC107" 
-            color="#FFC107" 
-            style={{ marginRight: '2px' }}
-          />
-        ))}
-        {/* Half star - more accurate representation */}
-        <div className="relative" style={{ marginRight: '2px' }}>
-          {/* Empty star as background */}
-          <Star 
-            size={16} 
-            fill="transparent" 
-            color="#FFC107" 
-          />
-          {/* Half-filled star overlaid */}
-          <div className="absolute top-0 left-0 overflow-hidden" style={{ width: '50%' }}>
-            <Star 
-              size={16} 
-              fill="#FFC107" 
-              color="#FFC107" 
-            />
+          {/* TripAdvisor Rating */}
+          <div className="card-rating">
+            <div className="flex items-center">
+              {isTripAdvisorLoading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : tripAdvisorData ? (
+                <div className="flex items-center">
+                  {/* If we have the rating image URL from TripAdvisor */}
+                  {tripAdvisorData.rating_image_url ? (
+                    <img 
+                      src={tripAdvisorData.rating_image_url} 
+                      alt={`${tripAdvisorData.rating} stars`}
+                      className="h-4 mr-1"
+                    />
+                  ) : (
+                    // Fallback to star icons if no image URL
+                    <>
+                      {[1, 2, 3, 4, 5].map((_, index) => {
+                        const rating = parseFloat(tripAdvisorData.rating || 0);
+                        const isFull = index < Math.floor(rating);
+                        const isHalf = !isFull && index === Math.floor(rating) && rating % 1 >= 0.5;
+                        
+                        return isHalf ? (
+                          <div key={index} className="relative" style={{ marginRight: '2px' }}>
+                            <Star size={16} fill="transparent" color="#FFC107" />
+                            <div className="absolute top-0 left-0 overflow-hidden" style={{ width: '50%' }}>
+                              <Star size={16} fill="#FFC107" color="#FFC107" />
+                            </div>
+                          </div>
+                        ) : (
+                          <Star 
+                            key={index} 
+                            size={16} 
+                            fill={isFull ? "#FFC107" : "transparent"} 
+                            color="#FFC107" 
+                            style={{ marginRight: '2px' }}
+                          />
+                        );
+                      })}
+                    </>
+                  )}
+                  <span 
+                    className="ml-1 font-bold"
+                    style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                  >
+                    {tripAdvisorData.rating || '0.0'}
+                  </span>
+                  {tripAdvisorData.num_reviews && (
+                    <span className="ml-1 text-xs opacity-75">
+                      ({tripAdvisorData.num_reviews} reviews)
+                    </span>
+                  )}
+                </div>
+              ) : (
+                // Fallback to hardcoded rating if no TripAdvisor data
+                <div className="flex items-center">
+                  {/* Full stars */}
+                  {[1, 2, 3, 4].map((_, index) => (
+                    <Star 
+                      key={index} 
+                      size={16} 
+                      fill="#FFC107" 
+                      color="#FFC107" 
+                      style={{ marginRight: '2px' }}
+                    />
+                  ))}
+                  {/* Half star - more accurate representation */}
+                  <div className="relative" style={{ marginRight: '2px' }}>
+                    {/* Empty star as background */}
+                    <Star 
+                      size={16} 
+                      fill="transparent" 
+                      color="#FFC107" 
+                    />
+                    {/* Half-filled star overlaid */}
+                    <div className="absolute top-0 left-0 overflow-hidden" style={{ width: '50%' }}>
+                      <Star 
+                        size={16} 
+                        fill="#FFC107" 
+                        color="#FFC107" 
+                      />
+                    </div>
+                  </div>
+                  <span 
+                    className="ml-1 font-bold"
+                    style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
+                  >
+                    4.5
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="card-actions">
+            <button
+              onClick={handleViewDetails}
+              className="premium-button btn-view"
+            >
+              <div className="btn-icon-container">
+                <Eye size={16} />
+              </div>
+            </button>
+            
+            {showChange && (
+              <button
+                onClick={handleChangeHotel}
+                className="premium-button btn-change"
+              >
+                <div className="btn-icon-container">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 4v6h6" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  <span>Change Hotel</span>
+                </div>
+              </button>
+            )}
+            
+            <button
+              onClick={handleRoomChange}
+              className="premium-button btn-change"
+            >
+              <div className="btn-icon-container">
+                <Bed size={16} />
+                <span>Change Room</span>
+              </div>
+            </button>
           </div>
         </div>
-        <span 
-          className="ml-1 font-bold"
-          style={{ color: theme.palette.mode === 'light' ? '#093923' : '#d1d5db' }}
-        >
-          4.5
-        </span>
-      </div>
-    </div>
-  </div>
-  
-  {/* Action Buttons */}
-  <div className="card-actions">
-    <button
-      onClick={handleViewDetails}
-      className="premium-button btn-view"
-    >
-      <div className="btn-icon-container">
-        <Eye size={16} />
-      </div>
-    </button>
-    
-    {showChange && (
-      <button
-        onClick={handleChangeHotel}
-        className="premium-button btn-change"
-      >
-        <div className="btn-icon-container">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 4v6h6" />
-            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-          </svg>
-          <span>Change Hotel</span>
-        </div>
-      </button>
-    )}
-    
-    <button
-      onClick={handleRoomChange}
-      className="premium-button btn-change"
-    >
-      <div className="btn-icon-container">
-        <Bed size={16} />
-        <span>Change Room</span>
-      </div>
-    </button>
-  </div>
-</div>
       </div>
     </div>
   );

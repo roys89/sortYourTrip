@@ -36,6 +36,7 @@ const ActivityViewModal = ({
         {
           method: 'POST',
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json',
             'X-Inquiry-Token': activity.inquiryToken,
           },
@@ -131,6 +132,7 @@ const ActivityViewModal = ({
         {
           method: 'PUT',
           headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json',
             'X-Inquiry-Token': activity.inquiryToken,
           },

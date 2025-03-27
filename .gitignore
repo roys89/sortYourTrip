@@ -3,6 +3,7 @@
 # dependencies
 /syt-frontend/node_modules
 /syt-backend/node_modules
+/syt-frontend-crm/node_modules
 /syt-backend/JSON
 /syt-backend/logs
 /syt-backend/seeds

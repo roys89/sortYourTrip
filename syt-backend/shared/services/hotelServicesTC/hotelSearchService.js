@@ -16,9 +16,9 @@ class HotelSearchService {
         }
       };
 
-      // Validate required fields
-      if (!requestBody.locationId) {
-        throw new Error('Location ID is required for hotel search');
+      // Validate required fields - if hotelId is present, locationId is not required
+      if (!requestBody.locationId && !requestBody.hotelId) {
+        throw new Error('Either Location ID or Hotel ID is required for hotel search');
       }
 
       // Format dates if provided
@@ -78,6 +78,12 @@ class HotelSearchService {
       // Add traceId if provided for pagination
       if (requestBody.traceId) {
         requestBody.traceId = requestBody.traceId;
+      }
+
+      // If hotelId is provided, include it in the request
+      // This is for direct hotel searches when the location type is 'Hotel'
+      if (requestBody.hotelId) {
+        requestBody.hotelId = requestBody.hotelId;
       }
 
       const response = await axios.post(

@@ -16,7 +16,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'needs_password_setup'],
     default: 'needs_password_setup'
-  }
+  },
+  // --- Fields for Password Reset/Setup ---
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date }
+  // -------------------------------------
 }, { timestamps: true }); // Added timestamps for createdAt/updatedAt
 
 

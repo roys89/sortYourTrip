@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto'); // Import crypto for token generation
 const B2CUserSchema = require('../../b2c/models/User').schema; // Import B2C User schema
+const { sendPasswordSetupEmail } = require('../utils/emailUtils'); // Import the email utility
 
 // --- B2C Database Connection Management ---
 // NOTE: Ideally, this connection should be established once in your main
@@ -128,20 +130,53 @@ exports.registerB2CCustomer = async (req, res, next) => {
             // accountStatus defaults to 'needs_password_setup' via schema
         };
 
+        // --- Generate Password Setup Token --- 
+        const setupToken = crypto.randomBytes(32).toString('hex'); // Generate random token
+        const hashedToken = crypto // Hash the token before saving
+            .createHash('sha256')
+            .update(setupToken)
+            .digest('hex');
+        const tokenExpiry = Date.now() + 3600000; // Token expires in 1 hour
+
+        // Add token details to user data before creating
+        newB2CUserData.passwordResetToken = hashedToken;
+        newB2CUserData.passwordResetExpires = tokenExpiry;
+        // -----------------------------------
+        
         // 4. Save the new B2C user
         const newB2CUser = await B2CUserModel.create(newB2CUserData);
 
-        // IMPORTANT: Trigger password setup email here!
-        console.log(`ACTION NEEDED: Send password setup email to ${newB2CUser.email}`);
+        // --- Send Password Setup Email --- 
+        try {
+            // Call the email utility, passing the ORIGINAL (unhashed) token
+            await sendPasswordSetupEmail(newB2CUser.email, newB2CUser.firstName, setupToken);
+            console.log(`Password setup email initiated for ${newB2CUser.email}`);
+        } catch (emailError) {
+            console.error(`Failed to send password setup email to ${newB2CUser.email}:`, emailError);
+            // CRITICAL DECISION: Should registration fail if email fails?
+            // Option 1: Continue but log error (user created but can't set password easily)
+            // Option 2: Return an error to the agent (more robust)
+            // Option 3: Try to delete the just-created user (complex rollback)
+            // For now, let's return an error to the agent (Option 2)
+            // Clear the token fields as the email failed
+            newB2CUser.passwordResetToken = undefined;
+            newB2CUser.passwordResetExpires = undefined;
+            await newB2CUser.save({ validateBeforeSave: false }); // Save without validation
+
+            return next(new Error(`Customer created, but failed to send password setup email. Please contact support or try again later.`)); 
+        }
+        // ------------------------------- 
 
         // 5. Return success response
         const userToReturn = newB2CUser.toObject();
         delete userToReturn.password; 
         delete userToReturn.__v; 
+        delete userToReturn.passwordResetToken; // Don't send token/expiry back
+        delete userToReturn.passwordResetExpires;
 
         res.status(201).json({
             success: true,
-            message: 'B2C customer registered successfully. Password setup email trigger pending.',
+            message: 'B2C customer registered successfully. Password setup email sent.',
             user: userToReturn
         });
 

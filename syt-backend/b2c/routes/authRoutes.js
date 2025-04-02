@@ -13,9 +13,14 @@ router.get('/status', authMiddleware, UserController.checkAuthStatus);
 router.get('/profile', authMiddleware, UserController.getUserProfile);
 router.put('/profile', authMiddleware, UserController.updateUserProfile);
 
-// Optional password reset routes (if needed)
-router.post('/password-reset', UserController.passwordResetRequest);
-router.put('/password-reset/:token', UserController.resetPassword);
+// Password reset / set password routes
+router.post('/password-reset-request', UserController.passwordResetRequest); // Request reset for existing user
+// router.put('/password-reset/:token', UserController.resetPassword); // Deprecated/Old? Maybe use POST for body
+
+// --- New Route for Setting Password via Token --- 
+// Used after agent registration or potentially password reset
+router.post('/set-password', UserController.setNewPassword); // Does not require authMiddleware
+// ---------------------------------------------
 
 router.get('/itineraries', authMiddleware, UserController.getUserItineraries);
 

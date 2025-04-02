@@ -6,6 +6,7 @@ import LoadingSpinner2 from "./components/common/LoadingSpinner2";
 // Lazy load components
 const Home = lazy(() => import("./pages/Home/Home"));
 const AuthPage = lazy(() => import("./pages/Auth/AuthPage"));
+const SetPasswordPage = lazy(() => import("./pages/Auth/SetPasswordPage"));
 const Profile = lazy(() => import("./pages/Profile/Profile"));
 const DestinationInput = lazy(() =>
   import("./pages/DestinationInput/DestinationInput")
@@ -45,6 +46,7 @@ const AppRoutes = () => {
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/auth/*" element={<AuthPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
         <Route path="/login" element={<Navigate to="/auth/login" replace />} />
         <Route
           path="/register"
@@ -144,7 +146,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-          <Route
+        <Route
           path="/transfer-voucher"
           element={
             <ProtectedRoute>

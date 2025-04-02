@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Itinerary = require('../models/Itinerary');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 class UserController {
   // User Login
@@ -317,37 +318,47 @@ class UserController {
   // Password Reset Request
   async passwordResetRequest(req, res) {
     const { email } = req.body;
-
     try {
       const user = await User.findOne({ email });
       if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
+        // Even if user not found, send a generic success to prevent email enumeration
+        return res.status(200).json({ 
+            success: true, 
+            message: 'If an account exists for this email, password reset instructions have been sent.' 
         });
       }
 
-      // Generate reset token
-      const resetToken = jwt.sign(
-        { userId: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-      );
+      // --- Generate Crypto Token (Consistent with Agent Setup) --- 
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto
+          .createHash('sha256')
+          .update(resetToken)
+          .digest('hex');
+      const tokenExpiry = Date.now() + 3600000; // 1 hour expiry
 
-      // TODO: Send reset email with token
-      // This would typically involve sending an email with a reset link
+      user.passwordResetToken = hashedToken;
+      user.passwordResetExpires = tokenExpiry;
+      await user.save();
+      // --------------------------------------------------------
 
-      res.status(200).json({
-        success: true,
-        message: 'Password reset instructions sent to email'
+      // --- Send Email (Needs separate email util similar to CRM) ---
+      // TODO: Implement or import an email sending utility for B2C backend
+      // await sendPasswordResetEmail(user.email, user.firstName, resetToken);
+      console.log(`ACTION NEEDED (B2C): Send password reset email to ${user.email} with token ${resetToken}`); // Placeholder
+      // -------------------------------------------------------------
+      
+      res.status(200).json({ 
+          success: true, 
+          message: 'If an account exists for this email, password reset instructions have been sent.' 
       });
+
     } catch (error) {
       console.error('Password Reset Request Error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Server error during password reset request',
-        error: error.message
-      });
+      // Send generic message even on server error to avoid info leak
+      res.status(200).json({ 
+          success: true, 
+          message: 'If an account exists for this email, password reset instructions have been sent.' 
+      }); 
     }
   }
 
@@ -442,6 +453,75 @@ class UserController {
     }
   }
 
+  // Set New Password
+  async setNewPassword(req, res) {
+    const { token, password, confirmPassword } = req.body;
+
+    // Basic Validation
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token, password, and confirmation are required'
+      });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Passwords do not match'
+      });
+    }
+    // Optional: Add password strength validation here
+
+    try {
+      // Hash the token received from the user (the one in the email link)
+      const hashedToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+      // Find user by the HASHED token and check expiry
+      const user = await User.findOne({
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { $gt: Date.now() } // Check if expiry date is greater than now
+      });
+
+      // Check if user found and token is valid
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password reset token is invalid or has expired'
+        });
+      }
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Update user document
+      user.password = hashedPassword;
+      user.accountStatus = 'active'; // Activate account
+      user.passwordResetToken = undefined; // Clear the token fields
+      user.passwordResetExpires = undefined;
+      
+      await user.save();
+
+      // Optional: Log the user in automatically by sending back a new JWT
+      // const jwtToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+      res.status(200).json({
+        success: true,
+        message: 'Password has been set successfully'
+        // token: jwtToken // Uncomment if auto-logging in
+      });
+
+    } catch (error) {
+      console.error('Set New Password Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error setting new password',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = new UserController();

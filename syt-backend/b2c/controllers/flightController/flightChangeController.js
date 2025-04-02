@@ -230,7 +230,8 @@ module.exports = {
       // Create itinerary
       const itineraryResponse = await FlightCreateItineraryService.createItinerary({
         traceId,
-        resultIndex,
+        items: [{ resultIndex }],
+        flightType: 'ONE_WAY',
         inquiryToken,
         cityName,
         date,

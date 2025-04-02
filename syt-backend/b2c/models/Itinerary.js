@@ -291,7 +291,15 @@ const UserInfoSchema = new Schema({
   phoneNumber: String
 }, { _id: false });
 
-// Main Itinerary Schema (unchanged)
+// Schema for Agent Information within the Itinerary
+const AgentInfoSchema = new Schema({
+  agentId: { type: Schema.Types.ObjectId, ref: 'User' }, // Assuming CRM users are in a 'User' collection
+  agentCode: String,
+  agentName: String,
+  agentEmail: String
+}, { _id: false });
+
+// Main Itinerary Schema
 const ItinerarySchema = new Schema(
   {
     itineraryToken: {
@@ -310,6 +318,10 @@ const ItinerarySchema = new Schema(
     priceTotals: {
       type: PriceTotalsSchema,
       default: null
+    },
+    agents: { // Added agents field
+      type: [AgentInfoSchema],
+      default: undefined // Will only be present if added
     },
     changeHistory: [{
       type: {
@@ -351,6 +363,10 @@ const ItinerarySchema = new Schema(
         ret.changeHistory = ret.changeHistory || [];
         ret.paymentStatus = ret.paymentStatus || 'pending';
         ret.priceTotals = ret.priceTotals || null;
+        // Ensure agents field is handled (remove if empty/undefined after creation)
+        if (!ret.agents || (Array.isArray(ret.agents) && ret.agents.length === 0)) {
+           delete ret.agents;
+        }
 
         return ret;
       }

@@ -48,7 +48,16 @@ const itineraryInquirySchema = new mongoose.Schema({
     lastName: String,
     email: String,
     phoneNumber: String,
+    country: String,
+    countryCode: String,
+    dob: Date,
   },
+  agents: [{
+    agentId: { type: mongoose.Schema.Types.ObjectId },
+    agentCode: { type: String },
+    agentName: { type: String },
+    agentEmail: { type: String }
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model("ItineraryInquiry", itineraryInquirySchema);

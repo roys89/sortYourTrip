@@ -628,33 +628,38 @@ exports.createItinerary = async (req, res) => {
       inquiry,
       departureFlights,
       returnFlights,
-      hotelResponses,
       inquiryToken
     });
 
-    // Step 5: Create and save the itinerary
-    const itinerary = new Itinerary({
+    // Step 5: Create the itinerary data object
+    const itineraryData = {
       itineraryToken,
       inquiryToken: inquiry.itineraryInquiryToken,
       userInfo: inquiry.userInfo,
       travelersDetails: inquiry.travelersDetails,
       preferences: inquiry.preferences,
-      cities: itineraryWithTransfers,
-    });
+      cities: itineraryWithTransfers, // Assuming this is the result from transfer orchestration
+    };
+
+    // Add agent details if they exist in the inquiry
+    if (inquiry.agents && inquiry.agents.length > 0) {
+      itineraryData.agents = inquiry.agents.map(agent => ({
+        agentId: agent.agentId,
+        agentCode: agent.agentCode,
+        agentName: agent.agentName,
+        agentEmail: agent.agentEmail
+      }));
+      console.log("Agent details added to itinerary data:", itineraryData.agents);
+    }
+
+    // Create and save the itinerary model instance
+    const itinerary = new Itinerary(itineraryData);
 
     console.log("Saving itinerary...");
     const savedItinerary = await itinerary.save();
 
-    const formattedResponse = {
-      itineraryToken: savedItinerary.itineraryToken,
-      inquiryToken: savedItinerary.inquiryToken,
-      userInfo: savedItinerary.userInfo,
-      cities: savedItinerary.cities,
-      travelersDetails: savedItinerary.travelersDetails,
-      preferences: savedItinerary.preferences,
-       changeHistory: savedItinerary.changeHistory || [],  
-  paymentStatus: savedItinerary.paymentStatus || 'pending'
-    };
+    // Format the response (already includes transformation logic from model)
+    const formattedResponse = savedItinerary.toJSON(); 
 
     // Save debug file
     const debugFilePath = path.join(

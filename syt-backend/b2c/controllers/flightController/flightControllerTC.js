@@ -37,7 +37,8 @@ async function tryFlightBooking(flights, searchResponse, params, currentIndex = 
     // Create itinerary
     const itineraryResponse = await FlightCreateItineraryService.createItinerary({
       traceId: searchResponse.data.traceId,
-      resultIndex: selectedFlight.rI,
+      items: [{ resultIndex: selectedFlight.rI }],
+      flightType: 'ONE_WAY',
       inquiryToken: params.inquiryToken,
       cityName: params.cityName,  
       date: params.date,

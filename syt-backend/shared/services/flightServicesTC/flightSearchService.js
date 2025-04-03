@@ -61,8 +61,6 @@ class FlightSearchService {
         })
       };
 
-      console.log('Request Body:', JSON.stringify(requestBody, null, 2));
-
       const response = await axios.post(
         'https://flight-aggregator-api-sandbox.travclan.com/api/v2/flights/search',
         requestBody,

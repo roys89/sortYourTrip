@@ -346,9 +346,9 @@ class UserController {
       // await sendPasswordResetEmail(user.email, user.firstName, resetToken);
       console.log(`ACTION NEEDED (B2C): Send password reset email to ${user.email} with token ${resetToken}`); // Placeholder
       // -------------------------------------------------------------
-      
-      res.status(200).json({ 
-          success: true, 
+
+      res.status(200).json({
+        success: true,
           message: 'If an account exists for this email, password reset instructions have been sent.' 
       });
 
@@ -358,7 +358,7 @@ class UserController {
       res.status(200).json({ 
           success: true, 
           message: 'If an account exists for this email, password reset instructions have been sent.' 
-      }); 
+      });
     }
   }
 

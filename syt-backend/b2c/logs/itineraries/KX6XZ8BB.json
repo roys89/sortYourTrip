@@ -1,12 +1,12 @@
 {
-  "itineraryToken": "THS60ZJS",
-  "inquiryToken": "CDMTQB9S",
+  "itineraryToken": "KX6XZ8BB",
+  "inquiryToken": "9NTS01UQ",
   "userInfo": {
-    "userId": "676135738a2067f194883cef",
+    "userId": "67ed1ed92e32109c4cf1bcdd",
     "firstName": "Roy",
     "lastName": "SYT",
     "email": "s.sdr.roy89@gmail.com",
-    "phoneNumber": "07687009170"
+    "phoneNumber": "7687009170"
   },
   "travelersDetails": {
     "type": "solo",
@@ -16,7 +16,7 @@
           "1"
         ],
         "children": [],
-        "_id": "67ec1abe9ccae8efef8e6c00"
+        "_id": "67ed2225d896e49f9ed0b1b4"
       }
     ]
   },
@@ -30,33 +30,33 @@
     {
       "city": "Dubai",
       "country": "United Arab Emirates",
-      "startDate": "2025-04-23T00:00:00.000Z",
-      "endDate": "2025-04-26T00:00:00.000Z",
+      "startDate": "2025-06-10T00:00:00.000Z",
+      "endDate": "2025-06-14T00:00:00.000Z",
       "days": [
         {
-          "date": "2025-04-23",
+          "date": "2025-06-10",
           "hotels": [
             {
               "success": true,
               "data": {
-                "traceId": "98aeadfb-488c-4144-8803-05aabcd007ec",
+                "traceId": "56fd97da-3bd1-4b42-8c6f-c0edd7cfcfcc",
                 "traceIdDetail": {
-                  "id": "98aeadfb-488c-4144-8803-05aabcd007ec",
+                  "id": "56fd97da-3bd1-4b42-8c6f-c0edd7cfcfcc",
                   "remainingTime": 3574,
-                  "createdAt": "2025-04-01T16:56:48"
+                  "createdAt": "2025-04-02T11:40:42"
                 },
-                "code": "itrfl46",
-                "totalAmount": 148663,
-                "createdAt": "2025-04-01T16:57:03.000Z",
+                "code": "itrflwz",
+                "totalAmount": 98925,
+                "createdAt": "2025-04-02T11:40:55.000Z",
                 "items": [
                   {
-                    "code": "itmfl4o",
+                    "code": "itmflwi",
                     "type": "HOTEL",
-                    "createdAt": "2025-04-01T16:57:03.000Z",
+                    "createdAt": "2025-04-02T11:40:55.000Z",
                     "selectedRoomsAndRates": [
                       {
                         "rate": {
-                          "id": "0636ea2a-759d-44ed-b96e-bbada10b40ef",
+                          "id": "899f7721-783e-4578-ab5a-c33c739794e6",
                           "availability": "1",
                           "needsPriceCheck": true,
                           "isPackageRate": true,
@@ -64,13 +64,13 @@
                           "providerName": "P11",
                           "occupancies": [
                             {
-                              "roomId": "28a2c68d-76c6-4202-82db-255fe99f8ad4",
-                              "stdRoomId": "1",
+                              "roomId": "78238f70-ce82-4f82-92f7-f9fc6b69fc82",
+                              "stdRoomId": "6",
                               "numOfAdults": "1",
                               "numOfChildren": "0"
                             }
                           ],
-                          "baseRate": 122917.343,
+                          "baseRate": 81755.343,
                           "currency": "INR",
                           "refundable": true,
                           "refundability": "Refundable",
@@ -132,15 +132,15 @@
                                   "value": 0,
                                   "valueType": "Nights",
                                   "estimatedValue": 0,
-                                  "start": "2025-04-01T00:00:00+00:00",
-                                  "end": "2025-04-21T13:59:00.000Z"
+                                  "start": "2025-04-02T00:00:00+00:00",
+                                  "end": "2025-06-08T13:59:00.000Z"
                                 },
                                 {
                                   "value": 1,
                                   "valueType": "Nights",
-                                  "estimatedValue": 46859,
-                                  "start": "2025-04-22T18:00:00+04:00",
-                                  "end": "2025-04-23T14:00:00.000Z"
+                                  "estimatedValue": 26662,
+                                  "start": "2025-06-09T18:00:00+04:00",
+                                  "end": "2025-06-10T14:00:00.000Z"
                                 }
                               ]
                             }
@@ -157,10 +157,10 @@
                                 "description": "mandatory_tax",
                                 "frequency": "PerStay",
                                 "unit": "PerAcommodation",
-                                "amount": 1861.58,
+                                "amount": 2326.98,
                                 "currency": "INR"
                               },
-                              "text": "Estimated total amount of -mandatory_tax_ 1861.58 INR"
+                              "text": "Estimated total amount of -mandatory_tax_ 2326.98 INR"
                             }
                           ],
                           "depositRequired": false,
@@ -171,7 +171,7 @@
                           "providerHotelId": "1696177",
                           "otherProviderRates": [
                             {
-                              "amount": 11495.07,
+                              "amount": 7725.61,
                               "description": "Gross Profit",
                               "isIncludedInBaseRate": false
                             }
@@ -181,16 +181,16 @@
                             "trader": []
                           },
                           "deposits": [],
-                          "finalRate": 148663,
+                          "finalRate": 98925,
                           "finalRateInRoe": null,
-                          "sellRate": 148663,
-                          "taxAmount": 25746.58,
+                          "sellRate": 98925,
+                          "taxAmount": 17170.5,
                           "salesTax": null,
-                          "finalRateWithDefaultAgentMarkup": 148663,
+                          "finalRateWithDefaultAgentMarkup": 98925,
                           "totalDefaultMarkup": 0,
                           "affiliateDiscount": 0,
                           "isHoldAllowed": true,
-                          "holdTimeLimit": "2025-04-21T13:59:00.000Z",
+                          "holdTimeLimit": "2025-06-08T13:59:00.000Z",
                           "allowedCreditCards": [
                             {
                               "code": "MasterCard",
@@ -210,13 +210,13 @@
                           ]
                         },
                         "room": {
-                          "id": "28a2c68d-76c6-4202-82db-255fe99f8ad4",
-                          "name": "Raffles, Club Twin Room, 2 Twin Beds",
-                          "description": "<p><strong>2 Twin Beds</strong></p><p>753-sq-foot room with a furnished balcony </p><br/><p><b>Layout</b> - Separate sitting area</p><p><b>Internet</b> - Free WiFi and wired internet access</p><p><b>Entertainment</b> - LED television, digital channels, and iPad</p><p><b>Food & Drink</b> - Espresso maker, minibar (fees may apply), 24-hour room service, and free bottled water</p><p><b>Sleep</b> - Premium bedding, a pillow menu, blackout drapes/curtains, turndown service, and bed sheets </p><p><b>Bathroom</b> - Private bathroom, jetted bathtub, and separate shower with a rainfall showerhead</p><p><b>Practical</b> - Day bed, laptop-compatible safe, and free newspaper; rollaway/extra beds and free cribs/infant beds available on request</p><p><b>Comfort</b> - Fresh bed sheets (on request), fresh towels (on request), and climate-controlled air conditioning</p><p><b>Eco-friendly</b> - Eco-friendly toiletries, eco-friendly cleaning supplies, energy-saving switches, and LED light bulbs</p><p><b>Need to Know</b> - Housekeeping on request</p><p>Smoking And Non-Smoking</p><p>Connecting/adjoining rooms can be requested, subject to availability </p>",
+                          "id": "78238f70-ce82-4f82-92f7-f9fc6b69fc82",
+                          "name": "Signature Room, 1 King Bed",
+                          "description": "<p><strong>1 King Bed</strong></p><p>753-sq-foot room with a furnished balcony </p><br/><p><b>Layout</b> - Separate sitting area</p><p><b>Internet</b> - Free WiFi and wired internet access</p><p><b>Entertainment</b> - LED television, digital channels, and iPad</p><p><b>Food & Drink</b> - Espresso maker, minibar (fees may apply), 24-hour room service, and free bottled water</p><p><b>Sleep</b> - Premium bedding, a pillow menu, blackout drapes/curtains, turndown service, and bed sheets </p><p><b>Bathroom</b> - Private bathroom, jetted bathtub, and separate shower with a rainfall showerhead</p><p><b>Practical</b> - Day bed, laptop-compatible safe, and free newspaper; rollaway/extra beds and free cribs/infant beds available on request</p><p><b>Comfort</b> - Fresh bed sheets (on request), fresh towels (on request), and climate-controlled air conditioning</p><p><b>Eco-friendly</b> - Eco-friendly toiletries, eco-friendly cleaning supplies, energy-saving switches, and LED light bulbs</p><p><b>Need to Know</b> - Housekeeping on request</p><p>Smoking And Non-Smoking</p><p>Connecting/adjoining rooms can be requested, subject to availability </p>",
                           "beds": [
                             {
-                              "type": "TwinBed",
-                              "count": "2"
+                              "type": "KingBed",
+                              "count": "1"
                             }
                           ],
                           "smokingAllowed": false,
@@ -389,12 +389,12 @@
                         "value": 0,
                         "valueType": "Nights",
                         "estimatedValue": 0,
-                        "start": "2025-04-01T00:00:00+00:00",
-                        "end": "2025-04-21T13:59:00.000Z"
+                        "start": "2025-04-02T00:00:00+00:00",
+                        "end": "2025-06-08T13:59:00.000Z"
                       }
                     ],
                     "totalHoldCharges": 0,
-                    "travclanHoldTimeLimit": "2025-04-19T13:59:00.000Z",
+                    "travclanHoldTimeLimit": "2025-06-06T13:59:00.000Z",
                     "holdLimitsData": {
                       "availableHoldAmtForSupplier": 29931756,
                       "maxHoldAmountLimitPerBooking": 28000000,
@@ -407,19 +407,19 @@
                             "value": 0,
                             "valueType": "Nights",
                             "estimatedValue": 0,
-                            "start": "2025-04-01T00:00:00+00:00",
-                            "end": "2025-04-21T13:59:00.000Z"
+                            "start": "2025-04-02T00:00:00+00:00",
+                            "end": "2025-06-08T13:59:00.000Z"
                           }
                         ],
                         "flag": true
                       },
-                      "bookingAmount": 148663,
-                      "travclanHoldTimeLimit": "2025-04-19T13:59:00.000Z"
+                      "bookingAmount": 98925,
+                      "travclanHoldTimeLimit": "2025-06-06T13:59:00.000Z"
                     },
                     "priceChangeData": {
                       "isPriceChanged": false,
-                      "previousTotalAmount": 148663,
-                      "currentTotalAmount": 148663
+                      "previousTotalAmount": 98925,
+                      "currentTotalAmount": 98925
                     }
                   }
                 ],
@@ -427,8 +427,8 @@
                 "isPassportMandatoryForBooking": false,
                 "corporatePanAllowed": true,
                 "searchRequestLog": {
-                  "checkIn": "2025-04-23",
-                  "checkOut": "2025-04-27",
+                  "checkIn": "2025-06-10",
+                  "checkOut": "2025-06-15",
                   "occupancies": [
                     {
                       "numOfAdults": 1,
@@ -3650,52 +3650,55 @@
                 },
                 "bookingStatus": "pending"
               },
-              "checkIn": "2025-04-23",
-              "checkOut": "2025-04-27"
+              "checkIn": "2025-06-10",
+              "checkOut": "2025-06-15"
             }
           ]
         },
         {
-          "date": "2025-04-24"
+          "date": "2025-06-11"
         },
         {
-          "date": "2025-04-25"
+          "date": "2025-06-12"
         },
         {
-          "date": "2025-04-26"
+          "date": "2025-06-13"
+        },
+        {
+          "date": "2025-06-14"
         }
       ]
     },
     {
       "city": "Abu Dhabi",
       "country": "United Arab Emirates",
-      "startDate": "2025-04-27T00:00:00.000Z",
-      "endDate": "2025-04-29T00:00:00.000Z",
+      "startDate": "2025-06-15T00:00:00.000Z",
+      "endDate": "2025-06-18T00:00:00.000Z",
       "days": [
         {
-          "date": "2025-04-27",
+          "date": "2025-06-15",
           "hotels": [
             {
               "success": true,
               "data": {
-                "traceId": "d30b5ad0-d29f-43c8-890d-12ed9eaae210",
+                "traceId": "aa9a43e6-dc80-44ca-9685-54617105744b",
                 "traceIdDetail": {
-                  "id": "d30b5ad0-d29f-43c8-890d-12ed9eaae210",
-                  "remainingTime": 3580,
-                  "createdAt": "2025-04-01T16:56:42"
+                  "id": "aa9a43e6-dc80-44ca-9685-54617105744b",
+                  "remainingTime": 3587,
+                  "createdAt": "2025-04-02T11:40:35"
                 },
-                "code": "itrfl4m",
-                "totalAmount": 109330,
-                "createdAt": "2025-04-01T16:56:54.000Z",
+                "code": "itrflwb",
+                "totalAmount": 77918,
+                "createdAt": "2025-04-02T11:40:40.000Z",
                 "items": [
                   {
-                    "code": "itmfl4t",
+                    "code": "itmflww",
                     "type": "HOTEL",
-                    "createdAt": "2025-04-01T16:56:54.000Z",
+                    "createdAt": "2025-04-02T11:40:40.000Z",
                     "selectedRoomsAndRates": [
                       {
                         "rate": {
-                          "id": "9f29b942-a45f-40aa-b061-cb80d5982a01",
+                          "id": "cc82410b-e2c2-4af6-87e8-e424d50e75d5",
                           "availability": "5",
                           "needsPriceCheck": true,
                           "isPackageRate": true,
@@ -3703,13 +3706,13 @@
                           "providerName": "P11",
                           "occupancies": [
                             {
-                              "roomId": "5387586e-8a12-4c25-8352-22d1737acb41",
-                              "stdRoomId": "3",
+                              "roomId": "b9d8b508-09c9-4398-9282-b838f224397f",
+                              "stdRoomId": "1",
                               "numOfAdults": "1",
                               "numOfChildren": "0"
                             }
                           ],
-                          "baseRate": 88459.987,
+                          "baseRate": 63044.764,
                           "currency": "INR",
                           "refundable": false,
                           "refundability": "NonRefundable",
@@ -3759,9 +3762,9 @@
                                 {
                                   "value": 100,
                                   "valueType": "Percentage",
-                                  "estimatedValue": 109330,
-                                  "start": "2025-03-17T03:00:00+04:00",
-                                  "end": "2025-04-27T14:00:00.000Z"
+                                  "estimatedValue": 77918,
+                                  "start": "2025-04-01T15:40:38.673+04:00",
+                                  "end": "2025-06-15T14:00:00.000Z"
                                 }
                               ]
                             }
@@ -3779,7 +3782,7 @@
                           "providerHotelId": "4849371",
                           "otherProviderRates": [
                             {
-                              "amount": 8654.23,
+                              "amount": 6167.91,
                               "description": "Gross Profit",
                               "isIncludedInBaseRate": false
                             }
@@ -3789,17 +3792,24 @@
                             "trader": []
                           },
                           "deposits": [],
-                          "finalRate": 109330,
+                          "finalRate": 77918,
                           "finalRateInRoe": null,
-                          "sellRate": 109330,
-                          "taxAmount": 20870.22,
+                          "sellRate": 77918,
+                          "taxAmount": 14874.07,
                           "salesTax": null,
-                          "finalRateWithDefaultAgentMarkup": 109330,
+                          "finalRateWithDefaultAgentMarkup": 77918,
                           "totalDefaultMarkup": 0,
                           "affiliateDiscount": 0,
                           "isHoldAllowed": false,
                           "holdTimeLimit": null,
                           "allowedCreditCards": [
+                            {
+                              "code": "AmericanExpress"
+                            },
+                            {
+                              "code": "MasterCard",
+                              "processingCountry": "US"
+                            },
                             {
                               "code": "Visa Electron",
                               "processingCountry": "US"
@@ -3807,21 +3817,14 @@
                             {
                               "code": "Visa",
                               "processingCountry": "US"
-                            },
-                            {
-                              "code": "AmericanExpress"
-                            },
-                            {
-                              "code": "MasterCard",
-                              "processingCountry": "US"
                             }
                           ],
                           "additionalCharges": []
                         },
                         "room": {
-                          "id": "5387586e-8a12-4c25-8352-22d1737acb41",
-                          "name": "Superior Room, 1 King Bed, Non Smoking, Sea View",
-                          "description": "<p><strong>1 King Bed</strong></p><p>484-sq-foot individually decorated room with beach and sea views </p><br/><p><b>Internet</b> - WiFi and wired internet access </p><p><b>Entertainment</b> - 55-inch LED TV, cable channels, and iPod dock</p><p><b>Food & Drink</b> - Espresso maker, minibar (fees may apply), electric kettle, and 24-hour room service</p><p><b>Sleep</b> - A pillow menu and bed sheets </p><p><b>Bathroom</b> - Private bathroom, separate bathtub and shower, bathrobes, and slippers</p><p><b>Practical</b> - Laptop-compatible safe, free newspaper, and iron/ironing board; rollaway/extra beds and free cribs/infant beds available on request</p><p><b>Comfort</b> - Fresh bed sheets (on request), air conditioning, and daily housekeeping</p><p><b>Accessibility</b> - Low-height view port in door</p><p><b>Eco-friendly</b> - Energy-saving switches, recycling bin, and LED light bulbs</p><p><b>Need to Know</b> - Housekeeping on request</p><p>Non-Smoking</p><p>Connecting/adjoining rooms can be requested, subject to availability </p>",
+                          "id": "b9d8b508-09c9-4398-9282-b838f224397f",
+                          "name": "Superior Room, 1 King Bed, Non Smoking, City View",
+                          "description": "<p><strong>1 King Bed</strong></p><p>484-sq-foot room with city views </p><br/><p><b>Internet</b> - WiFi and wired internet access </p><p><b>Entertainment</b> - 55-inch LED TV, cable channels, and iPod dock</p><p><b>Food & Drink</b> - Espresso maker, minibar (fees may apply), electric kettle, and 24-hour room service</p><p><b>Sleep</b> - A pillow menu and bed sheets </p><p><b>Bathroom</b> - Private bathroom, separate bathtub and shower, bathrobes, and slippers</p><p><b>Practical</b> - Laptop-compatible safe, free newspaper, and iron/ironing board; rollaway/extra beds and free cribs/infant beds available on request</p><p><b>Comfort</b> - Fresh bed sheets (on request), air conditioning, and daily housekeeping</p><p><b>Accessibility</b> - Low-height view port in door</p><p><b>Eco-friendly</b> - Energy-saving switches, recycling bin, and LED light bulbs</p><p><b>Need to Know</b> - Housekeeping on request</p><p>Non-Smoking</p><p>Connecting/adjoining rooms can be requested, subject to availability </p>",
                           "beds": [
                             {
                               "type": "KingBed",
@@ -4006,7 +4009,7 @@
                             }
                           ],
                           "views": [
-                            "Sea view"
+                            "City view"
                           ]
                         },
                         "occupancy": {
@@ -4029,13 +4032,13 @@
                         "data": [],
                         "flag": false
                       },
-                      "bookingAmount": 109330,
+                      "bookingAmount": 77918,
                       "travclanHoldTimeLimit": null
                     },
                     "priceChangeData": {
                       "isPriceChanged": false,
-                      "previousTotalAmount": 109330,
-                      "currentTotalAmount": 109330
+                      "previousTotalAmount": 77918,
+                      "currentTotalAmount": 77918
                     }
                   }
                 ],
@@ -4043,8 +4046,8 @@
                 "isPassportMandatoryForBooking": false,
                 "corporatePanAllowed": true,
                 "searchRequestLog": {
-                  "checkIn": "2025-04-27",
-                  "checkOut": "2025-04-30",
+                  "checkIn": "2025-06-15",
+                  "checkOut": "2025-06-19",
                   "occupancies": [
                     {
                       "numOfAdults": 1,
@@ -10257,8 +10260,8 @@
                 },
                 "bookingStatus": "pending"
               },
-              "checkIn": "2025-04-27",
-              "checkOut": "2025-04-30"
+              "checkIn": "2025-06-15",
+              "checkOut": "2025-06-19"
             }
           ],
           "activities": [
@@ -10316,10 +10319,10 @@
                   "routeDetails": {
                     "journey_type": "oneway",
                     "from": "Sheikh Rashid Road, Wafi, Dubai, United Arab Emirates, Postal Code 121800",
-                    "distance": "151.30 KM",
-                    "duration": 88,
-                    "pickup_date": "2025-04-27 00:00:00.000",
-                    "return_date": "2025-04-28 00:00:00.000",
+                    "distance": "153.09 KM",
+                    "duration": 89,
+                    "pickup_date": "2025-06-15 00:00:00.000",
+                    "return_date": "2025-06-16 00:00:00.000",
                     "to": "Nation Towers, Abu Dhabi, United Arab Emirates"
                   },
                   "currency": "INR",
@@ -10346,10 +10349,10 @@
                       }
                     },
                     "meet_greet": 0,
-                    "fare": "7206.63",
+                    "fare": "7278.22",
                     "parent_agent_commission_amt": 0,
                     "agent_commission_amt": 0,
-                    "quote_id": 816490,
+                    "quote_id": 940350,
                     "currency": "INR",
                     "currency_symbol": "₹",
                     "waiting_time_policy_id": 4,
@@ -10370,18 +10373,18 @@
                   "lat": "24.464983",
                   "long": "54.32766"
                 },
-                "quotation_id": "74a0ffc0-0f1a-11f0-9be6-51d7bc758615",
-                "distance": "151.30 KM",
-                "duration": 88
+                "quotation_id": "74e6cd00-0fb7-11f0-b2c5-4533b4057bc3",
+                "distance": "153.09 KM",
+                "duration": 89
               }
             }
           ]
         },
         {
-          "date": "2025-04-28",
+          "date": "2025-06-16",
           "activities": [
             {
-              "searchId": "O5OWCM6SU2GZOX8G",
+              "searchId": "939A4XL2XO7I9SPF",
               "activityType": "online",
               "activityProvider": "GRNC",
               "activityCode": "270296P67",
@@ -10719,7 +10722,7 @@
           ]
         },
         {
-          "date": "2025-04-29",
+          "date": "2025-06-17",
           "activities": [
             {
               "searchId": null,
@@ -10763,6 +10766,52 @@
               "ageBands": []
             }
           ]
+        },
+        {
+          "date": "2025-06-18",
+          "activities": [
+            {
+              "searchId": null,
+              "activityType": "offline",
+              "activityProvider": "Self",
+              "activityCode": "RANAD4",
+              "activityName": "Emirates Palace Mandarin Oriental",
+              "selectedTime": "13:00",
+              "endTime": "15:00",
+              "timeSlot": "afternoon",
+              "isFlexibleTiming": true,
+              "departureTime": {
+                "time": "13:00",
+                "code": "RANDDqAD6"
+              },
+              "duration": 2,
+              "bookingStatus": "pending",
+              "city": "Abu Dhabi",
+              "country": "United Arab Emirates",
+              "continent": "Asia",
+              "fullAddress": "Emirates Palace Mandarin Oriental, Abu Dhabi - United Arab Emirates",
+              "packageDetails": {
+                "amount": 0,
+                "currency": "INR"
+              },
+              "budget": "Luxury",
+              "activityPeriod": "Year-round",
+              "category": "Adventure",
+              "imageUrl": "/assets/images/api/placeholder/activity.png",
+              "rating": 4,
+              "ranking": 9,
+              "preference": [
+                "Adventure"
+              ],
+              "mandatory": false,
+              "availabilityDetails": null,
+              "images": [],
+              "additionalInfo": [],
+              "bookingQuestions": [],
+              "cancellationFromTourDate": [],
+              "ageBands": []
+            }
+          ]
         }
       ]
     }
@@ -10771,15 +10820,15 @@
   "agents": [
     {
       "agentId": "67d7cda70b054b8b84802e2a",
-      "agentCode": "554",
+      "agentCode": "588",
       "agentName": "Admin User",
       "agentEmail": "admin@example.com"
     }
   ],
   "paymentStatus": "pending",
-  "_id": "67ec1b139ccae8efef8e6c16",
+  "_id": "67ed2279d896e49f9ed0b1ce",
   "changeHistory": [],
-  "createdAt": "2025-04-01T16:57:55.916Z",
-  "updatedAt": "2025-04-01T16:57:55.916Z",
+  "createdAt": "2025-04-02T11:41:45.161Z",
+  "updatedAt": "2025-04-02T11:41:45.161Z",
   "__v": 0
 }

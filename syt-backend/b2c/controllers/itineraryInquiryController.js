@@ -12,12 +12,19 @@ exports.createItineraryInquiry = async (req, res) => {
     }
     
     // Basic validation for core fields (can be expanded)
+    const isCrmRequest = itineraryData.agents && itineraryData.agents.length > 0;
     if (!itineraryData.selectedCities || itineraryData.selectedCities.length === 0 || 
         !itineraryData.departureDates?.startDate || !itineraryData.departureDates?.endDate ||
         !itineraryData.travelersDetails?.type || !itineraryData.travelersDetails?.rooms ||
         !itineraryData.preferences?.selectedInterests || !itineraryData.preferences?.budget ||
-        !itineraryData.userInfo?.email) { // Check for at least customer email
+        (!isCrmRequest && !itineraryData.userInfo?.email) // Check email only if NOT a CRM request
+       ) { 
        return res.status(400).json({ message: "Missing required itinerary information." });
+    }
+
+    // Check if departureCity object exists (basic validation)
+    if (!itineraryData.departureCity) {
+       return res.status(400).json({ message: "Missing departureCity information." });
     }
 
     // Generate a unique token for the itinerary inquiry
@@ -31,18 +38,10 @@ exports.createItineraryInquiry = async (req, res) => {
       agents: itineraryData.agents || [] 
     };
 
-    // If agents array has data (indicating CRM request), perform CRM-specific checks if needed
-    if (inquiryToSave.agents.length > 0) {
-        // Potential future checks: 
-        // - Ensure the request is authenticated via CRM middleware (should be done at route level)
-        // - Validate agentId format, etc.
+    // If agents array has data (indicating CRM request)
+    if (isCrmRequest) { 
         console.log(`CRM agent initiated inquiry: ${inquiryToSave.agents[0]?.agentId}`);
-        // Ensure userInfo has userId from the selected/registered B2C customer
-        if (!inquiryToSave.userInfo?.userId) {
-            console.warn("CRM inquiry submitted without B2C customer userId in userInfo.");
-            // Depending on requirements, you might reject here or proceed
-            // return res.status(400).json({ message: "Missing customer user ID for CRM inquiry." });
-        }
+        // No need to warn about missing userInfo.userId if we explicitly allow it
     } else {
         console.log("B2C customer initiated inquiry.");
         // For B2C, ensure userInfo might contain userId if logged in

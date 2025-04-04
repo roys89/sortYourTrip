@@ -42,6 +42,10 @@ const UserSchema = new mongoose.Schema({
     canRemoveUser: {
       type: Boolean,
       default: false
+    },
+    bookings: {
+      type: Boolean,
+      default: false
     }
   },
   createdAt: {

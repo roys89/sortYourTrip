@@ -36,6 +36,7 @@ const crmFlightRoutes = require('./crm/routes/flightRoutes');
 const crmTransferRoutes = require('./crm/routes/transferRoutes');
 const crmActivityRoutes = require('./crm/routes/activityRoutes');
 const crmHotelRoutes = require('./crm/routes/hotelRoutes');
+const crmInquiryRoutes = require('./crm/routes/inquiryRoutes');
 
 // CRM Initialization
 const initCRM = require('./crm/index');
@@ -90,6 +91,7 @@ app.use('/api/crm/bookings/flight', crmFlightRoutes);
 app.use('/api/crm/bookings/transfer', crmTransferRoutes);
 app.use('/api/crm/bookings/activity', crmActivityRoutes);
 app.use('/api/crm/bookings/hotel', crmHotelRoutes);
+app.use('/api/crm/inquiries', crmInquiryRoutes);
 
 // Serve static assets for CRM frontend in production
 if (process.env.NODE_ENV === 'production') {

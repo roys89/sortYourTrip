@@ -139,12 +139,8 @@ const SignIn = ({ handleClose }) => {
           fontSize: '1rem',
           fontWeight: 500,
           boxShadow: 'none',
-          background: theme.palette.button.hoverGradient,
-          animation: theme.palette.button.hoverAnimation,
-          backgroundSize: '200% 100%',
           '&:hover': {
             boxShadow: 'none',
-            backgroundPosition: 'right center'
           }
         }}
       >
@@ -182,12 +178,8 @@ const SignIn = ({ handleClose }) => {
             fontSize: '1rem',
             fontWeight: 500,
             borderWidth: 2,
-            borderColor: theme.palette.mode === 'light' 
-              ? 'rgba(0,0,0,0.23)' 
-              : 'rgba(255,255,255,0.23)',
             '&:hover': {
               borderWidth: 2,
-              borderColor: theme.palette.primary.main
             }
           }}
         >
@@ -211,12 +203,8 @@ const SignIn = ({ handleClose }) => {
             fontSize: '1rem',
             fontWeight: 500,
             borderWidth: 2,
-            borderColor: theme.palette.mode === 'light' 
-              ? 'rgba(0,0,0,0.23)' 
-              : 'rgba(255,255,255,0.23)',
             '&:hover': {
               borderWidth: 2,
-              borderColor: theme.palette.primary.main
             }
           }}
         >

@@ -144,7 +144,7 @@ const AuthPage = () => {
         />
       </motion.div>
 
-      <Container maxWidth="lg">
+      <Container disableGutters>
         <Box
           sx={{
             display: 'flex',
@@ -244,8 +244,8 @@ const AuthPage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
             style={{ 
-              flex: isMobile ? 1 : 0.9,
-              maxWidth: '700px',
+              flex: isMobile ? 1 : 1,
+              maxWidth: '1100px',
               width: '100%'
             }}
           >
@@ -265,7 +265,8 @@ const AuthPage = () => {
                     : 'rgba(255, 255, 255, 0.1)'
                 }`,
                 my: { xs: 4, sm: 6 },
-                width: '100%'
+                width: '100%',
+                maxWidth: '1100px',
               }}
             >
               <Tabs

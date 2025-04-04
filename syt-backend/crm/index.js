@@ -1,6 +1,15 @@
 // crm/index.js
 const bcrypt = require('bcryptjs');
 const { initModels, getModels } = require('./models/Index');
+// Remove express and router imports if no longer needed here
+// const express = require('express'); 
+// const cors = require('cors');
+// const json = require('express').json;
+// const leadRoutes = require('./routes/leadRoutes');
+// const userRoutes = require('./routes/userRoutes');
+// const authRoutes = require('./routes/authRoutes');
+// const bookingRoutes = require('./routes/bookingRoutes');
+// const crmItineraryRoutes = require('./routes/itineraryRoutes');
 
 // Initialize CRM
 const initCRM = async () => {
@@ -45,6 +54,26 @@ const createDefaultAdmin = async () => {
     console.error('Error creating CRM admin user:', error);
   }
 };
+
+// Remove app instance and route mounting from here
+/*
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(json());
+
+// Mount Routes
+app.use('/api/crm/auth', authRoutes);
+app.use('/api/crm/leads', leadRoutes);
+app.use('/api/crm/users', userRoutes);
+app.use('/api/crm/bookings', bookingRoutes);
+app.use('/api/crm/itineraries', crmItineraryRoutes);
+
+// ... errorHandler
+
+// ... server start logic
+*/
 
 module.exports = initCRM;
 

@@ -288,7 +288,10 @@ const UserInfoSchema = new Schema({
   firstName: String,
   lastName: String,
   email: String,
-  phoneNumber: String
+  phoneNumber: String,
+  country: String,
+  countryCode: String,
+  dob: Date
 }, { _id: false });
 
 // Schema for Agent Information within the Itinerary

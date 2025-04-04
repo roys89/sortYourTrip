@@ -10,26 +10,26 @@ const {
   bookHotel,
   getBookingDetails
 } = require('../controllers/hotelController');
-const { protect } = require('../middleware/auth');
+const { protect, checkPermission } = require('../middleware/auth');
 
 // Hotel search and booking routes with provider support
-router.get('/:provider?/locations/search', protect, searchLocation);
-router.post('/:provider?/search', protect, searchHotels);
-router.post('/:provider?/itinerary', protect, createItinerary);
-router.post('/:provider?/room-rates', protect, selectRoomRates);
-router.post('/:provider?/allocate-guests', protect, allocateGuests);
-router.get('/:provider?/recheck-price', protect, recheckPrice);
-router.post('/:provider?/book', protect, bookHotel);
-router.get('/:provider?/booking-details/:bookingCode', protect, getBookingDetails);
+router.get('/:provider?/locations/search', protect, checkPermission('bookings'), searchLocation);
+router.post('/:provider?/search', protect, checkPermission('bookings'), searchHotels);
+router.post('/:provider?/itinerary', protect, checkPermission('bookings'), createItinerary);
+router.post('/:provider?/room-rates', protect, checkPermission('bookings'), selectRoomRates);
+router.post('/:provider?/allocate-guests', protect, checkPermission('bookings'), allocateGuests);
+router.get('/:provider?/recheck-price', protect, checkPermission('bookings'), recheckPrice);
+router.post('/:provider?/book', protect, checkPermission('bookings'), bookHotel);
+router.get('/:provider?/booking-details/:bookingCode', protect, checkPermission('bookings'), getBookingDetails);
 
 // Keep backward compatibility with old routes
-router.get('/locations/search', protect, searchLocation);
-router.post('/search', protect, searchHotels);
-router.post('/itinerary', protect, createItinerary);
-router.post('/room-rates', protect, selectRoomRates);
-router.post('/allocate-guests', protect, allocateGuests);
-router.get('/recheck-price', protect, recheckPrice);
-router.post('/book', protect, bookHotel);
-router.get('/booking-details/:bookingCode', protect, getBookingDetails);
+router.get('/locations/search', protect, checkPermission('bookings'), searchLocation);
+router.post('/search', protect, checkPermission('bookings'), searchHotels);
+router.post('/itinerary', protect, checkPermission('bookings'), createItinerary);
+router.post('/room-rates', protect, checkPermission('bookings'), selectRoomRates);
+router.post('/allocate-guests', protect, checkPermission('bookings'), allocateGuests);
+router.get('/recheck-price', protect, checkPermission('bookings'), recheckPrice);
+router.post('/book', protect, checkPermission('bookings'), bookHotel);
+router.get('/booking-details/:bookingCode', protect, checkPermission('bookings'), getBookingDetails);
 
 module.exports = router; 

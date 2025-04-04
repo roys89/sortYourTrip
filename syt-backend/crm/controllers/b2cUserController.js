@@ -70,7 +70,7 @@ exports.searchB2CUsers = async (req, res, next) => { // Added next for error han
         { phoneNumber: searchRegex }
       ]
     })
-    .select('_id firstName lastName email phoneNumber country dob accountStatus') // Added dob, accountStatus
+    .select('_id firstName lastName email phoneNumber country countryCode dob accountStatus') // Added countryCode
     .limit(10)
     .lean(); 
 
@@ -92,16 +92,18 @@ exports.registerB2CCustomer = async (req, res, next) => {
         firstName, 
         lastName, 
         email, 
-        phoneNumber, 
+        phoneNumber, // Assuming frontend sends NATIONAL number now
+        countryCode, // ADDED: Expect prefix like +91
         dob, 
-        country, 
+        country,     // Full country name
         referralCode 
     } = req.body;
 
     try {
         // Use standard Error for validation
-        if (!firstName || !lastName || !email || !phoneNumber || !dob) {
-            const err = new Error('Please provide first name, last name, email, phone number, and date of birth');
+        // Added check for countryCode as it's now expected
+        if (!firstName || !lastName || !email || !phoneNumber || !countryCode || !country || !dob) {
+            const err = new Error('Please provide firstName, lastName, email, phoneNumber, countryCode, country, and dob');
             err.statusCode = 400;
             return next(err);
         }
@@ -123,7 +125,8 @@ exports.registerB2CCustomer = async (req, res, next) => {
             firstName,
             lastName,
             email: email.toLowerCase(),
-            phoneNumber,
+            phoneNumber, // Save national number
+            countryCode: countryCode || undefined, // ADDED
             dob,
             country: country || undefined, 
             referralCode: referralCode || undefined, 

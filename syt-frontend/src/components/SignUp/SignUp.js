@@ -59,7 +59,24 @@ const SignUp = ({ handleClose }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const newState = { ...prev, [name]: value };
+      // If the country changed, find the corresponding code
+      if (name === 'country') {
+        const selectedCountry = countries.find(c => c.name === value);
+        if (selectedCountry) {
+          newState.countryCode = selectedCountry.code;
+        }
+      }
+      // If the country code changed, find the corresponding country name
+      if (name === 'countryCode') {
+        const selectedCountry = countries.find(c => c.code === value);
+        if (selectedCountry) {
+          newState.country = selectedCountry.name;
+        }
+      }
+      return newState;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -114,7 +131,7 @@ const SignUp = ({ handleClose }) => {
       onSubmit={handleSubmit}
       sx={{
         width: '100%',
-        maxWidth: '700px', // Increased max width
+        maxWidth: '1100px', // Increased from 900px
         margin: '0 auto', // Center the form
         display: 'flex',
         flexDirection: 'column',
@@ -217,6 +234,7 @@ const SignUp = ({ handleClose }) => {
         </Grid>
 
         <Grid item xs={12} sm={6}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <TextField
             {...commonTextFieldProps}
             select
@@ -224,6 +242,7 @@ const SignUp = ({ handleClose }) => {
             name="country"
             value={formData.country}
             onChange={handleChange}
+            sx={{ width: '60%' }}
           >
             {countries.map((country) => (
               <MenuItem key={country.code} value={country.name}>
@@ -231,11 +250,7 @@ const SignUp = ({ handleClose }) => {
               </MenuItem>
             ))}
           </TextField>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
+          <TextField
               {...commonTextFieldProps}
               select
               label="Code"
@@ -250,16 +265,17 @@ const SignUp = ({ handleClose }) => {
                 </MenuItem>
               ))}
             </TextField>
-            
+          </Box>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
             <TextField
               {...commonTextFieldProps}
               label="Phone Number"
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleChange}
-              sx={{ width: '60%' }}
             />
-          </Box>
         </Grid>
 
         <Grid item xs={12} sm={6}>

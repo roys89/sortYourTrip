@@ -526,6 +526,18 @@ exports.createItinerary = async (req, res) => {
 
     const itineraryToken = Math.random().toString(36).substring(2, 10).toUpperCase();
     
+    // Delete existing itinerary with the same inquiry token
+    try {
+      const deletionResult = await Itinerary.deleteOne({ inquiryToken: inquiry.itineraryInquiryToken });
+      if (deletionResult.deletedCount > 0) {
+        console.log(`Deleted existing itinerary with inquiry token: ${inquiry.itineraryInquiryToken}`);
+      }
+    } catch (deleteError) {
+      console.error(`Error deleting existing itinerary: ${deleteError.message}`);
+      // Decide if this error should halt the process or just be logged
+      // For now, we'll log and continue
+    }
+
     // Initialize activity tracker for each city at the start
     const cityActivitiesTracker = {};
     inquiry.selectedCities.forEach(city => {

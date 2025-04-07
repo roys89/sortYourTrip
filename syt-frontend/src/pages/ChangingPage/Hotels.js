@@ -321,6 +321,7 @@ const HotelsPage = () => {
         const response = await fetch(
           `http://localhost:5000/api/itinerary/hotels/${inquiryToken}/${city}/${checkIn}/${checkOut}?page=${pageNum}`,
           {
+            method: 'POST',
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
               "X-Inquiry-Token": inquiryToken,

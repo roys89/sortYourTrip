@@ -37,88 +37,132 @@ const extractAmenities = (hotel) => {
 
 module.exports = {
   searchAvailableHotels: async (req, res) => {
+    // --- Get required params from URL --- 
     const { inquiryToken, cityName, checkIn, checkOut } = req.params;
     
-    // Changed to load 100 hotels per page
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100; // Default to 100 hotels per page
+    // --- Get optional params/body --- 
+    const { 
+        occupancies: bodyOccupancies, // Occupancies passed directly in the body
+        hotelId, 
+        page: queryPage, 
+        limit: queryLimit 
+    } = req.body; // Get optional params from the POST body
+
+    const page = parseInt(queryPage) || 1;
+    const limit = parseInt(queryLimit) || 100;
 
     try {
-      // Get inquiry details
-      const inquiry = await ItineraryInquiry.findOne({
-        itineraryInquiryToken: inquiryToken,
-      });
-      if (!inquiry) {
-        return res.status(404).json({ message: "Inquiry not found" });
+      let occupancies;
+      let inquiry = null; // Initialize inquiry as null
+
+      // --- Determine Occupancies --- 
+      if (bodyOccupancies && Array.isArray(bodyOccupancies) && bodyOccupancies.length > 0) {
+          // Validate and use occupancies from request body
+          logger.info(`Using occupancies provided in request body for inquiry: ${inquiryToken}`);
+          occupancies = bodyOccupancies.map(occ => ({
+              numOfAdults: parseInt(occ.numOfAdults) || 1, // Ensure valid numbers
+              childAges: Array.isArray(occ.childAges) ? occ.childAges.map(age => parseInt(age)).filter(age => !isNaN(age) && age >= 0 && age <= 17) : []
+          }));
+          // Basic validation: Ensure at least one adult per room
+          if (occupancies.some(occ => occ.numOfAdults < 1)) {
+             throw new Error("Invalid occupancy data: Each room must have at least one adult.");
+          }
+      } else {
+          // Fetch inquiry details ONLY if occupancies are not provided
+          logger.info(`No valid occupancies in request body. Fetching inquiry ${inquiryToken} to derive occupancies.`);
+          inquiry = await ItineraryInquiry.findOne({
+              itineraryInquiryToken: inquiryToken,
+          });
+          if (!inquiry) {
+              return res.status(404).json({ message: "Inquiry not found" });
+          }
+          // Derive occupancies from the fetched inquiry
+          occupancies = inquiry.travelersDetails.rooms.map((room) => ({
+              numOfAdults: room.adults.length,
+              childAges: room.children
+                  .map((age) => parseInt(age))
+                  .filter((age) => !isNaN(age) && age >= 0 && age <= 17), // Added age range validation
+          }));
+           logger.info(`Derived occupancies from inquiry ${inquiryToken}: ${JSON.stringify(occupancies)}`);
       }
 
-      // Get auth token
+      // --- Get Auth Token --- (no change needed)
       const authToken = await HotelTokenManager.getOrSetToken(async () => {
         const authResponse = await HotelAuthService.getAuthToken();
         return authResponse.token;
       });
 
-      // Search location
-      const locationResponse = await HotelLocationService.searchLocation(
-        cityName,
-        authToken,
-        inquiryToken,
-        checkIn
-      );
+      // --- Prepare Search Params --- 
+      let searchParams;
+      let locationId = null;
 
-      const cityLocation = locationResponse.results?.find(
-        (location) =>
-          location.type === "City" &&
-          location.name.toLowerCase() === cityName.toLowerCase()
-      );
+      if (hotelId) {
+          // If hotelId is provided (e.g., in body)
+          logger.info(`Constructing search params using hotelId: ${hotelId} for inquiry: ${inquiryToken}`);
+          searchParams = {
+              hotelId, // Use hotelId from body
+              checkIn,
+              checkOut,
+              occupancies, // Use determined occupancies
+              cityName, // Keep for potential context
+              page,
+              limit,
+          };
+      } else {
+          // Original logic: Search by location if no hotelId
+          logger.info(`Constructing search params using location for city: ${cityName}, inquiry: ${inquiryToken}`);
+          const locationResponse = await HotelLocationService.searchLocation(
+              cityName,
+              authToken,
+              inquiryToken,
+              checkIn 
+          );
 
-      if (!cityLocation) {
-        throw new Error("City not found in location results");
+          const cityLocation = locationResponse.results?.find(
+              (location) =>
+                  location.type === "City" &&
+                  location.name.toLowerCase() === cityName.toLowerCase()
+          );
+
+          if (!cityLocation) {
+              logger.error(`City not found in location results for: ${cityName}, Inquiry: ${inquiryToken}`);
+              throw new Error("City not found in location results");
+          }
+          locationId = cityLocation.id;
+
+          searchParams = {
+              locationId: locationId, // Use locationId obtained from city search
+              checkIn,
+              checkOut,
+              occupancies, // Use determined occupancies
+              cityName,
+              page,
+              limit,
+              // TODO: Consider passing filterBy options from req.body as well
+              // filterBy: req.body.filterBy || {} 
+          };
       }
 
-      // Use provided check-in/out dates directly
-      const searchParams = {
-        locationId: cityLocation.id,
-        checkIn,
-        checkOut,
-        occupancies: inquiry.travelersDetails.rooms.map((room) => ({
-          numOfAdults: room.adults.length,
-          childAges: room.children
-            .map((age) => parseInt(age))
-            .filter((age) => !isNaN(age)),
-        })),
-        cityName,
-        page,
-        limit, // Setting to 100 per page
-      };
-
-      // Search hotels
-      const hotels = await HotelSearchService.searchHotels(
+      // --- Search Hotels --- (call remains the same)
+      const hotelsResponse = await HotelSearchService.searchHotels(
         searchParams,
         authToken,
         inquiryToken
       );
 
-      logger.info(`Retrieved ${hotels.results[0].data.length} hotels for page ${page}`);
-
-      // Get all hotel data
-      const allHotels = hotels.results[0].data || [];
-      const totalHotels = hotels.results[0].totalCount || allHotels.length;
-      
-      // Calculate price ranges from ALL hotels
+      // --- Process results --- (no change needed)
+      logger.info(`Retrieved hotel search results for inquiry: ${inquiryToken}. Search method: ${hotelId ? 'hotelId' : 'locationId'}. Page: ${page}`);
+      const allHotels = hotelsResponse.results[0].data || [];
+      const totalHotels = hotelsResponse.results[0].totalCount || allHotels.length;
+      const traceId = hotelsResponse.results[0].traceId;
       const allPrices = allHotels
         .map(h => h.rates?.[0]?.price || 0)
         .filter(price => price > 0);
-      
       const minPrice = allPrices.length ? Math.min(...allPrices) : 0;
       const maxPrice = allPrices.length ? Math.max(...allPrices) : 10000;
-      
-      // Get all available amenities for filter options
       const allAmenities = [...new Set(
         allHotels.flatMap(hotel => extractAmenities(hotel))
-      )].slice(0, 10); // Limit to top 10 amenities
-      
-      // Get all property types from hotels
+      )].slice(0, 10); 
       const allPropertyTypes = [...new Set(
         allHotels
           .map(h => h.accommodationType || 'Hotel')
@@ -129,7 +173,7 @@ module.exports = {
         success: true,
         data: {
           hotels: allHotels,
-          traceId: hotels.results[0].traceId,
+          traceId: traceId, 
           pagination: {
             page,
             limit,
@@ -151,8 +195,7 @@ module.exports = {
         },
       });
     } catch (error) {
-      console.error("Error searching hotels:", error);
-
+      logger.error(`Error searching hotels for inquiry ${inquiryToken}:`, error);
       res.status(500).json({
         success: false,
         message: error.message || "Failed to search hotels",

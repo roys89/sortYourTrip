@@ -390,6 +390,191 @@ exports.removeActivity = async (req, res) => {
   }
 };
 
+// TODO: Add transfer recalculation logic similar to replaceHotel if removing a hotel affects transfers.
+exports.removeHotel = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { cityName, date, hotelCode } = req.body; // Expect hotelCode to identify the hotel
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-hotel-request',
+      requestData: { itineraryToken, hotelCode }
+    });
+
+    const itinerary = await Itinerary.findOne({ itineraryToken, inquiryToken });
+    if (!itinerary) return res.status(404).json({ message: 'Itinerary not found' });
+
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) return res.status(404).json({ message: 'City not found' });
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) return res.status(404).json({ message: 'Day not found' });
+
+    const hotels = itinerary.cities[cityIndex].days[dayIndex].hotels;
+    const hotelIndex = hotels.findIndex(hotel => hotel.data?.items?.[0]?.code === hotelCode);
+
+    if (hotelIndex === -1) return res.status(404).json({ message: 'Hotel not found on this day' });
+
+    // Remove the hotel
+    hotels.splice(hotelIndex, 1);
+
+    // Mark the path as modified if necessary, though direct array ops might be handled.
+    itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.hotels`);
+    
+    await itinerary.save();
+
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-hotel-success',
+      responseData: { message: 'Hotel removed successfully' }
+    });
+
+    res.json({ success: true, message: 'Hotel removed successfully', itinerary });
+  } catch (error) {
+    console.error('Error removing hotel:', error);
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-hotel-error',
+      error: error.message
+    });
+    res.status(500).json({ success: false, message: 'Error removing hotel', error: error.message });
+  }
+};
+
+// TODO: Add transfer recalculation logic similar to replaceFlight if removing a flight affects transfers.
+exports.removeFlight = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { cityName, date, flightCode } = req.body; // Expect flightCode to identify the flight
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  try {
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-flight-request',
+      requestData: { itineraryToken, flightCode }
+    });
+
+    const itinerary = await Itinerary.findOne({ itineraryToken, inquiryToken });
+    if (!itinerary) return res.status(404).json({ message: 'Itinerary not found' });
+
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) return res.status(404).json({ message: 'City not found' });
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) return res.status(404).json({ message: 'Day not found' });
+
+    const flights = itinerary.cities[cityIndex].days[dayIndex].flights;
+    // Use flightCode from flightData for matching
+    const flightIndex = flights.findIndex(flight => flight.flightData?.flightCode === flightCode); 
+
+    if (flightIndex === -1) return res.status(404).json({ message: 'Flight not found on this day' });
+
+    // Remove the flight
+    flights.splice(flightIndex, 1);
+
+    itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.flights`);
+    await itinerary.save();
+
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-flight-success',
+      responseData: { message: 'Flight removed successfully' }
+    });
+
+    res.json({ success: true, message: 'Flight removed successfully', itinerary });
+  } catch (error) {
+    console.error('Error removing flight:', error);
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-flight-error',
+      error: error.message
+    });
+    res.status(500).json({ success: false, message: 'Error removing flight', error: error.message });
+  }
+};
+
+exports.removeTransfer = async (req, res) => {
+  const { itineraryToken } = req.params;
+  // Use quotation_id as the primary identifier if available, fallback to type if needed.
+  const { cityName, date, quotation_id, transferType } = req.body; 
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  if (!quotation_id && !transferType) {
+      return res.status(400).json({ message: 'Missing transfer identifier (quotation_id or transferType)' });
+  }
+
+  try {
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-transfer-request',
+      requestData: { itineraryToken, quotation_id, transferType }
+    });
+
+    const itinerary = await Itinerary.findOne({ itineraryToken, inquiryToken });
+    if (!itinerary) return res.status(404).json({ message: 'Itinerary not found' });
+
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) return res.status(404).json({ message: 'City not found' });
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) return res.status(404).json({ message: 'Day not found' });
+
+    const transfers = itinerary.cities[cityIndex].days[dayIndex].transfers;
+    let transferIndex = -1;
+
+    if (quotation_id) {
+      transferIndex = transfers.findIndex(transfer => transfer.details?.quotation_id === quotation_id);
+    } 
+    // Optional: Fallback to type if quotation_id is not provided or not found (less reliable)
+    // else if (transferType) {
+    //   transferIndex = transfers.findIndex(transfer => transfer.type === transferType);
+    // }
+
+    if (transferIndex === -1) return res.status(404).json({ message: 'Transfer not found on this day using provided identifier' });
+
+    // Remove the transfer
+    transfers.splice(transferIndex, 1);
+
+    itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.transfers`);
+    await itinerary.save();
+
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-transfer-success',
+      responseData: { message: 'Transfer removed successfully' }
+    });
+
+    res.json({ success: true, message: 'Transfer removed successfully', itinerary });
+  } catch (error) {
+    console.error('Error removing transfer:', error);
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'remove-transfer-error',
+      error: error.message
+    });
+    res.status(500).json({ success: false, message: 'Error removing transfer', error: error.message });
+  }
+};
 
 exports.updateActivityWithBookingRef = async (req, res) => {
   const { itineraryToken } = req.params;
@@ -572,7 +757,6 @@ exports.replaceRoom = async (req, res) => {
     });
   }
 };
-
 
 exports.replaceFlight = async (req, res) => {
   const { itineraryToken } = req.params;
@@ -1007,3 +1191,109 @@ exports.updateBookingStatus = async (req, res) => {
     });
   }
 };
+
+// --- NEW: Add Hotel Controller Function --- 
+exports.addHotel = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { 
+    cityName,        // City to add the hotel to
+    date,            // Check-in date (used to identify the day)
+    newHotelDetails  // The complete hotel object payload (including rates, etc.)
+  } = req.body; 
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  // Basic Validation
+  if (!cityName || !date || !newHotelDetails) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Missing required fields: cityName, date, or newHotelDetails.' 
+    });
+  }
+
+  try {
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'add-hotel-request',
+      requestData: { itineraryToken, hotelName: newHotelDetails?.hotelDetails?.name }
+    });
+
+    const itinerary = await Itinerary.findOne({ itineraryToken, inquiryToken });
+    if (!itinerary) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Itinerary not found' 
+      });
+    }
+
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'City not found in itinerary' 
+      });
+    }
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Day not found for the specified date in this city' 
+      });
+    }
+
+    const day = itinerary.cities[cityIndex].days[dayIndex];
+
+    // Ensure hotels array exists
+    if (!Array.isArray(day.hotels)) {
+      day.hotels = [];
+    }
+
+    // Add the new hotel object to the hotels array for that day
+    day.hotels.push(newHotelDetails);
+
+    // Mark the path as modified
+    itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.hotels`);
+
+    // TODO: Consider Transfer Updates - Should adding a hotel trigger transfer updates?
+    // This might be complex if there's already a hotel. For now, just adding the hotel.
+    // If transfers need update, call TransferOrchestrationService similar to replaceHotel.
+    
+    await itinerary.save();
+
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'add-hotel-success',
+      responseData: { 
+        message: 'Hotel added successfully', 
+        addedHotelName: newHotelDetails?.hotelDetails?.name 
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Hotel added successfully to the itinerary', 
+      // Optionally return the updated day or itinerary
+      // updatedDay: day 
+    });
+
+  } catch (error) {
+    console.error('Error adding hotel:', error);
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'add-hotel-error',
+      error: error.message
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error adding hotel to the itinerary', 
+      error: error.message 
+    });
+  }
+};
+// --- END: Add Hotel Controller Function ---

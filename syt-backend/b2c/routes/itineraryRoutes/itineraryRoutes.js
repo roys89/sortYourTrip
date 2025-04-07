@@ -24,6 +24,10 @@ const {
   replaceFlight,
   updateFlightSeatsAndBaggage,
   updateBookingStatus,
+  removeHotel,
+  removeFlight,
+  removeTransfer,
+  addHotel
 } = require("../../controllers/itineraryController/itineraryModificationController");
 
 const {
@@ -100,6 +104,18 @@ router.put(
   checkInquiryToken,
   replaceHotel
 );
+router.delete(
+  "/:itineraryToken/hotel",
+  checkAuth,
+  checkInquiryToken,
+  removeHotel
+);
+router.post(
+  "/:itineraryToken/hotel", 
+  checkAuth, 
+  checkInquiryToken, 
+  addHotel
+);
 router.put(
   "/:itineraryToken/activity/booking-ref",
   checkAuth,
@@ -112,6 +128,12 @@ router.put(
   checkAuth,
   checkInquiryToken,
   replaceFlight
+);
+router.delete(
+  "/:itineraryToken/flight",
+  checkAuth,
+  checkInquiryToken,
+  removeFlight
 );
 router.put(
   "/:itineraryToken/flight/seats",
@@ -150,7 +172,7 @@ router.post(
 );
 
 // Hotel Change Routes
-router.get(
+router.post(
   "/hotels/:inquiryToken/:cityName/:checkIn/:checkOut",
   checkAuth,
   checkInquiryToken,
@@ -220,6 +242,13 @@ router.get(
   checkAuth,
   checkInquiryToken,
   getTransferOptions
+);
+
+router.delete(
+  "/:itineraryToken/transfer",
+  checkAuth,
+  checkInquiryToken,
+  removeTransfer
 );
 
 // Recheck Routes

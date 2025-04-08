@@ -1,14 +1,14 @@
 import {
-  Attractions as AttractionsIcon,
-  CalendarMonth as CalendarIcon,
-  DirectionsCar as CarIcon,
-  KeyboardArrowDown as ChevronDownIcon,
-  KeyboardArrowUp as ChevronUpIcon,
-  Flight as FlightIcon,
-  Restaurant as FoodIcon,
-  Hotel as HotelIcon,
-  LocationOn as MapPinIcon,
-  Add as PlusIcon
+    Attractions as AttractionsIcon,
+    CalendarMonth as CalendarIcon,
+    DirectionsCar as CarIcon,
+    KeyboardArrowDown as ChevronDownIcon,
+    KeyboardArrowUp as ChevronUpIcon,
+    Flight as FlightIcon,
+    Restaurant as FoodIcon,
+    Hotel as HotelIcon,
+    LocationOn as MapPinIcon,
+    Add as PlusIcon
 } from "@mui/icons-material";
 import { Button, Collapse, Typography, useTheme } from "@mui/material";
 import { motion } from "framer-motion";
@@ -16,7 +16,6 @@ import { DateTime } from "luxon";
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { setChangeActivity } from "../../redux/slices/activitySlice";
 import ActivityCard from "../Cards/ActivityCard";
 import FlightCard from "../Cards/FlightCard";
 import HotelCard from "../Cards/HotelCard";
@@ -61,6 +60,10 @@ const ItineraryDay = ({
   const [expanded, setExpanded] = useState(true);
   const [timelineHeight, setTimelineHeight] = useState(0);
 
+  // Extract city name and country name from the city prop
+  const cityName = city?.city || 'Unknown City';
+  const countryName = city?.country || 'Unknown Country'; // Get country name
+
   const toggleExpanded = () => {
     setExpanded(!expanded);
   };
@@ -83,25 +86,31 @@ const ItineraryDay = ({
   };
 
   const handleAddActivity = () => {
-    dispatch(
-      setChangeActivity({
-        city,
-        date: day.date,
-        inquiryToken,
-        travelersDetails,
-        isNewActivity: true,
-      })
-    );
+    // Prepare state for the activities page (add flow)
+    const navigationState = {
+      city: cityName,
+      country: countryName, // Pass country name
+      date: day.date,
+      inquiryToken,
+      travelersDetails,
+      isNewActivity: true, // Indicate this is for adding
+      itineraryToken // Pass itineraryToken for potential back navigation or context
+    };
 
-    navigate("/activities", {
-      state: {
-        city,
-        date: day.date,
-        inquiryToken,
-        travelersDetails,
-        isNewActivity: true,
-      },
-    });
+    // Dispatch is likely not needed here if state is passed via navigation
+    // dispatch(
+    //   setChangeActivity({
+    //     city: cityName,
+    //     country: countryName,
+    //     date: day.date,
+    //     inquiryToken,
+    //     travelersDetails,
+    //     isNewActivity: true,
+    //   })
+    // );
+
+    console.log("Navigating to /activities for ADD with state:", navigationState);
+    navigate("/activities", { state: navigationState });
   };
 
   // Count items to show in the summary
@@ -208,7 +217,6 @@ const ItineraryDay = ({
 
       {/* Collapsible Content */}
       <Collapse in={expanded} timeout={300} onEntered={() => {
-        // Force recalculation of timeline height after Collapse animation completes
         if (containerRef.current) {
           setTimelineHeight(containerRef.current.clientHeight - 85);
         }
@@ -289,7 +297,7 @@ const ItineraryDay = ({
                   </div>
                   <HotelCard
                     hotel={hotel}
-                    city={city}
+                    city={cityName}
                     date={day.date}
                     inquiryToken={inquiryToken}
                     itineraryToken={itineraryToken}
@@ -322,7 +330,8 @@ const ItineraryDay = ({
                     </div>
                     <ActivityCard
                       activity={activity}
-                      city={city}
+                      city={cityName}
+                      country={countryName}
                       date={day.date}
                       inquiryToken={inquiryToken}
                       itineraryToken={itineraryToken}

@@ -707,83 +707,6 @@ const getCityActivities = async (req) => {
   }
 };
 
-// Get activity details endpoint
-const getActivityDetails = async (req, res) => {
-  const { activityCode } = req.params;
-  const inquiryToken = req.headers['x-inquiry-token'];
-  const { city, date, travelersDetails } = req.body;
-
-
-  try {
-    const availabilityFilePath = path.join(
-      process.cwd(),
-      'JSON',
-      inquiryToken,
-      city.name,
-      date,
-      'activity-availability',
-      'default_response.json'
-    );
-
-    if (!fs.existsSync(availabilityFilePath)) {
-      throw new Error('Availability data not found');
-    }
-
-    const fileContent = fs.readFileSync(availabilityFilePath, 'utf8');
-    const availabilityData = JSON.parse(fileContent);
-
-    const activityInfo = availabilityData.data.data.find(item => item.code === activityCode);
-    
-    if (!activityInfo || !activityInfo.groupCode) {
-      throw new Error('Activity not found or missing groupCode');
-    }
-
-    const { searchId } = availabilityData.data;
-    const groupCode = activityInfo.groupCode;
-
-    // Transform travelers data
-    const travelers = {
-      adults: travelersDetails.rooms.reduce((acc, room) => {
-        return [...acc, ...room.adults.map(age => ({ age: parseInt(age) }))];
-      }, []),
-      childAges: travelersDetails.rooms.reduce((acc, room) => {
-        return [...acc, ...(room.children || []).map(age => parseInt(age))];
-      }, [])
-    };
-
-    const productInfo = await activityProductInfoService.checkProductInfo(
-      activityCode,
-      travelers,
-      groupCode,
-      searchId,
-      inquiryToken,
-      city.name,
-      date
-    );
-
-    if (productInfo) {
-      const availabilityDetails = await activityAvailabilityDetailService.checkAvailabilityDetail(
-        searchId,
-        activityCode,
-        productInfo.modifiedGroupCode,
-        inquiryToken,
-        city.name,
-        date
-      );
-
-      res.json({
-        productInfo,
-        availabilityDetails
-      });
-    } else {
-      throw new Error('Failed to fetch product info');
-    }
-  } catch (error) {
-    console.error('Error fetching activity details:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
 // Get available activities endpoint
 const getAvailableActivities = async (req, res) => {
   const { inquiryToken, cityName, date } = req.params;
@@ -948,7 +871,6 @@ module.exports = {
   bookActivity,
   getCityActivities,
   getActivityCountsForCities,
-  getActivityDetails,
   getAvailableActivities,
   createActivityBookingReference,
   // Export helper functions for testing

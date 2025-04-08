@@ -11,7 +11,9 @@ const ActivityViewModal = ({
   activity,
   inquiryToken,
   city,
-  date 
+  date,
+  travelersDetails,
+  oldActivityCode
 }) => {
   const dispatch = useDispatch();
   const [replacing, setReplacing] = useState(false);
@@ -38,14 +40,14 @@ const ActivityViewModal = ({
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json',
-            'X-Inquiry-Token': activity.inquiryToken,
+            'X-Inquiry-Token': inquiryToken,
           },
           body: JSON.stringify({
-            city: {
-              name: activity.city
-            },
-            date: activity.date,
-            travelersDetails: activity.travelersDetails
+            city: { name: city },
+            date: date,
+            travelersDetails: travelersDetails,
+            searchId: activity.searchId,
+            groupCode: activity.groupCode
           })
         }
       );
@@ -62,7 +64,7 @@ const ActivityViewModal = ({
     } finally {
       setLoading(false);
     }
-  }, [activity]);
+  }, [activity, inquiryToken, city, date, travelersDetails]);
 
   useEffect(() => {
     if (open) {
@@ -74,7 +76,7 @@ const ActivityViewModal = ({
     setSelectedOption(option);
     
     // Calculate price comparison when option is selected
-    if (activity.oldActivityCode) {
+    if (oldActivityCode) {
       const existingPrice = activity.existingPrice || 0;
       const newPrice = option.amount;
       const priceDifference = newPrice - existingPrice;
@@ -134,12 +136,12 @@ const ActivityViewModal = ({
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json',
-            'X-Inquiry-Token': activity.inquiryToken,
+            'X-Inquiry-Token': inquiryToken,
           },
           body: JSON.stringify({
             cityName: activity.city,
-            date: activity.date,
-            oldActivityCode: activity.oldActivityCode,
+            date: date,
+            oldActivityCode: oldActivityCode || null,
             newActivityDetails
           }),
         }
@@ -151,7 +153,7 @@ const ActivityViewModal = ({
 
       await dispatch(fetchItinerary({
         itineraryToken,
-        inquiryToken: activity.inquiryToken
+        inquiryToken: inquiryToken
       })).unwrap();
 
       dispatch(closeChangeModal());
@@ -170,7 +172,7 @@ const ActivityViewModal = ({
     }
 
     // If replacing existing activity, show confirmation
-    if (activity.oldActivityCode) {
+    if (oldActivityCode) {
       setConfirmationOpen(true);
       return;
     }
@@ -337,7 +339,7 @@ const ActivityViewModal = ({
                 disabled={replacing || !selectedOption}
               >
                 {replacing ? <CircularProgress size={24} /> : 
-                  activity.oldActivityCode ? 'Change Activity' : 'Add Activity'}
+                  oldActivityCode ? 'Change Activity' : 'Add Activity'}
               </Button>
             </Stack>
           </Stack>

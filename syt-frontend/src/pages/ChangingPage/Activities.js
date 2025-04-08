@@ -20,20 +20,20 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { clearAllActivityStates, setSelectedActivity } from '../../redux/slices/activitySlice';
 import ActivityViewModal from './ActivityViewModal';
 
 // Activity card component
-const ActivityCard = ({ activity, onViewActivity, viewMode, existingPrice = 0 }) => {
+const ActivityCard = ({ activity, onViewActivity, existingPrice = 0 }) => {
   const theme = useTheme();
   
   // Handle image URL
   const imageUrl = activity.imgURL || '/api/placeholder/400/300';
   
   // Generate a simple rating (for demonstration)
-  const formattedRating = activity.rating;
+  const formattedRating = activity.rating || 'N/A';
   
   // Calculate price difference
   const currentPrice = activity.amount || 0;
@@ -371,7 +371,19 @@ const ActivitiesPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = location;
-  const changeActivityFromRedux = useSelector((state) => state.activities.changeActivity);
+
+  // --- Get data directly from location.state --- 
+  const { 
+    city: cityName, 
+    country: countryName,
+    date, 
+    inquiryToken,
+    itineraryToken, // Get itineraryToken for back navigation
+    travelersDetails,
+    isNewActivity,
+    oldActivityCode,
+    existingPrice = 0 // Default existingPrice to 0 for add flow
+  } = state || {}; // Destructure state safely
   
   // Responsive breakpoints
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -379,14 +391,13 @@ const ActivitiesPage = () => {
   // UI States
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedViewActivity, setSelectedViewActivity] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [visibleActivities, setVisibleActivities] = useState([]);
+  const [activities, setActivities] = useState([]); // All fetched activities
+  const [searchId, setSearchId] = useState(null); // Store searchId from API
   const [loading, setLoading] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 10;
-  const [viewMode, setViewMode] = useState('grid');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   // Filter and Sort States
@@ -395,126 +406,132 @@ const ActivitiesPage = () => {
     search: '',
     price: [0, 0]
   });
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
 
-  const [priceRange, setPriceRange] = useState({
-    min: 0,
-    max: 0
-  });
-
-  const activityData = changeActivityFromRedux || state;
-
-  useEffect(() => {
-    if (!activityData?.inquiryToken) {
-      navigate('/itinerary');
-      return;
-    }
-
-    const fetchActivities = async () => {
-      try {
-        setLoading(true);
-        setInitialLoading(true);
-        setError(null);
-
-        const response = await fetch(
-          `http://localhost:5000/api/itinerary/activities/${activityData.inquiryToken}/${activityData.city}/${activityData.date}`,
-          {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json',
-              'X-Inquiry-Token': activityData.inquiryToken,
-            }
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch activities');
-        }
-
-        const data = await response.json();
-
-        // Validate the response format
-        if (!data || typeof data !== 'object') {
-          throw new Error('Invalid response format');
-        }
-
-        // Check if data contains required fields
-        if (!data.searchId || !Array.isArray(data.data)) {
-          throw new Error('Invalid response structure');
-        }
-
-        // Extract activities and ensure they're valid
-        const uniqueActivities = Array.from(
-          new Map(
-            data.data
-              .filter(item => (
-                item && 
-                typeof item === 'object' && 
-                item.code && 
-                item.title && 
-                typeof item.amount === 'number'
-              ))
-              .map(item => [item.code, {
-                ...item,
-                amount: Number(item.amount) || 0,
-                city: activityData.city // Add city to each activity
-              }])
-          ).values()
-        );
-
-        if (uniqueActivities.length === 0) {
-          throw new Error('No activities available');
-        }
-        
-        setActivities(uniqueActivities);
-
-        // Calculate price range from valid data
-        const prices = uniqueActivities.map(a => Number(a.amount) || 0);
-        const minPrice = Math.min(...prices);
-        const maxPrice = Math.max(...prices);
-        
-        setPriceRange({ min: minPrice, max: maxPrice });
-        setFilters(prev => ({
-          ...prev,
-          price: [minPrice, maxPrice]
-        }));
-
-        // Set initial visible activities
-        setVisibleActivities(uniqueActivities.slice(0, ITEMS_PER_PAGE));
-        
-      } catch (err) {
-        console.error('Error fetching activities:', err);
-        setError(err.message || 'Failed to load activities');
-        setActivities([]);
-        setVisibleActivities([]);
-      } finally {
+  // --- Fetch Activities Logic --- 
+  const fetchActivities = useCallback(async () => {
+    // Validate required data from state
+    if (!inquiryToken || !cityName || !countryName || !date || !travelersDetails) {
+        console.error("Missing required data in location state:", { 
+            inquiryToken, cityName, countryName, date, travelersDetails 
+        });
+        setError("Missing required context to fetch activities.");
         setLoading(false);
         setInitialLoading(false);
-      }
-    };
+        // Optionally navigate back or show a more prominent error
+        // navigate('/'); 
+        return;
+    }
 
+    setLoading(true);
+    setInitialLoading(true);
+    setError(null);
+    console.log(`Fetching activities for ${cityName}, ${countryName} on ${date}`);
+
+    try {
+        // Use the NEW endpoint: POST /api/itinerary/activities/:inquiryToken/search
+        const apiUrl = `http://localhost:5000/api/itinerary/activities/${inquiryToken}/search`;
+        const response = await fetch(apiUrl, {
+            method: 'POST', // Method is POST
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+                'X-Inquiry-Token': inquiryToken, // Ensure inquiryToken is in headers if needed by backend
+            },
+            body: JSON.stringify({ // Send data in the body
+                cityName: cityName,
+                countryName: countryName,
+                date: date,
+                travelersDetails: travelersDetails
+                // Add any other search criteria from state.searchCriteria if needed
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(errorData.message || `Failed to fetch activities (${response.status})`);
+        }
+
+        const result = await response.json(); // Result structure is { searchId: '...', data: [...] }
+        console.log("API Response:", result);
+
+        if (!result || !result.data || !Array.isArray(result.data)) {
+            throw new Error('Invalid response structure from activities API');
+        }
+
+        // Store searchId
+        setSearchId(result.searchId || null);
+
+        // Process fetched activities
+        const fetchedActivities = result.data
+            .filter(item => item && typeof item === 'object' && item.code && item.title && typeof item.amount === 'number')
+            .map(item => ({ 
+                ...item, 
+                amount: Number(item.amount) || 0,
+                city: cityName // Ensure city is attached if needed by card
+            }));
+
+        // Filter out the original activity if in CHANGE mode
+        const availableActivities = isNewActivity 
+            ? fetchedActivities 
+            : fetchedActivities.filter(act => act.code !== oldActivityCode);
+        
+        if (availableActivities.length === 0) {
+            setError("No alternative activities found for this city and date.");
+            setActivities([]);
+        } else {
+             setActivities(availableActivities);
+             // Calculate price range from valid alternatives
+             const prices = availableActivities.map(a => a.amount).filter(p => typeof p === 'number');
+             const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+             const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+             setPriceRange({ min: minPrice, max: maxPrice });
+             // Set initial filter range based on fetched data
+             setFilters({ search: '', price: [minPrice, maxPrice] });
+             setError(null); // Clear error if activities are found
+        }
+
+    } catch (err) {
+        console.error("Error fetching activities:", err);
+        setError(err.message || 'Failed to load activities');
+        setActivities([]);
+    } finally {
+        setLoading(false);
+        setInitialLoading(false);
+    }
+  // Dependencies now include all required state variables
+  }, [inquiryToken, cityName, countryName, date, travelersDetails, isNewActivity, oldActivityCode]); 
+
+  // --- Effect to run fetchActivities on mount or when context changes --- 
+  useEffect(() => {
     fetchActivities();
-  }, [activityData, navigate, ITEMS_PER_PAGE]);
+  }, [fetchActivities]);
 
+  // --- Back Navigation --- 
   const handleBackToItinerary = () => {
-    dispatch(clearAllActivityStates());
-    navigate('/itinerary', {
-      state: { itineraryInquiryToken: activityData?.inquiryToken }
-    });
+    dispatch(clearAllActivityStates()); // Clear any redux state if needed
+    // Navigate back using itineraryToken and inquiryToken if available
+    if (itineraryToken && inquiryToken) {
+        navigate('/itinerary', { 
+            state: { itineraryInquiryToken: inquiryToken, itineraryToken: itineraryToken } 
+        });
+    } else {
+        console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");
+        navigate('/'); // Fallback navigation
+    }
   };
 
+  // --- Filtering and Sorting Logic (Memoized) --- 
   const filteredActivities = useMemo(() => {
     if (!activities.length) return [];
     
     return activities.filter(activity => {
       const matchesSearch = !filters.search || 
-        activity.title.toLowerCase().includes(filters.search.toLowerCase());
+        (activity.title && activity.title.toLowerCase().includes(filters.search.toLowerCase()));
       
       const price = Number(activity.amount) || 0;
-      const minPrice = Number(filters.price[0]) || 0;
-      const maxPrice = Number(filters.price[1]) || Infinity;
-      
-      const matchesPrice = price >= minPrice && price <= maxPrice;
+      const [minPriceFilter, maxPriceFilter] = filters.price;
+      const matchesPrice = price >= (minPriceFilter ?? 0) && price <= (maxPriceFilter ?? Infinity);
       
       return matchesSearch && matchesPrice;
     }).sort((a, b) => {
@@ -530,41 +547,47 @@ const ActivitiesPage = () => {
     });
   }, [activities, filters, currentSort]);
 
-  useEffect(() => {
-    const startIndex = 0;
+  // --- Visible Activities Slice (Memoized) --- 
+  const activitiesToShow = useMemo(() => {
+    const startIndex = 0; // Always start from 0 for load more
     const endIndex = (page + 1) * ITEMS_PER_PAGE;
-    setVisibleActivities(filteredActivities.slice(startIndex, endIndex));
+    return filteredActivities.slice(startIndex, endIndex);
   }, [filteredActivities, page, ITEMS_PER_PAGE]);
 
+  // --- Event Handlers --- 
   const handleFilterChange = useCallback((type, value) => {
     if (type === 'reset') {
       setFilters({
         search: '',
-        price: [priceRange.min, priceRange.max]
+        price: [priceRange.min, priceRange.max] // Reset to actual data range
       });
+      setCurrentSort('priceAsc'); // Also reset sort
     } else {
-      setFilters(prev => {
-        if (type === 'price') {
-          return {
-            ...prev,
-            price: value
-          };
-        }
-        return { ...prev, [type]: value };
-      });
+      setFilters(prev => ({ ...prev, [type]: value }));
     }
-    setPage(0);
+    setPage(0); // Reset pagination on filter change
   }, [priceRange]);
 
-  const handleSortChange = (value) => {
+  const handleSortChange = useCallback((value) => {
     setCurrentSort(value);
-  };
+    setPage(0); // Reset pagination on sort change
+  }, []);
 
   const handleViewActivity = useCallback((activity) => {
-    dispatch(setSelectedActivity(activity));
-    setSelectedViewActivity(activity);
+    // Pass necessary context to the view modal
+    setSelectedViewActivity({
+      ...activity, 
+      searchId: searchId,
+      travelersDetails: travelersDetails
+    });
     setViewModalOpen(true);
-  }, [dispatch]);
+    // Dispatch to Redux if other parts of the app need the selected activity
+    dispatch(setSelectedActivity({
+      ...activity, 
+      searchId: searchId,
+      travelersDetails: travelersDetails
+    })); 
+  }, [dispatch, searchId, travelersDetails]);
 
   const handleLoadMore = () => {
     setPage(prev => prev + 1);
@@ -572,16 +595,22 @@ const ActivitiesPage = () => {
   
   // Format date for display
   const formattedDate = useMemo(() => {
-    if (!activityData?.date) return '';
-    const date = new Date(activityData.date);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  }, [activityData?.date]);
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      return d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (e) {
+      console.error("Error formatting date:", date, e);
+      return 'Invalid Date';
+    }
+  }, [date]);
 
+  // --- Render Logic --- 
   if (initialLoading) {
     return (
       <Box 
@@ -724,9 +753,8 @@ const ActivitiesPage = () => {
                     lineHeight: 1.2,
                   }}
                 >
-                  Activities in {activityData?.city}
+                  {isNewActivity ? 'Add Activity' : 'Change Activity'} in {cityName}
                 </Typography>
-                
               </Box>
             </Box>
             
@@ -777,7 +805,7 @@ const ActivitiesPage = () => {
               alignItems={{ xs: "flex-start", md: "center" }}
               justifyContent="space-between"
             >
-              {activityData?.date && (
+              {date && (
                 <Box sx={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -836,13 +864,12 @@ const ActivitiesPage = () => {
             gap: 2,
             mb: 4
           }}>
-            {visibleActivities.map((activity) => (
+            {activitiesToShow.map((activity) => (
               <ActivityCard
                 key={activity.code}
                 activity={activity}
                 onViewActivity={handleViewActivity}
-                viewMode={viewMode}
-                existingPrice={activityData?.existingPrice || 0}
+                existingPrice={isNewActivity ? 0 : existingPrice} // Pass existing price only for change flow
               />
             ))}
           </Box>
@@ -872,7 +899,7 @@ const ActivitiesPage = () => {
           )}
 
           {/* Load More Button with CircularProgress */}
-          {visibleActivities.length < filteredActivities.length && (
+          {activitiesToShow.length < filteredActivities.length && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -906,7 +933,7 @@ const ActivitiesPage = () => {
                       <span>Loading more activities...</span>
                     </Box>
                   ) : (
-                    `View More Activities (${filteredActivities.length - visibleActivities.length} more)`
+                    `View More Activities (${filteredActivities.length - activitiesToShow.length} more)`
                   )}
                 </Button>
               </Box>
@@ -961,9 +988,14 @@ const ActivitiesPage = () => {
           setSelectedViewActivity(null);
         }}
         activity={selectedViewActivity}
-        inquiryToken={activityData?.inquiryToken}
-        city={activityData?.city}
-        date={activityData?.date}
+        inquiryToken={inquiryToken}
+        itineraryToken={itineraryToken}
+        travelersDetails={travelersDetails}
+        city={cityName}
+        country={countryName}
+        date={date}
+        isNewActivity={isNewActivity}
+        oldActivityCode={oldActivityCode}
       />
     </Container>
   );

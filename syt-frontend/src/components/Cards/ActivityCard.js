@@ -5,7 +5,7 @@ import { Baby, Clock, Eye, Info, MapPin, Star, Trash2, Users } from 'lucide-reac
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { setChangeActivity, setSelectedActivity } from '../../redux/slices/activitySlice';
+import { setSelectedActivity } from '../../redux/slices/activitySlice';
 import { fetchItinerary } from '../../redux/slices/itinerarySlice';
 import './Card.css';
 const PLACEHOLDER_IMAGE = '/assets/images/api/placeholder/activity.png';
@@ -13,6 +13,7 @@ const PLACEHOLDER_IMAGE = '/assets/images/api/placeholder/activity.png';
 const ActivityCard = ({ 
   activity, 
   city, 
+  country,
   date, 
   inquiryToken, 
   itineraryToken,
@@ -44,19 +45,16 @@ const ActivityCard = ({
       
       setIsTripAdvisorLoading(true);
       try {
-        // Get country from activity if available, otherwise get it from parent component
-        // If not available in either, send a default value or exclude it
-        const country = activity.country || ''; 
+        // Use country prop if passed, otherwise try from activity, default to empty
+        const countryForTA = country || activity.country || ''; 
         
-        // Only include address if it exists
         const requestBody = {
           name: activity.activityName,
           city,
-          country,
-          category: 'attractions' // Always use 'attractions' for activities
+          country: countryForTA,
+          category: 'attractions'
         };
         
-        // Only add address if it exists
         if (activity.address) {
           requestBody.address = activity.address;
         }
@@ -89,7 +87,7 @@ const ActivityCard = ({
     };
     
     fetchTripAdvisorData();
-  }, [activity.activityName, activity.country, activity.address, city]);
+  }, [activity.activityName, activity.country, activity.address, city, country]);
 
   const shortDescription = useMemo(() => {
     const desc = activity?.description || "";
@@ -143,29 +141,35 @@ const ActivityCard = ({
   };
 
   const handleChangeActivity = () => {
-    dispatch(setChangeActivity({
-      ...activity,
+    // Prepare state for the activities page (change flow)
+    const navigationState = {
       city,
+      country, // Include country name
       date,
       inquiryToken,
-      itineraryToken,
+      itineraryToken, // Include itinerary token
       travelersDetails,
-      oldActivityCode: activity.activityCode,
-      existingPrice: activity.packageDetails?.amount || 0
-    }));
+      isNewActivity: false, // Indicate this is for changing
+      oldActivityCode: activity.activityCode, // Pass the code of the activity being replaced
+      existingPrice: activity.packageDetails?.amount || 0, // Pass existing price
+      returnTo: '/itinerary' // Define where to return after change
+    };
 
-    navigate('/activities', {
-      state: {
-        city,
-        date,
-        inquiryToken,
-        itineraryToken,
-        travelersDetails,
-        returnTo: '/itinerary',
-        activityCode: activity.activityCode,
-        existingPrice: activity.packageDetails?.amount || 0
-      }
-    });
+    // Dispatch might still be useful for global state, but ensure navigation state is primary
+    // dispatch(setChangeActivity({
+    //   ...activity,
+    //   city,
+    //   country,
+    //   date,
+    //   inquiryToken,
+    //   itineraryToken,
+    //   travelersDetails,
+    //   oldActivityCode: activity.activityCode,
+    //   existingPrice: activity.packageDetails?.amount || 0
+    // }));
+
+    console.log("Navigating to /activities for CHANGE with state:", navigationState);
+    navigate('/activities', { state: navigationState });
   };
 
   const formattedDate = date ? new Date(date).toLocaleDateString('en-US', {

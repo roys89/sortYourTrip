@@ -1,6 +1,8 @@
 const Itinerary = require('../../models/Itinerary');
-const TransferOrchestrationService = require('../../../shared/services/transferServicesLA/transferOrchestrationService');
-const apiLogger = require('../../../shared/helpers/apiLogger');
+// const TransferOrchestrationService = require('../../../shared/services/transferServicesLA/transferOrchestrationService');
+const TransferGetQuotesService = require('../../../shared/services/transferServicesLA/transferGetQuotesService');
+const TransferQuoteDetailsService = require('../../../shared/services/transferServicesLA/transferQuoteDetailsService');
+// const apiLogger = require('../../../shared/helpers/apiLogger');
 
 exports.updateTransfersForChange = async (req, res) => {
   const { itineraryToken } = req.params;
@@ -11,13 +13,6 @@ exports.updateTransfersForChange = async (req, res) => {
   const inquiryToken = req.headers['x-inquiry-token'];
 
   try {
-    // Log the transfer update request
-    apiLogger.logApiData({
-      inquiryToken,
-      apiType: 'update-transfers',
-      requestData: { changeType, changeDetails }
-    });
-
     // Find the itinerary
     const itinerary = await Itinerary.findOne({ 
       itineraryToken, 
@@ -48,7 +43,9 @@ exports.updateTransfersForChange = async (req, res) => {
     };
 
     // Update transfers using Orchestration Service
-    const updatedTransfers = await TransferOrchestrationService.updateTransfersForChange(transferUpdateParams);
+    // const updatedTransfers = await TransferOrchestrationService.updateTransfersForChange(transferUpdateParams);
+    // Placeholder response if service call is commented out:
+    return res.status(501).json({ success: false, message: "Functionality disabled pending review of TransferOrchestrationService usage." });
 
     // Find and update the specific city and day transfers
     const { cityName, date } = changeDetails;
@@ -74,17 +71,6 @@ exports.updateTransfersForChange = async (req, res) => {
     // Save the updated itinerary
     await itinerary.save();
 
-    // Log successful transfer update
-    apiLogger.logApiData({
-      inquiryToken,
-      apiType: 'update-transfers-success',
-      responseData: { 
-        cityName, 
-        date, 
-        transfersUpdated: updatedTransfers.length 
-      }
-    });
-
     res.json({
       success: true,
       message: 'Transfers updated successfully',
@@ -92,13 +78,6 @@ exports.updateTransfersForChange = async (req, res) => {
     });
 
   } catch (error) {
-    // Log error
-    apiLogger.logApiData({
-      inquiryToken,
-      apiType: 'update-transfers-error',
-      error: error.message
-    });
-
     console.error('Error updating transfers:', error);
     res.status(500).json({ 
       success: false, 
@@ -121,20 +100,6 @@ exports.getTransferOptions = async (req, res) => {
   const inquiryToken = req.headers['x-inquiry-token'];
 
   try {
-    // Log API request
-    apiLogger.logApiData({
-      inquiryToken,
-      cityName,
-      date,
-      apiType: 'get-transfer-options',
-      requestData: {
-        originType,
-        destinationType,
-        originLocation,
-        destinationLocation
-      }
-    });
-
     // Get itinerary first to access traveler details
     const itinerary = await Itinerary.findOne({ inquiryToken });
     if (!itinerary) {
@@ -161,20 +126,13 @@ exports.getTransferOptions = async (req, res) => {
     };
 
     // Get transfer options using the ground transfer service
-    const transferResult = await TransferOrchestrationService.getTransferOptions(transferSearchParams);
+    // const transferResult = await TransferOrchestrationService.getTransferOptions(transferSearchParams);
+    // Placeholder response if service call is commented out:
+    return res.status(501).json({ success: false, message: "Functionality disabled pending review of TransferOrchestrationService usage." });
 
     if (transferResult.type === "error") {
       throw new Error(transferResult.message);
     }
-
-    // Log success
-    apiLogger.logApiData({
-      inquiryToken,
-      cityName,
-      date,
-      apiType: 'get-transfer-options-success',
-      responseData: transferResult
-    });
 
     res.json({
       success: true,
@@ -183,13 +141,6 @@ exports.getTransferOptions = async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching transfer options:', error);
-    apiLogger.logApiData({
-      inquiryToken,
-      cityName,
-      date,
-      apiType: 'get-transfer-options-error',
-      error: error.message
-    });
     
     res.status(500).json({
       success: false,
@@ -230,14 +181,9 @@ exports.revalidateTransfer = async (req, res) => {
     }
 
     // Revalidate transfer
-    const revalidatedTransfer = await TransferOrchestrationService.revalidateTransfer({
-      travelers: itinerary.travelersDetails,
-      inquiryToken,
-      preferences: itinerary.preferences,
-      startDate: date,
-      origin: transfer.details.origin,
-      destination: transfer.details.destination
-    });
+    // const revalidatedTransfer = await TransferOrchestrationService.revalidateTransfer({ ... });
+    // Placeholder response if service call is commented out:
+    return res.status(501).json({ success: false, message: "Functionality disabled pending review of TransferOrchestrationService usage." });
 
     res.json({
       success: true,
@@ -253,4 +199,113 @@ exports.revalidateTransfer = async (req, res) => {
       error: error.message
     });
   }
+};
+
+exports.searchTransferOptions = async (req, res) => {
+    const {
+        origin,       // { lat, long, display_address }
+        destination,  // { lat, long, display_address }
+        pickupDate,   // YYYY-MM-DD
+        pickupTime    // HH:MM (24hr format)
+    } = req.body;
+
+    const inquiryToken = req.headers['x-inquiry-token'];
+
+    try {
+        if (!origin || !destination || !pickupDate || !pickupTime || !inquiryToken) {
+            return res.status(400).json({ success: false, message: "Missing required parameters/headers (origin, destination, pickupDate, pickupTime, inquiryToken)." });
+        }
+
+        let travelerDetails = null;
+        const itinerary = await Itinerary.findOne({ inquiryToken });
+        if (itinerary && itinerary.travelersDetails) {
+            travelerDetails = itinerary.travelersDetails;
+        } else {
+            console.warn(`Itinerary or traveler details not found for inquiry ${inquiryToken}. Proceeding without them.`);
+        }
+
+        const formattedPickupDateTime = `${pickupDate} ${pickupTime}:00.000`;
+
+        const quoteParams = {
+            origin: {
+                lat: String(origin.lat),
+                long: String(origin.long),
+                display_address: origin.display_address
+            },
+            destination: {
+                lat: String(destination.lat),
+                long: String(destination.long),
+                display_address: destination.display_address
+            },
+            pickupDate: formattedPickupDateTime,
+            inquiryToken: inquiryToken,
+            travelers: travelerDetails
+        };
+
+        const quotesResponse = await TransferGetQuotesService.getTransferQuotes(quoteParams);
+
+        if (quotesResponse.success && quotesResponse.quotes) {
+            res.json({
+                success: true,
+                data: quotesResponse.quotes
+            });
+        } else {
+             res.status(404).json({
+                success: false,
+                message: quotesResponse.message || 'No transfer options found for the specified criteria.',
+                error: quotesResponse.error
+            });
+        }
+
+    } catch (error) {
+        console.error('Error searching transfer options:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to search transfer options',
+            error: error.message
+        });
+    }
+};
+
+exports.getTransferQuoteDetails = async (req, res) => {
+    const {
+        quotationId,
+        quoteId
+    } = req.body;
+    const inquiryToken = req.headers['x-inquiry-token'];
+
+    try {
+        if (!quotationId || !quoteId || !inquiryToken) {
+             return res.status(400).json({ success: false, message: "Missing required parameters (quotationId, quoteId, inquiryToken in header)." });
+        }
+
+        const quoteDetailsResponse = await TransferQuoteDetailsService.getQuoteDetails(
+            quotationId,
+            quoteId,
+            inquiryToken,
+            null,
+            null
+        );
+
+        if (quoteDetailsResponse.success && quoteDetailsResponse.data) {
+            res.json({
+                success: true,
+                data: quoteDetailsResponse.data
+            });
+        } else {
+             res.status(404).json({
+                success: false,
+                message: quoteDetailsResponse.message || 'Failed to retrieve quote details.',
+                error: quoteDetailsResponse.error
+            });
+        }
+
+    } catch (error) {
+        console.error('Error fetching transfer quote details:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch transfer quote details',
+            error: error.message
+        });
+    }
 };

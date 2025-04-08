@@ -907,7 +907,7 @@ const ItineraryPage = () => {
                         >
                           <ItineraryDay
                             day={day}
-                            city={city.city}
+                            city={city}
                             inquiryToken={itineraryInquiryToken}
                             itineraryToken={itineraryToken}
                             travelersDetails={itinerary.travelersDetails}

@@ -5,6 +5,9 @@ const router = express.Router();
 const {
   getTransferOptions,
   updateTransfersForChange,
+  searchTransferOptions,
+  getTransferQuoteDetails,
+  revalidateTransfer
 } = require("../../controllers/transferController/transferChangeController");
 
 const {
@@ -27,7 +30,8 @@ const {
   removeHotel,
   removeFlight,
   removeTransfer,
-  addHotel
+  addHotel,
+  addTransfer
 } = require("../../controllers/itineraryController/itineraryModificationController");
 
 const {
@@ -46,10 +50,15 @@ const {
 } = require("../../controllers/flightController/flightChangeController");
 
 const {
-  getActivityDetails,
   getAvailableActivities,
   createActivityBookingReference,
 } = require("../../controllers/activityController/activityControllerGRNC");
+
+// Import the new controller
+const {
+  searchAvailableActivitiesForChange,
+  getActivityDetails
+} = require("../../controllers/activityController/activityChangeController");
 
 const {
   // recheckActivityPrices,
@@ -208,13 +217,14 @@ router.post(
 );
 
 // Activity Routes
-router.get(
-  "/activities/:inquiryToken/:cityName/:date",
+router.post(
+  "/activities/:inquiryToken/search",
   checkAuth,
   checkInquiryToken,
-  getAvailableActivities
+  searchAvailableActivitiesForChange
 );
 
+// Route to get details of a specific activity product - now using the new implementation
 router.post(
   "/product-info/:activityCode",
   checkAuth,
@@ -222,6 +232,7 @@ router.post(
   getActivityDetails
 );
 
+// Route to create booking reference
 router.post(
   "/activity/reference",
   checkAuth,
@@ -249,6 +260,30 @@ router.delete(
   checkAuth,
   checkInquiryToken,
   removeTransfer
+);
+
+// NEW: Search for transfer options (for manual add flow)
+router.post(
+  "/:itineraryToken/transfers/search",
+  checkAuth,
+  checkInquiryToken,
+  searchTransferOptions
+);
+
+// NEW: Get details for a specific transfer quote (for manual add flow)
+router.post(
+  "/:itineraryToken/transfers/quote-details",
+  checkAuth,
+  checkInquiryToken,
+  getTransferQuoteDetails
+);
+
+// NEW: Add a transfer to a specific day
+router.post(
+  "/:itineraryToken/add-transfer",
+  checkAuth,
+  checkInquiryToken,
+  addTransfer
 );
 
 // Recheck Routes

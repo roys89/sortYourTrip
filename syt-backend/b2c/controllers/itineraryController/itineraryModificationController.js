@@ -5,6 +5,7 @@ const TransferLockManager = require('../../../shared/services/transferServicesLA
 const TransferOrchestrationService = require('../../../shared/services/transferServicesLA/transferOrchestrationService');
 const FlightUtils = require('../../utils/flight/flightUtils');
 const ItineraryBooking = require('../../models/ItineraryBooking')
+const { v4: uuidv4 } = require('uuid'); // Import uuid if needed for fallback quotation_id
 
 // Helper function to format address to single line
 function formatAddressToSingleLine(addressObj) {
@@ -1297,3 +1298,193 @@ exports.addHotel = async (req, res) => {
   }
 };
 // --- END: Add Hotel Controller Function ---
+
+// Helper function to determine transfer type from origin/destination types
+function determineTransferType(originType, destinationType) {
+    if (!originType || !destinationType) {
+        // Keep throwing error if types are completely missing
+        throw new Error("Origin or destination type missing in transfer data.");
+    }
+    
+    // Standardize types for comparison
+    const originLower = originType.toLowerCase();
+    const destLower = destinationType.toLowerCase();
+
+    if (originLower.includes('hotel') && destLower.includes('airport')) {
+        return 'hotel_to_airport';
+    }
+    if (originLower.includes('airport') && destLower.includes('hotel')) {
+        return 'airport_to_hotel';
+    }
+    // Consider different hotel types for city_to_city (e.g., previous_hotel, current_hotel)
+    if (originLower.includes('hotel') && destLower.includes('hotel')) {
+         return 'city_to_city'; 
+    }
+    // Allow activity transfers
+    if (originLower.includes('activity') || destLower.includes('activity')) {
+         return 'activity_transfer'; 
+    }
+    
+    return 'generic'; // Return a default type
+    
+}
+
+// --- NEW: Add Transfer --- 
+exports.addTransfer = async (req, res) => {
+    const { itineraryToken } = req.params;
+    const { 
+        cityName, 
+        date,       
+        transferData, 
+        quotation_id, 
+        totalTravelers,
+        flightNumber  
+    } = req.body;
+    const inquiryToken = req.headers['x-inquiry-token'];
+
+    try {
+        apiLogger.logApiData({
+            inquiryToken,
+            itineraryToken,
+            apiType: 'b2c-add-transfer',
+            requestData: { 
+                cityName, 
+                date, 
+                transferDataType: transferData?.type, // Log quote type if exists
+                quotation_id, 
+                totalTravelers, // Log received travelers
+                flightNumber 
+            } 
+        });
+
+        // --- Input Validation (Add totalTravelers) --- 
+        if (!cityName || !date || !transferData || !itineraryToken || !inquiryToken || !quotation_id || !totalTravelers) {
+            return res.status(400).json({ success: false, message: "Missing required parameters (cityName, date, transferData, itineraryToken, inquiryToken, quotation_id, totalTravelers)." });
+        }
+        if (typeof totalTravelers !== 'number' || totalTravelers <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid 'totalTravelers' value. Expected a positive number." });
+        }
+        // ... other validations (transferData object, nested fields) ...
+
+
+        // --- Fetch Itinerary (Still needed for context/saving) --- 
+        const itinerary = await Itinerary.findOne({ itineraryToken, inquiryToken });
+        if (!itinerary) {
+            return res.status(404).json({ success: false, message: 'Itinerary not found' });
+        }
+
+        // --- Prepare Transfer Object --- 
+        const outerTransferType = determineTransferType(transferData.origin?.type, transferData.destination?.type);
+
+        // --- Create origin/destination with City field --- 
+        const originForDetails = {
+            ...(transferData.origin || {}),
+            city: cityName // Ensure city field is present
+        };
+        const destinationForDetails = {
+            ...(transferData.destination || {}),
+            city: cityName // Ensure city field is present (might be different if跨city)
+            // If destination city could differ, logic to determine it would be needed here.
+            // Assuming for now destination city is same as origin context for this add operation.
+        };
+        // --------------------------------------------
+
+        // 3. Construct Details Object (Use modified origin/destination)
+        const detailsObject = {
+            type: "ground",
+            transportationType: "transfer",
+            transferProvider: "LeAmigo", 
+            bookingStatus: "pending",   
+            selectedQuote: transferData, // Keep the full original quote data here
+            totalTravelers: totalTravelers, 
+            origin: originForDetails,       // Use object with city field
+            destination: destinationForDetails, // Use object with city field
+            quotation_id: quotation_id,       
+            distance: transferData.routeDetails?.distance || null, 
+            duration: transferData.routeDetails?.duration || null, 
+        };
+
+        // Add flightNumber if provided and relevant
+        if (flightNumber && (outerTransferType === 'hotel_to_airport' || outerTransferType === 'airport_to_hotel')) {
+            detailsObject.flightNumber = flightNumber;
+        }
+        
+        // 4. Construct Final Transfer Object
+        const finalTransferObject = {
+            type: outerTransferType,
+            details: detailsObject
+        };
+
+        // --- Find City and Day --- 
+        const cityIndex = itinerary.cities.findIndex(c => c.city === cityName);
+        if (cityIndex === -1) {
+            return res.status(404).json({ success: false, message: `City '${cityName}' not found in itinerary.` });
+        }
+        const dayIndex = itinerary.cities[cityIndex].days.findIndex(d => d.date === date);
+        if (dayIndex === -1) {
+            return res.status(404).json({ success: false, message: `Date '${date}' not found in city '${cityName}'.` });
+        }
+
+        // --- Add Transfer to Itinerary --- 
+        // Ensure transfers array exists
+        if (!itinerary.cities[cityIndex].days[dayIndex].transfers) {
+            itinerary.cities[cityIndex].days[dayIndex].transfers = [];
+        }
+
+        // Push the NEWLY CONSTRUCTED transfer object
+        itinerary.cities[cityIndex].days[dayIndex].transfers.push(finalTransferObject);
+
+        // --- Add Change History --- 
+        itinerary.changeHistory.push({
+            type: 'TRANSFER_ADD', 
+            details: { 
+                cityName, 
+                date, 
+                transferType: outerTransferType, // Log the determined type
+                provider: detailsObject.transferProvider,
+                quotation_id: quotation_id, // Log the specific quote ID
+                numTravelersAdded: totalTravelers // Log the number added
+            },
+            changedAt: new Date()
+        });
+
+        // --- Save and Respond --- 
+        const savedItinerary = await itinerary.save();
+
+        apiLogger.logApiData({
+            inquiryToken,
+            itineraryToken,
+            apiType: 'b2c-add-transfer-success',
+            responseData: { 
+                cityName, 
+                date, 
+                addedTransferType: outerTransferType,
+                quotation_id: quotation_id,
+                transferCount: savedItinerary.cities[cityIndex].days[dayIndex].transfers.length 
+            }
+        });
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Transfer added successfully with specified structure', 
+            data: savedItinerary.cities[cityIndex].days[dayIndex].transfers // Return updated transfers array
+        });
+
+    } catch (error) {
+        apiLogger.logApiData({
+            inquiryToken,
+            itineraryToken,
+            apiType: 'b2c-add-transfer-error',
+            requestBody: req.body, // Log body on error for debugging
+            error: error.message,
+            stack: error.stack // Include stack trace for better debugging
+        });
+        console.error('Error adding transfer to itinerary:', error);
+        res.status(500).json({
+            success: false,
+            message: `Failed to add transfer to itinerary: ${error.message}`, // Include error message
+            error: error.message // Keep original error message field
+        });
+    }
+};
+// --- END: Add Transfer ---

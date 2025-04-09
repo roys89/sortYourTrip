@@ -95,7 +95,7 @@ router.put("/:itineraryToken/prices", checkAuth, updateItineraryPrices);
 router.delete("/:inquiryToken", checkAuth, deleteItinerary);
 
 // Itinerary Modification Routes
-router.put(
+router.post(
   "/:itineraryToken/activity",
   checkAuth,
   checkInquiryToken,

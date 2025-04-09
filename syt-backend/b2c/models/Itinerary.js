@@ -156,7 +156,7 @@ const ActivitySchema = new Schema({
   timeSlot: String,
   isFlexibleTiming: Boolean,
   departureTime: DepartureTimeSchema,
-  duration: Number,
+  duration: String,  // Changed from Number to String
   bookingStatus: {    // Added bookingStatus field
     type: String,
     enum: ['pending', 'confirmed', 'cancelled', 'failed'],

@@ -5,6 +5,76 @@ import { useDispatch, useSelector } from 'react-redux';
 import { closeChangeModal } from '../../redux/slices/activitySlice';
 import { fetchItinerary } from '../../redux/slices/itinerarySlice';
 
+// --- Helper function to parse duration string to minutes --- 
+const parseDurationToMinutes = (durationString) => {
+    if (!durationString || typeof durationString !== 'string') {
+        return null; 
+    }
+    let totalMinutes = 0;
+    const hoursMatch = durationString.match(/(\d+)\s*hour/i);
+    const minutesMatch = durationString.match(/(\d+)\s*minute/i);
+
+    if (hoursMatch && hoursMatch[1]) {
+        totalMinutes += parseInt(hoursMatch[1], 10) * 60; 
+    }
+    if (minutesMatch && minutesMatch[1]) {
+        totalMinutes += parseInt(minutesMatch[1], 10);
+    }
+
+    if (totalMinutes === 0 && /^\d+$/.test(durationString.trim())) {
+        totalMinutes = parseInt(durationString.trim(), 10);
+    }
+
+    return totalMinutes > 0 ? totalMinutes : null; 
+};
+
+// --- Frontend Time Helper Functions (based on backend logic) ---
+
+// Helper function to validate and normalize time (HH:MM format)
+const validateAndNormalizeTime = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+    const pattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!pattern.test(timeStr)) return null;
+    return timeStr; // Already in HH:MM format
+};
+
+// Helper function to determine time slot based on hour
+const getTimeSlot = (timeStr) => {
+  if (!timeStr) return null;
+  const validatedTime = validateAndNormalizeTime(timeStr);
+  if (!validatedTime) return null;
+
+  const hour = parseInt(validatedTime.split(':')[0], 10);
+
+  if (hour >= 9 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 16) return 'afternoon';
+  if (hour >= 16 && hour < 20) return 'evening';
+  return null; // Outside defined slots or invalid
+};
+
+// Helper function to calculate end time using duration in minutes
+const calculateEndTime = (startTimeStr, durationInMinutes) => {
+  const validatedStartTime = validateAndNormalizeTime(startTimeStr);
+  if (!validatedStartTime || durationInMinutes == null || durationInMinutes <= 0) {
+    return null; // Cannot calculate without valid start time and duration
+  }
+
+  const [hours, minutes] = validatedStartTime.split(':').map(Number);
+  const totalStartMinutes = hours * 60 + minutes;
+  const totalEndMinutes = totalStartMinutes + durationInMinutes;
+
+  const endHours = Math.floor(totalEndMinutes / 60) % 24; 
+  const endMinutes = totalEndMinutes % 60;
+
+  if (endHours >= 20 && totalStartMinutes < (20*60)) { 
+      return '20:00';
+  }
+
+  return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+};
+
+// --- End Frontend Time Helper Functions ---
+
 const ActivityViewModal = ({ 
   open, 
   onClose, 
@@ -98,41 +168,76 @@ const ActivityViewModal = ({
       setError(null);
       setConfirmationOpen(false);
 
+      // --- Determine Start Time (assuming selectedOption.departureTime exists) --- 
+      const finalStartTime = validateAndNormalizeTime(selectedOption?.departureTime);
+      if (!finalStartTime) {
+         setError('Selected option does not have a valid departure time.');
+         setReplacing(false);
+         return;
+      }
+
+      // --- Parse Duration to Minutes ---
+      const durationInMinutes = parseDurationToMinutes(activityDetails?.productInfo?.duration);
+      if (durationInMinutes === null) {
+         setError('Could not determine activity duration.');
+         setReplacing(false);
+         return;
+      }
+
+      // --- Calculate End Time & Time Slot ---
+      const finalEndTime = calculateEndTime(finalStartTime, durationInMinutes);
+      const finalTimeSlot = getTimeSlot(finalStartTime);
+
+      // Construct payload mirroring CRM modals
       const newActivityDetails = {
-        activityType: 'online',
-        activityCode: activity.code,
-        activityName: activity.title,
-        lat: activity.lat || null,
-        long: activity.long || null,
-        bookingStatus: 'pending', 
-        packageDetails: {
-          amount: selectedOption.amount,
-          currency: selectedOption.currency, 
-          ratekey: selectedOption.ratekey,
-          title: selectedOption.title,
-          departureTime: selectedOption.departureTime,
-          description: selectedOption.description
-        },
-        price_difference: priceComparison?.priceDifference || 0,
-        images: activityDetails?.productInfo?.images || [],
-        description: activityDetails?.productInfo?.description || '',
-        inclusions: activityDetails?.productInfo?.inclusions || [],
-        exclusions: activityDetails?.productInfo?.exclusions || [],
-        itinerary: activityDetails?.productInfo?.itinerary || null,
-        additionalInfo: activityDetails?.productInfo?.additionalInfo || [],
-        bookingQuestions: activityDetails?.productInfo?.bookingQuestions || [],
-        cancellationFromTourDate: activityDetails?.productInfo?.cancellationFromTourDate || [],
-        groupCode: selectedOption.code,
-        tourGrade: activityDetails?.productInfo?.tourGrades?.[0] || null,
-        ageBands: activityDetails?.productInfo?.ageBands || [],
-        bookingRequirements: activityDetails?.productInfo?.bookingRequirements || null,
-        pickupHotellist: activityDetails?.productInfo?.PickupHotellist || null
+         searchId: activity.searchId, // Assuming searchId is on the initial activity prop
+         activityType: activityDetails?.productInfo?.activityType || 'online',
+         activityCode: activity.code,
+         activityName: selectedOption.title || activity.title, // Prefer option title
+         selectedTime: finalStartTime, 
+         activityProvider: 'GRNC',
+         endTime: finalEndTime, 
+         timeSlot: finalTimeSlot, 
+         isFlexibleTiming: false, // Assuming fixed time from selectedOption
+         bookingStatus: 'pending', 
+         departureTime: {
+             time: finalStartTime,
+             code: selectedOption?.ratekey || null // Use ratekey as code identifier
+         },
+         packageDetails: {
+             amount: selectedOption.amount,
+             currency: selectedOption.currency, 
+             ratekey: selectedOption.ratekey,
+             title: selectedOption.title,
+             departureTime: selectedOption.departureTime, // Original departure time if needed
+             description: selectedOption.description
+         },
+         // Include other relevant fields from productInfo
+         duration: durationInMinutes,
+         images: activityDetails?.productInfo?.images || [],
+         description: activityDetails?.productInfo?.description || '',
+         groupCode: activityDetails?.productInfo?.groupCode || activity.groupCode || selectedOption.code || null, // Try various sources for groupCode
+         departurePoint: activityDetails?.productInfo?.departurePoint || null,
+         inclusions: activityDetails?.productInfo?.inclusions || [],
+         exclusions: activityDetails?.productInfo?.exclusions || [],
+         additionalInfo: activityDetails?.productInfo?.additionalInfo || [],
+         itinerary: activityDetails?.productInfo?.itinerary || null,
+         bookingRequirements: activityDetails?.productInfo?.bookingRequirements || null,
+         pickupHotellist: activityDetails?.productInfo?.PickupHotellist || null,
+         bookingQuestions: activityDetails?.productInfo?.bookingQuestions || [],
+         cancellationFromTourDate: activityDetails?.productInfo?.cancellationFromTourDate || [],
+         tourGrade: activityDetails?.productInfo?.tourGrades?.find(tg => tg.encryptgradeCode === selectedOption.code) || activityDetails?.productInfo?.tourGrades?.[0] || null, // Try to find matching tour grade
+         ageBands: activityDetails?.productInfo?.ageBands || [],
+         // Optional: Add lat/long if needed, but often derived backend
+         // lat: activity.lat || null, 
+         // long: activity.long || null, 
+         // price_difference: priceComparison?.priceDifference || 0, // Probably not needed in payload itself
       };
 
       const response = await fetch(
         `http://localhost:5000/api/itinerary/${itineraryToken}/activity`,
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json',

@@ -294,9 +294,6 @@ exports.replaceActivity = async (req, res) => {
       activities[activityIndex] = newActivityDetails;
     } else {
       // Add new activity
-      if (activities.length >= 3) {
-        return res.status(400).json({ message: 'Maximum of 3 activities allowed per day' });
-      }
       activities.push(newActivityDetails);
     }
 

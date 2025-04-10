@@ -89,7 +89,7 @@ const FlightCard = ({
   const handleChangeFlight = () => {
     navigate('/flights', { 
       state: {
-        type: flightData.type,
+        type: flight.type,
         origin: flightData.originAirport,
         destination: flightData.arrivalAirport,
         departureDate: flightData.departureDate,

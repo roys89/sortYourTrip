@@ -1485,3 +1485,184 @@ exports.addTransfer = async (req, res) => {
     }
 };
 // --- END: Add Transfer ---
+
+// --- NEW: Add Flight Controller Function ---
+exports.addFlight = async (req, res) => {
+  const { itineraryToken } = req.params;
+  const { 
+    cityName,        // City to add the flight to
+    date,            // Date associated with the flight
+    newFlightDetails, // The complete flight object payload
+    type             // Flight type (e.g., 'departure_flight', 'arrival_flight', 'inter_city_flight')
+  } = req.body;
+  const inquiryToken = req.headers['x-inquiry-token'];
+
+  // Basic Validation - Added validation for 'type'
+  if (!cityName || !date || !newFlightDetails || !newFlightDetails.flightCode || !type) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Missing required fields: cityName, date, or newFlightDetails (with flightCode), or type.' 
+    });
+  }
+
+  try {
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'add-flight-request',
+      requestData: { itineraryToken, flightCode: newFlightDetails.flightCode, type }
+    });
+
+    const itinerary = await Itinerary.findOne({ itineraryToken, inquiryToken });
+    if (!itinerary) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Itinerary not found' 
+      });
+    }
+
+    const cityIndex = itinerary.cities.findIndex(city => city.city === cityName);
+    if (cityIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'City not found in itinerary' 
+      });
+    }
+
+    const dayIndex = itinerary.cities[cityIndex].days.findIndex(day => day.date === date);
+    if (dayIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Day not found for the specified date in this city' 
+      });
+    }
+
+    const day = itinerary.cities[cityIndex].days[dayIndex];
+
+    // Ensure flights array exists
+    if (!Array.isArray(day.flights)) {
+      day.flights = [];
+    }
+
+    // Prepare flight object for storage - Added 'type' and default 'bookingStatus'
+    // *** Formatting is now handled upstream in selectFlight ***
+    // const formattedFlightData = FlightUtils.formatFlightResponse(newFlightDetails);
+    // 
+    // if (!formattedFlightData) {
+    //   console.error('Failed to format flight data in addFlight', { newFlightDetails });
+    //   throw new Error('Internal error: Could not format flight data.');
+    // }
+
+    const flightToAdd = {
+      type: type, 
+      flightData: {
+        ...newFlightDetails, // Use the already formatted data directly
+        bookingStatus: 'pending' // Initialize booking status (or keep from formatted data if present)
+      }
+    };
+
+    // Add the new flight object to the flights array for that day
+    day.flights.push(flightToAdd);
+
+    // Mark the path as modified
+    itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.flights`);
+
+    // Add to change history
+    if (!itinerary.changeHistory) {
+      itinerary.changeHistory = [];
+    }
+    itinerary.changeHistory.push({
+      type: 'FLIGHT_ADD',
+      details: {
+        cityName,
+        date,
+        flightCode: newFlightDetails.flightCode,
+        flightType: type // Added type to history
+      },
+      changedAt: new Date()
+    });
+
+    await itinerary.save();
+
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'add-flight-success',
+      responseData: { 
+        message: 'Flight added successfully', // Simplified message
+        addedFlightCode: newFlightDetails.flightCode,
+        // transferUpdateSuccess: transferUpdateStatus.success // Removed transfer status
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      // partialSuccess: !transferUpdateStatus.success, // Removed partial success flag
+      // transferUpdateFailed: !transferUpdateStatus.success, // Removed transfer failed flag
+      message: 'Flight added successfully to the itinerary', // Simplified message
+      updatedFlights: day.flights, // Return the updated flights array for the day
+      // updatedTransfers: day.transfers // Removed updated transfers return
+    });
+
+  } catch (error) {
+    console.error('Error adding flight:', error);
+    apiLogger.logApiData({
+      inquiryToken,
+      cityName,
+      date,
+      apiType: 'add-flight-error',
+      error: error.message
+    });
+    // Check if it's a transfer update error that we already handled - REMOVED this specific check
+    /*
+    if (error.message.includes('transfers could not be updated')) {
+         res.status(200).json({ // Return 200 OK for partial success
+            success: true,
+            partialSuccess: true,
+            transferUpdateFailed: true,
+            message: 'Flight added but transfers could not be updated automatically.',
+            error: error.message 
+         });
+    } else {
+    */
+        res.status(500).json({ 
+          success: false, 
+          message: 'Error adding flight to the itinerary', 
+          error: error.message 
+        });
+    // }
+  }
+};
+// --- END: Add Flight Controller Function ---
+
+// Helper function to determine transfer type from origin/destination types
+function determineTransferType(originType, destinationType) {
+    if (!originType || !destinationType) {
+        // Keep throwing error if types are completely missing
+        throw new Error("Origin or destination type missing in transfer data.");
+    }
+    
+    // Standardize types for comparison
+    const originLower = originType.toLowerCase();
+    const destLower = destinationType.toLowerCase();
+
+    if (originLower.includes('hotel') && destLower.includes('airport')) {
+        return 'hotel_to_airport';
+    }
+    if (originLower.includes('airport') && destLower.includes('hotel')) {
+        return 'airport_to_hotel';
+    }
+    // Consider different hotel types for city_to_city (e.g., previous_hotel, current_hotel)
+    if (originLower.includes('hotel') && destLower.includes('hotel')) {
+         return 'city_to_city'; 
+    }
+    // Allow activity transfers
+    if (originLower.includes('activity') || destLower.includes('activity')) {
+         return 'activity_transfer'; 
+    }
+    
+    return 'generic'; // Return a default type
+    
+}

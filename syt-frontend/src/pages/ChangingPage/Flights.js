@@ -24,14 +24,16 @@ import {
   alpha,
   useTheme
 } from "@mui/material";
+import axios from 'axios';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import LoadingSpinner2 from "../../components/common/LoadingSpinner2";
 import FlightDetailModal from "./FlightDetailModal";
 import { FlightFilterMenu } from "./FlightFilterMenu";
+
 // Map cabin class codes to names
 const cabinClassMap = {
   1: "Economy",
@@ -42,24 +44,85 @@ const cabinClassMap = {
   6: "First"
 };
 
+// --- NEW: Airline Logo Map ---
+// Add more airlines and paths as needed
+const airlineLogos = {
+  // Updated paths based on provided icons
+  'Etihad Airways': '/assets/images/airlines_icon/etihad.png',
+  'SpiceJet': '/assets/images/airlines_icon/spicejet.png',
+  'Air India': '/assets/images/airlines_icon/airIndia.png',
+  // 'Oman Aviation': '/assets/images/airlines/oman.jpg', // Keep old or map to oman.png? Mapping to oman.png
+  'Oman Aviation': '/assets/images/airlines_icon/oman.png',
+  'Oman Air': '/assets/images/airlines_icon/oman.png', // Map both Oman names
+  'AI Express': '/assets/images/airlines/airindiaexpress.jpg', // No specific icon provided, keep old for now
+  'Saudi Arabian Airlines': '/assets/images/airlines_icon/saudiarabian.png',
+  'Srilankan Airlines': '/assets/images/airlines_icon/srilankan.png',
+  'Srilankan': '/assets/images/airlines_icon/srilankan.png', // Map short name too
+  'Azerbaijan Airlines': '/assets/images/airlines_icon/azerbaijan.png',
+  'Indigo': '/assets/images/airlines_icon/indigo.png',
+  'Kuwait Airways': '/assets/images/airlines_icon/kuwait.png',
+  'Lufthansa': '/assets/images/airlines_icon/lufthansa.png',
+  'Emirates Airlines': '/assets/images/airlines_icon/emirates.png',
+  'Emirates': '/assets/images/airlines_icon/emirates.png', // Map short name too
+  'Egypt Air': '/assets/images/airlines_icon/egyptAir.png',
+  'Turkish Air': '/assets/images/airlines_icon/turkish.png', // Assuming this maps to turkish.png
+  'Gulf Air': '/assets/images/airlines_icon/gulf.png',
+  'Qatar Airways': '/assets/images/airlines_icon/qatar.png',
+  'Uzbekistan Airways': '/assets/images/airlines/uzbekistan.png', // No specific icon provided, keep old for now
+  'Ethiopian': '/assets/images/airlines_icon/ethiopian.png',
+  // Adding airlines from the provided folder that might not be listed yet
+  'Cathay Pacific': '/assets/images/airlines_icon/cathaypecific.png', // Note: filename typo 'cathaypecific'
+  'British Airways': '/assets/images/airlines_icon/british.png', 
+  'Swiss': '/assets/images/airlines_icon/swiss.png',
+  'Kenya Airways': '/assets/images/airlines_icon/kenya.png',
+  'Singapore Airlines': '/assets/images/airlines_icon/singapore.png',
+  'Vistara': '/assets/images/airlines_icon/vistara.png',
+  'Hahn Air': '/assets/images/airlines_icon/hahn.png', // Assuming Hahn Air
+  'Japan Airlines': '/assets/images/airlines_icon/jal.png', // Assuming JAL
+  'AirAsia': '/assets/images/airlines_icon/airAsia.png', // Assuming AirAsia
+  'Air Astana': '/assets/images/airlines_icon/airAstana.png',
+  'Flynas': '/assets/images/airlines_icon/flynas.png',
+  'Flydubai': '/assets/images/airlines_icon/flydubai.png'
+  
+  // Add other airlines from availableFilters if needed
+};
+const DEFAULT_AIRLINE_LOGO = '/assets/images/airlines/take-off-passenger-airplane-runway.jpg'; // Fallback logo
+// --- End Airline Logo Map ---
+
 // Updated FlightCard component with theme colors and background shades
-const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }) => {
-  const segment = flight.sg[0];
+const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode, isLoading }) => {
   const theme = useTheme();
 
+  // Add safety check for flight and segments
+  if (!flight || !flight.sg || flight.sg.length === 0) {
+    console.warn("Incomplete flight data for card:", flight);
+    return <Card sx={{ p: 2, mb: 2, borderRadius: '18px' }}>Incomplete flight data.</Card>;
+  }
+
+  const segment = flight.sg[0]; // Use first segment for primary details
+  const lastSegment = flight.sg[flight.sg.length - 1]; // Use last segment for destination
+
   const getTimeDuration = () => {
-    const duration = flight.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
+    // Use reduce safely with default 0 for dr
+    const duration = flight.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
+    if (duration === 0) return 'N/A';
     const hours = Math.floor(duration / 60);
     const minutes = duration % 60;
     return `${hours}h ${minutes}m`;
   };
 
   const formatTime = (dateTime) => {
-    return new Date(dateTime).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
+    if (!dateTime) return 'N/A';
+    try {
+      return new Date(dateTime).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false // Use 24hr format to match API? Or keep AM/PM? Let's keep 24hr for now.
+      });
+    } catch (e) {
+      console.error("Error formatting time:", e);
+      return 'Invalid Time';
+    }
   };
 
   const getStops = () => {
@@ -67,27 +130,31 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
     return stops === 0 ? 'Non Stop' : `${stops} Stop${stops > 1 ? 's' : ''}`;
   };
 
-  // Get cabin class from data
-  const cabinClass = cabinClassMap[segment.cC] || "Economy";
+  // Get cabin class from data safely
+  const cabinClass = cabinClassMap[segment?.cC] || "Economy"; // Default to Economy
 
   // Calculate price comparison with existing price - using modern trend icons
   const getPriceComparison = () => {
-    if (!existingPrice) return null;
-    
-    if (flight.pF < existingPrice) {
-      return { 
+    // Ensure flight price (pF) is a number
+    const currentPrice = typeof flight.pF === 'number' ? flight.pF : null;
+    const previousPrice = typeof existingPrice === 'number' ? existingPrice : null;
+
+    if (previousPrice === null || currentPrice === null) return null; // Cannot compare if prices are invalid
+
+    if (currentPrice < previousPrice) {
+      return {
         icon: <TrendingDownIcon sx={{ color: theme.palette.success.main, fontSize: 24 }} />,
         color: theme.palette.success.main,
-        diff: existingPrice - flight.pF
+        diff: previousPrice - currentPrice
       };
-    } else if (flight.pF > existingPrice) {
-      return { 
+    } else if (currentPrice > previousPrice) {
+      return {
         icon: <TrendingUpIcon sx={{ color: theme.palette.error.main, fontSize: 24 }} />,
         color: theme.palette.error.main,
-        diff: flight.pF - existingPrice
+        diff: currentPrice - previousPrice
       };
     } else {
-      return { 
+      return {
         icon: <TrendingFlatIcon sx={{ color: theme.palette.info.main, fontSize: 24 }} />,
         color: theme.palette.info.main,
         diff: 0
@@ -97,8 +164,30 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
 
   const priceComparison = getPriceComparison();
 
+  // --- Get Airline Logo ---
+  const airlineName = segment?.al?.alN || 'Unknown Airline';
+  const airlineLogoSrc = airlineLogos[airlineName] || airlineLogos[airlineName.split(' ')[0]] || DEFAULT_AIRLINE_LOGO;
+  // --- End Get Airline Logo ---
+
+  // --- Extract other details safely ---
+  const airlineCode = segment?.al?.alC || '';
+  const flightNumber = segment?.al?.fN?.trim() || '';
+  const fullFlightCode = `${airlineCode} ${flightNumber}`.trim();
+  const isRefundable = flight?.iR === true; // Explicit check
+
+  const originCity = segment?.or?.cN || 'N/A';
+  const originAirportCode = segment?.or?.aC || 'N/A';
+  const originTime = formatTime(segment?.or?.dT);
+
+  const destinationCity = lastSegment?.ds?.cN || 'N/A';
+  const destinationAirportCode = lastSegment?.ds?.aC || 'N/A';
+  const destinationTime = formatTime(lastSegment?.ds?.aT);
+
+  const baggageInfo = segment?.bg || 'Info N/A'; // Use 'bg' from segment
+  const cabinBaggageInfo = segment?.cBg || 'Info N/A'; // Use 'cBg' from segment
+
   return (
-    <Card 
+    <Card
       sx={{
         width: '100%',
         height: '100%',
@@ -109,8 +198,8 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
         overflow: 'hidden',
         mb: 2,
         '&:hover': {
-          boxShadow: theme.palette.mode === 'dark' 
-            ? `0 4px 10px ${alpha(theme.palette.primary.main, 0.2)}` 
+          boxShadow: theme.palette.mode === 'dark'
+            ? `0 4px 10px ${alpha(theme.palette.primary.main, 0.2)}`
             : `0 4px 10px ${alpha(theme.palette.primary.main, 0.1)}`,
         },
         display: 'flex',
@@ -118,46 +207,53 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
       }}
     >
       {/* Airline Logo and Name */}
-      <Box sx={{ 
-        p: 2.5, 
-        display: 'flex', 
+      <Box sx={{
+        p: 2.5,
+        display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center', 
+        alignItems: 'center',
+        justifyContent: 'center', // Center vertically too
         width: { xs: '100%', md: '20%' },
         borderRight: { xs: 'none', md: `1px solid ${alpha(theme.palette.divider, 0.1)}` },
         borderBottom: { xs: `1px solid ${alpha(theme.palette.divider, 0.1)}`, md: 'none' }
       }}>
-        <Box 
+        <Box
           component="img"
-          src="/assets/images/spicejet.png"
-          alt={segment.al.alN}
-          sx={{ width: 50, height: 50, borderRadius: '10%', mb: 1 }}
+          // --- Use dynamic logo ---
+          src={airlineLogoSrc}
+          alt={airlineName}
+          onError={(e) => { e.target.onerror = null; e.target.src=DEFAULT_AIRLINE_LOGO }} // Fallback on error
+          // --- End Use dynamic logo ---
+          sx={{ width: 50, height: 50, borderRadius: '10%', mb: 1, objectFit: 'contain' }}
         />
-        <Typography sx={{ 
-          fontWeight: 600, 
-          fontSize: '0.95rem', 
+        <Typography sx={{
+          fontWeight: 600,
+          fontSize: '0.95rem',
           textAlign: 'center',
           color: theme.palette.text.primary
         }}>
-          {segment.al.alN}
+          {/* Use airlineName extracted safely */}
+          {airlineName}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mt: 0.5 }}>
-          {segment.al.alC} {segment.al.fN.trim()}
+          {/* Use fullFlightCode extracted safely */}
+          {fullFlightCode}
         </Typography>
-        <Typography variant="body2" sx={{ 
-          color: flight.iR ? theme.palette.success.main : theme.palette.error.main, 
-          fontSize: '0.8rem', 
-          mt: 1 
+        <Typography variant="body2" sx={{
+          // Use isRefundable safely
+          color: isRefundable ? theme.palette.success.main : theme.palette.error.main,
+          fontSize: '0.8rem',
+          mt: 1
         }}>
-          {flight.iR ? "Partially Refundable" : "Not Refundable"}
+          {isRefundable ? "Partially Refundable" : "Not Refundable"}
         </Typography>
       </Box>
-      
+
       {/* Flight Details */}
-      <Box sx={{ 
-        p: 2.5, 
-        display: 'flex', 
-        alignItems: 'center', 
+      <Box sx={{
+        p: 2.5,
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         width: { xs: '100%', md: '50%' },
         borderRight: { xs: 'none', md: `1px solid ${alpha(theme.palette.divider, 0.1)}` },
@@ -166,23 +262,26 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
         {/* Departure */}
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
-            {formatTime(segment.or.dT)}
+            {/* Use originTime safely */}
+            {originTime}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
-            {segment.or.cN}
+            {/* Use originCity safely */}
+            {originCity}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {segment.or.aC}
+            {/* Use originAirportCode safely */}
+            {originAirportCode}
           </Typography>
         </Box>
 
         {/* Duration */}
-        <Box sx={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Box sx={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 1 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
             {getTimeDuration()}
           </Typography>
-          <Box sx={{ 
-            width: { xs: 80, sm: 100, md: 120 }, 
+          <Box sx={{
+            width: { xs: 60, sm: 80, md: 100 }, // Adjusted width slightly
             height: 1,
             backgroundColor: alpha(theme.palette.divider, 0.5),
             position: 'relative',
@@ -215,22 +314,25 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
         {/* Arrival */}
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
-            {formatTime(flight.sg[flight.sg.length - 1].ds.aT)}
+            {/* Use destinationTime safely */}
+            {destinationTime}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
-            {flight.sg[flight.sg.length - 1].ds.cN}
+            {/* Use destinationCity safely */}
+            {destinationCity}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {flight.sg[flight.sg.length - 1].ds.aC}
+            {/* Use destinationAirportCode safely */}
+            {destinationAirportCode}
           </Typography>
         </Box>
       </Box>
 
       {/* Price and Button - with updated inline price comparison */}
-      <Box sx={{ 
-        p: 2.5, 
-        display: 'flex', 
-        flexDirection: 'column', 
+      <Box sx={{
+        p: 2.5,
+        display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         width: { xs: '100%', md: '30%' },
@@ -239,18 +341,19 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
       }}>
         {/* Price comparison section with icon and amount in same row */}
         {priceComparison && (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            mb: 1.5
+            mb: 1.5,
+            gap: 0.5 // Add small gap
           }}>
-            
+            {/* Display comparison icon first */}
+            {priceComparison.icon}
             {priceComparison.diff > 0 && (
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  ml: 1,
+              <Typography
+                variant="body2"
+                sx={{
                   color: priceComparison.color,
                   fontWeight: 600
                 }}
@@ -259,10 +362,9 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
               </Typography>
             )}
             {priceComparison.diff === 0 && (
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  ml: 1,
+              <Typography
+                variant="body2"
+                sx={{
                   color: priceComparison.color,
                   fontWeight: 600
                 }}
@@ -270,30 +372,53 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
                 Same price
               </Typography>
             )}
-            {priceComparison.icon}
           </Box>
         )}
-        
-        <Typography variant="body2" sx={{ mb: 1, color: theme.palette.text.primary }}>
-          {cabinClass}
-        </Typography>
-        
-        {segment.bg && (
-          <Chip
-            label={`Baggage: ${segment.bg}`}
+
+        {/* Cabin Class */}
+        <Chip
+          label={cabinClass}
+          size="small"
+          sx={{
+            height: 20,
+            fontSize: '0.7rem',
+            mb: 1, // Reduced bottom margin
+            backgroundColor: alpha(theme.palette.info.main, 0.15), // Use info color
+            color: theme.palette.info.dark, // Use info color
+            fontWeight: 500,
+          }}
+        />
+
+        {/* Baggage Info - simplified display */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+           <Chip
+            label={`Check-in: ${baggageInfo}`}
             size="small"
-            sx={{ 
-              height: 20, 
+            icon={<AirlinesIcon sx={{ fontSize: 14, mr: -0.5 }} />} // Example icon
+            sx={{
+              height: 20,
               fontSize: '0.7rem',
-              mb: 2,
               backgroundColor: alpha(theme.palette.primary.main, 0.1),
-              color: theme.palette.text.primary,
+              color: theme.palette.text.secondary, // Slightly muted color
             }}
           />
-        )}
-        
-        <Button 
-          variant="outlined" 
+          {cabinBaggageInfo !== 'Info N/A' && ( // Only show if available
+             <Chip
+              label={`Cabin: ${cabinBaggageInfo}`}
+              size="small"
+              icon={<AirlinesIcon sx={{ fontSize: 14, mr: -0.5 }} />} // Example icon
+              sx={{
+                height: 20,
+                fontSize: '0.7rem',
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.text.secondary, // Slightly muted color
+              }}
+            />
+          )}
+        </Box>
+
+        <Button
+          variant="outlined"
           onClick={() => onViewFlight(flight)}
           sx={{
             borderRadius: 24,
@@ -305,9 +430,10 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode }
               borderColor: theme.palette.primary.dark,
               backgroundColor: alpha(theme.palette.primary.main, 0.05),
             },
+            disabled: isLoading,
           }}
         >
-          Flight Details
+          {isLoading ? 'Loading...' : 'Flight Details'}
         </Button>
       </Box>
     </Card>
@@ -614,25 +740,21 @@ const FlightsPage = () => {
   const location = useLocation();
   const { itineraryToken } = useSelector((state) => state.itinerary);
   
-  // Background loading state
-  const [isLoadingAll, setIsLoadingAll] = useState(true);
-  const loadingTimeoutRef = useRef(null);
-  
   // Data states
-  const [allFlights, setAllFlights] = useState([]); // ALL flights data loaded from backend
-  const [filteredFlights, setFilteredFlights] = useState([]); // Flights after applying filters
-  const [displayedFlights, setDisplayedFlights] = useState([]); // Flights currently shown in UI
+  const [allFlights, setAllFlights] = useState([]); // Holds the raw, unfiltered flights from API
   
+  // --- NEW: Pagination State ---
+  const [displayedCount, setDisplayedCount] = useState(20); // Show 20 initially
+  const LOAD_INCREMENT = 20; // Load 20 more each time
+  // --- END: Pagination State ---
+
   // Loading states
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Pagination
-  const [visibleCount, setVisibleCount] = useState(20); // How many to show initially
-  const [loadStep] = useState(100); // How many more to show when "Load More" is clicked
-  
   // Modal and selection state
   const [selectedFlight, setSelectedFlight] = useState(null);
+  const [selectingFlightIndex, setSelectingFlightIndex] = useState(null);
   const [traceId, setTraceId] = useState(null);
 
   // UI state
@@ -656,10 +778,21 @@ const FlightsPage = () => {
   const [availableAirlines, setAvailableAirlines] = useState([]);
   const [stopCounts, setStopCounts] = useState({});
   
-  const { 
+  const {
     origin, destination, departureDate, inquiryToken,
     travelersDetails, oldFlightCode, existingFlightPrice, type
   } = location.state || {};
+
+  // --- DEBUGGING: Log retrieved state and token --- 
+  console.log("FlightsPage location.state:", location.state);
+  console.log("FlightsPage retrieved values:", {
+    itineraryToken, // From Redux
+    oldFlightCode,  // From location.state
+    type,           // From location.state
+    inquiryToken,   // From location.state
+    departureDate   // From location.state
+  });
+  // --- END DEBUGGING ---
 
   // List of available cabin classes
   const cabinClasses = ['Economy', 'Premium Economy', 'Business', 'First'];
@@ -674,26 +807,52 @@ const FlightsPage = () => {
     setMenuAnchorEl(null);
   };
 
-  // IMPORTANT: Function to load ALL flight data in the background one chunk at a time
-  const loadNextChunk = useCallback(async (chunkIndex, allLoadedFlights = []) => {
-    console.log(`Loading chunk ${chunkIndex}`);
-    
+  // Function to load ALL flight data at once
+  const loadFlights = useCallback(async () => {
+    console.log("Loading flights...");
+
     try {
+      // --- Payload Transformation ---
+      // Extract required origin/destination fields
+      const formattedOrigin = {
+        code: origin?.code || '',
+        city: origin?.city || ''
+      };
+      const formattedDestination = {
+        code: destination?.code || '',
+        city: destination?.city || ''
+      };
+
+      // --- Payload Transformation ---
+      // Construct travelersDetails payload matching CrmChangeFlightPage.js
+      // Derives counts from the first room or defaults
+      const firstRoom = travelersDetails?.rooms?.[0];
+      const apiTravelersDetails = {
+          adults: firstRoom?.adults?.length || 1, // Send count, default 1
+          children: firstRoom?.children?.length || 0, // Send count, default 0
+          infants: travelersDetails?.infants || 0 // Assuming infants might be top-level or default 0
+      };
+
+      // Construct the payload according to the desired structure
+      const payload = {
+        origin: formattedOrigin,
+        destination: formattedDestination,
+        departureDate,
+        travelersDetails: apiTravelersDetails, // Use the simplified structure
+        type: "ONE_WAY", // Use "ONE_WAY" as per example for the search
+      };
+      // --- End Payload Transformation ---
+      
       const response = await fetch(
         `http://localhost:5000/api/itinerary/flights/${inquiryToken}`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${localStorage.getItem('crmToken')}`, // Use 'crmToken'
             'Content-Type': 'application/json',
             'X-Inquiry-Token': inquiryToken,
           },
-          body: JSON.stringify({
-            origin, destination, departureDate, type,
-            oldFlightCode, existingFlightPrice, travelersDetails,
-            chunkIndex: chunkIndex,
-            chunkSize: 100
-          })
+          body: JSON.stringify(payload) // Use the transformed payload
         }
       );
       
@@ -706,81 +865,44 @@ const FlightsPage = () => {
       if (!data.success) {
         throw new Error(data.message || 'Failed to fetch flights');
       }
-      
-      console.log(`Chunk ${chunkIndex} loaded:`, {
-        newFlights: data.data.flights.length,
-        totalFromApi: data.data.pagination.total,
-        hasMore: data.data.pagination.hasMore
-      });
-      
-      // Get current flights from this chunk
-      const newFlights = data.data.flights || [];
-      
-      // Update total count on first chunk
-      if (chunkIndex === 0) {
-        console.log(`Total flights from API: ${data.data.pagination.total}`);
-        
-        // Set initial metadata
-        setTraceId(data.data.traceId);
-        
-        if (data.data.priceRange) {
-          setPriceRange(data.data.priceRange);
-          setFilters(prev => ({
-            ...prev,
-            priceRange: [data.data.priceRange.min, data.data.priceRange.max]
-          }));
-        }
-        
-        if (data.data.availableFilters?.airlines) {
-          setAvailableAirlines(data.data.availableFilters.airlines);
-        }
 
-        if (data.data.availableFilters?.stopCounts) {
-          setStopCounts(data.data.availableFilters.stopCounts);
-        }
-        
-        // Allow the UI to render
-        setInitialLoading(false);
+      // Process the full response at once
+      setTraceId(data?.data?.traceId || null);
+
+      const priceRangeData = data?.data?.priceRange;
+      if (priceRangeData) {
+        setPriceRange(priceRangeData);
+        setFilters(prev => ({
+          ...prev,
+          priceRange: [priceRangeData.min, priceRangeData.max]
+        }));
       }
-      
-      // Combine with already loaded flights (deduplicating by flight ID)
-      const combinedFlights = [...allLoadedFlights, ...newFlights];
+
+      const availableFiltersData = data?.data?.availableFilters;
+      if (availableFiltersData?.airlines) {
+        setAvailableAirlines(availableFiltersData.airlines);
+      }
+
+      if (availableFiltersData?.stopCounts) {
+        setStopCounts(availableFiltersData.stopCounts);
+      }
+
+      // Deduplicate just in case API returns duplicates
+      const newFlights = data.data.flights || [];
       const uniqueFlights = Array.from(
-        new Map(combinedFlights.map(flight => [flight.rI, flight])).values()
+        new Map(newFlights.map(flight => [flight.rI, flight])).values()
       );
-      
-      // Update all flights
+
       setAllFlights(uniqueFlights);
-      
-      // Check if we need to load more
-      const hasMore = data.data.pagination.hasMore;
-      console.log(`Has more chunks: ${hasMore}`);
-      
-      // If we have more data, schedule loading the next chunk
-      if (hasMore) {
-        // Add a small delay to avoid overwhelming the server
-        loadingTimeoutRef.current = setTimeout(() => {
-          loadNextChunk(chunkIndex + 1, uniqueFlights);
-        }, 300);
-      } else {
-        console.log('All data loaded!');
-        setIsLoadingAll(false);
-      }
+
     } catch (error) {
-      console.error('Error loading chunk:', error);
-      
-      // Don't show error if we already have some data
-      if (allLoadedFlights.length === 0) {
-        setError(error.message);
-        setInitialLoading(false);
-      }
-      
-      setIsLoadingAll(false);
+      console.error('Error loading flights:', error);
+      setError(error.message);
+    } finally {
+      // Always stop loading indicator after the single call
+      setInitialLoading(false);
     }
-  }, [
-    inquiryToken, origin, destination, departureDate, 
-    type, oldFlightCode, existingFlightPrice, travelersDetails
-  ]);
+  }, [inquiryToken, origin, destination, departureDate, travelersDetails]);
 
   // Start loading data
   useEffect(() => {
@@ -788,74 +910,50 @@ const FlightsPage = () => {
       navigate('/itinerary');
       return;
     }
-    
-    // Start with chunk 0
-    loadNextChunk(0);
-    
-    // Cleanup timeouts on unmount
-    return () => {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-    };
-  }, [inquiryToken, origin, destination, departureDate, navigate, loadNextChunk]);
 
-  // Apply filters to ALL loaded flights whenever filters or all flights change
-  // With updated recommended sorting algorithm
-  useEffect(() => {
-    // Skip if we don't have any flights yet
-    if (allFlights.length === 0) return;
-    
-    console.log(`Applying filters to ${allFlights.length} flights...`);
-    
+    loadFlights(); // Call the single load function
+
+  }, [inquiryToken, origin, destination, departureDate, navigate, loadFlights]); // loadFlights dependency
+
+  // Calculate displayed flights using useMemo for performance
+  // --- REFACTORED: Step 1 - Filter and Sort ---
+  const filteredAndSortedFlights = useMemo(() => {
+    console.log("Recalculating filtered and sorted flights...");
     let filtered = [...allFlights];
-    
-    // Apply price filter
+
+    // Apply filters (same logic as before)
     if (filters.priceRange && filters.priceRange.length === 2) {
-      filtered = filtered.filter(flight => 
+      filtered = filtered.filter(flight =>
         flight.pF >= filters.priceRange[0] && flight.pF <= filters.priceRange[1]
       );
-      console.log(`After price filter: ${filtered.length} flights`);
     }
-    
-    // Apply airline filter
     if (filters.airlines && filters.airlines.length > 0) {
-      filtered = filtered.filter(flight => 
+      filtered = filtered.filter(flight =>
         filters.airlines.includes(flight.sg[0].al.alN)
       );
-      console.log(`After airline filter: ${filtered.length} flights`);
     }
-    
-    // Apply stops filter
     if (filters.stops !== null) {
-      filtered = filtered.filter(flight => 
-        filters.stops === 0 
-          ? flight.sg.length === 1 
+      filtered = filtered.filter(flight =>
+        filters.stops === 0
+          ? flight.sg.length === 1
           : flight.sg.length - 1 === filters.stops
       );
-      console.log(`After stops filter: ${filtered.length} flights`);
     }
-    
-    // Apply duration filter
     if (filters.durationRange && filters.durationRange.length === 2) {
       filtered = filtered.filter(flight => {
-        const flightDuration = flight.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
+        const flightDuration = flight.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
         return flightDuration >= filters.durationRange[0] && flightDuration <= filters.durationRange[1];
       });
-      console.log(`After duration filter: ${filtered.length} flights`);
     }
-    
-    // Apply cabin class filter
     if (filters.cabinClasses && filters.cabinClasses.length > 0) {
       filtered = filtered.filter(flight => {
-        const cabinClassCode = flight.sg[0].cC; // Get cabin class code
-        const cabinClassName = cabinClassMap[cabinClassCode] || "Economy"; // Map to name
+        const cabinClassCode = flight.sg[0].cC;
+        const cabinClassName = cabinClassMap[cabinClassCode] || "Economy";
         return filters.cabinClasses.includes(cabinClassName);
       });
-      console.log(`After cabin class filter: ${filtered.length} flights`);
     }
-    
-    // Apply sorting
+
+    // Apply sorting (mutable sort is okay here as we start with a copy)
     switch (currentSort) {
       case "priceAsc":
         filtered.sort((a, b) => a.pF - b.pF);
@@ -865,84 +963,117 @@ const FlightsPage = () => {
         break;
       case "durationAsc":
         filtered.sort((a, b) => {
-          const aDuration = a.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
-          const bDuration = b.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
+          const aDuration = a.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
+          const bDuration = b.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
           return aDuration - bDuration;
         });
         break;
       case "recommended":
-        // Balanced sort considering price, duration, and stops
+        // --- Optimization: Pre-calculate min/max values before sorting --- 
+        const prices = filtered.map(f => f.pF).filter(p => typeof p === 'number');
+        const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+        const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+        const priceRangeSize = (maxPrice - minPrice) > 0 ? (maxPrice - minPrice) : 1; // Avoid division by zero
+
+        const durations = filtered.map(f => f.sg.reduce((total, seg) => total + (seg?.dr || 0), 0));
+        const minDuration = durations.length > 0 ? Math.min(...durations) : 0;
+        const maxDuration = durations.length > 0 ? Math.max(...durations) : 0;
+        const durationRangeSize = (maxDuration - minDuration) > 0 ? (maxDuration - minDuration) : 1; // Avoid division by zero
+
+        const stopCountsArray = filtered.map(f => f.sg.length - 1);
+        const maxStops = stopCountsArray.length > 0 ? Math.max(...stopCountsArray) : 0;
+        // --- End Optimization ---
+
         filtered.sort((a, b) => {
-          // Calculate normalized scores for price (0-1 scale, lower is better)
-          const maxPrice = Math.max(...filtered.map(f => f.pF));
-          const minPrice = Math.min(...filtered.map(f => f.pF));
-          const priceRangeSize = maxPrice - minPrice;
-          const aPriceScore = priceRangeSize > 0 ? (a.pF - minPrice) / priceRangeSize : 0;
-          const bPriceScore = priceRangeSize > 0 ? (b.pF - minPrice) / priceRangeSize : 0;
-          
-          // Calculate normalized scores for duration (0-1 scale, lower is better)
-          const aDuration = a.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
-          const bDuration = b.sg.reduce((total, seg) => total + (seg.dr || 0), 0);
-          const maxDuration = Math.max(...filtered.map(f => 
-            f.sg.reduce((total, seg) => total + (seg.dr || 0), 0)
-          ));
-          const minDuration = Math.min(...filtered.map(f => 
-            f.sg.reduce((total, seg) => total + (seg.dr || 0), 0)
-          ));
-          const durationRangeSize = maxDuration - minDuration;
-          const aDurationScore = durationRangeSize > 0 ? (aDuration - minDuration) / durationRangeSize : 0;
-          const bDurationScore = durationRangeSize > 0 ? (bDuration - minDuration) / durationRangeSize : 0;
-          
-          // Calculate normalized scores for stops (0-1 scale, lower is better)
+          // Calculate scores using pre-calculated ranges
+          const aPriceScore = typeof a.pF === 'number' ? (a.pF - minPrice) / priceRangeSize : 0.5; 
+          const bPriceScore = typeof b.pF === 'number' ? (b.pF - minPrice) / priceRangeSize : 0.5;
+
+          const aDuration = a.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
+          const bDuration = b.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
+          const aDurationScore = (aDuration - minDuration) / durationRangeSize;
+          const bDurationScore = (bDuration - minDuration) / durationRangeSize;
+
           const aStopsCount = a.sg.length - 1;
           const bStopsCount = b.sg.length - 1;
-          const maxStops = Math.max(...filtered.map(f => f.sg.length - 1));
           const aStopsScore = maxStops > 0 ? aStopsCount / maxStops : 0;
           const bStopsScore = maxStops > 0 ? bStopsCount / maxStops : 0;
-          
-          // Calculate combined score with weights
-          // Price: 40%, Duration: 35%, Stops: 25%
+
+          // Combined scoring (weights: Price: 40%, Duration: 35%, Stops: 25%)
           const aCombinedScore = (aPriceScore * 0.4) + (aDurationScore * 0.35) + (aStopsScore * 0.25);
           const bCombinedScore = (bPriceScore * 0.4) + (bDurationScore * 0.35) + (bStopsScore * 0.25);
-          
-          // Sort by combined score (lower is better)
+
           return aCombinedScore - bCombinedScore;
         });
         break;
       default:
         break;
     }
-    
-    // Update filtered flights
-    setFilteredFlights(filtered);
-    
-    // Reset visible count when filters change
-    setVisibleCount(100);
-  }, [allFlights, filters, currentSort]);
 
-  // Update displayed flights based on visibleCount and filteredFlights
-  useEffect(() => {
-    setDisplayedFlights(filteredFlights.slice(0, visibleCount));
-  }, [filteredFlights, visibleCount]);
+    return filtered;
+  }, [allFlights, filters, currentSort]); // Dependencies: re-run only when these change
 
-  const handleViewFlight = (flight) => {
-    setSelectedFlight({
-      ...flight,
-      traceId,
-      cityName: `${origin.city} to ${destination.city}`,
-      date: departureDate
-    });
+  // --- REFACTORED: Step 2 - Slice for Display ---
+  const displayFlights = useMemo(() => {
+    console.log("Slicing flights for display...");
+    return filteredAndSortedFlights.slice(0, displayedCount);
+  }, [filteredAndSortedFlights, displayedCount]);
+  // --- END REFACTOR ---
+
+  const handleViewFlight = async (flight) => {
+    if (!traceId || !inquiryToken) {
+      console.error("Detail fetch error: Missing context", { traceId, inquiryToken });
+      setError("Missing traceId or inquiryToken to fetch details.");
+      return;
+    }
+
+    setSelectingFlightIndex(flight.rI); // Set loading state for this specific flight
+    setError(null);
+
+    try {
+      console.log(`Fetching details for flight resultIndex: ${flight.rI}, traceId: ${traceId}`);
+      // 1. Call the selectFlight endpoint (like CRM add flow)
+      const selectResponse = await axios.post(
+        `http://localhost:5000/api/itinerary/flights/${inquiryToken}/select`,
+        {
+          items: [{ type: "FLIGHT", resultIndex: flight.rI }],
+          traceId: traceId,
+          flightType: "ONE_WAY" // Assuming ONE_WAY for now, adjust if needed based on 'type' prop
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('crmToken')}`, // Use crmToken
+            'X-Inquiry-Token': inquiryToken
+          }
+        }
+      );
+
+      console.log("Detailed Flight Data received:", selectResponse.data);
+
+      if (!selectResponse.data.success || !selectResponse.data.data) {
+        throw new Error(selectResponse.data.message || "Failed to parse detailed flight data after selection.");
+      }
+
+      // Store the DETAILED data and open the modal
+      setSelectedFlight(selectResponse.data.data); 
+      // Note: The modal will now receive the detailed structure
+
+    } catch (err) {
+      console.error("Error fetching flight details:", err);
+      const errorMessage = err.response?.data?.details?.error || err.response?.data?.message || err.message || "Error fetching flight details";
+      setError(errorMessage); // Show error in UI or use toast
+      console.error(`Error fetching details: ${errorMessage}`);
+      setSelectedFlight(null); // Clear selection on error
+    } finally {
+      setSelectingFlightIndex(null); // Reset loading state regardless of outcome
+    }
   };
 
   const handleBackToItinerary = () => {
     navigate('/itinerary', {
       state: { itineraryInquiryToken: inquiryToken }
     });
-  };
-
-  // Load more handler - just increase the visible count
-  const handleLoadMore = () => {
-    setVisibleCount(prev => Math.min(prev + loadStep, filteredFlights.length));
   };
 
   // Filter change handler
@@ -992,6 +1123,16 @@ const FlightsPage = () => {
       year: 'numeric'
     });
   };
+
+  // --- NEW: Load More Handler ---
+  const handleLoadMore = () => {
+    setDisplayedCount(prevCount => {
+      const newCount = Math.min(prevCount + LOAD_INCREMENT, filteredAndSortedFlights.length);
+      console.log(`Loading more flights, new count: ${newCount} out of ${filteredAndSortedFlights.length}`);
+      return newCount;
+    });
+  };
+  // --- END: Load More Handler ---
 
   if (initialLoading) {
     return (
@@ -1266,19 +1407,49 @@ const FlightsPage = () => {
 
           {/* Flight cards */}
           <Box>
-            {displayedFlights.map((flight) => (
+            {/* Map over the memoized and SLICED displayFlights */} 
+            {displayFlights.map((flight) => (
               <FlightCard
                 key={flight.rI}
                 flight={flight}
                 onViewFlight={handleViewFlight}
                 existingPrice={existingFlightPrice}
                 viewMode="list"
+                isLoading={selectingFlightIndex === flight.rI}
               />
             ))}
           </Box>
 
+          {/* --- NEW: Load More Button --- */}
+          {filteredAndSortedFlights.length > displayedCount && (
+            <Box sx={{ textAlign: 'center', mt: 4, mb: 2 }}> {/* Added margin bottom */}
+              <Button
+                variant="contained"
+                onClick={handleLoadMore}
+                sx={{ 
+                  borderRadius: '20px', 
+                  px: 4, 
+                  py: 1.5, // Slightly taller button
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? `0 4px 10px ${alpha(theme.palette.primary.main, 0.3)}`
+                    : `0 4px 10px ${alpha(theme.palette.primary.main, 0.2)}`,
+                  '&:hover': {
+                    boxShadow: theme.palette.mode === 'dark' 
+                      ? `0 6px 15px ${alpha(theme.palette.primary.main, 0.4)}`
+                      : `0 6px 15px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  }
+                }}
+              >
+                Load More Flights ({displayedCount} / {filteredAndSortedFlights.length})
+              </Button>
+            </Box>
+          )}
+          {/* --- END: Load More Button --- */}
+
           {/* Empty state */}
-          {filteredFlights.length === 0 && !initialLoading && (
+          {filteredAndSortedFlights.length === 0 && !initialLoading && (
             <Box sx={{ 
               display: 'flex',
               flexDirection: 'column',
@@ -1294,9 +1465,7 @@ const FlightsPage = () => {
                 No flights found matching your criteria
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
-                {isLoadingAll ? 
-                  "More flights are still loading. Try adjusting your filters or check back later." :
-                  "Try adjusting your filters to see more results."}
+                {"Try adjusting your filters to see more results."}
               </Typography>
               <Button 
                 variant="outlined" 
@@ -1315,35 +1484,8 @@ const FlightsPage = () => {
             </Box>
           )}
 
-          {/* Load more button - Only show if there are more filtered flights to display */}
-          {displayedFlights.length > 0 && displayedFlights.length < filteredFlights.length && (
-            <Box sx={{ textAlign: 'center', mt: 4 }}>
-              <Button
-                variant="contained"
-                onClick={handleLoadMore}
-                sx={{
-                  borderRadius: '24px',
-                  height: 48,
-                  minWidth: '240px',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  backgroundColor: theme.palette.primary.main,
-                  boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.3)}`,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                    boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
-                    transform: 'translateY(-2px)',
-                  },
-                }}
-              >
-                Load More Flights
-              </Button>
-            </Box>
-          )}
-
-          {/* End of results - removed flight count */}
-          {displayedFlights.length > 0 && displayedFlights.length === filteredFlights.length && (
+          {/* End of results - Show only when all are loaded */}
+          {displayFlights.length > 0 && displayedCount >= filteredAndSortedFlights.length && !initialLoading && ( 
             <Box 
               sx={{ 
                 textAlign: 'center', 
@@ -1411,7 +1553,7 @@ const FlightsPage = () => {
         cabinClasses={cabinClasses}
       />
 
-      {/* Detail modal */}
+      {/* Detail modal - Pass all necessary context */} 
       {selectedFlight && (
         <FlightDetailModal
           flight={selectedFlight}
@@ -1420,10 +1562,11 @@ const FlightsPage = () => {
           inquiryToken={inquiryToken}
           existingPrice={existingFlightPrice}
           type={type}
-          originCityName={origin.city}
-          destinationCityName={destination.city}
+          originCityName={origin?.city}
+          destinationCityName={destination?.city}
           date={departureDate}
           traceId={traceId}
+          oldFlightCode={oldFlightCode}
         />
       )}
     </Container>

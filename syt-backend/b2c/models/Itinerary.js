@@ -329,7 +329,7 @@ const ItinerarySchema = new Schema(
     changeHistory: [{
       type: {
         type: String,
-        enum: ['HOTEL_CHANGE', 'FLIGHT_CHANGE', 'ACTIVITY_CHANGE', 'TRANSFER_ADD'],
+        enum: ['HOTEL_CHANGE', 'FLIGHT_CHANGE', 'ACTIVITY_CHANGE', 'TRANSFER_ADD', 'FLIGHT_ADD'],
       },
       details: Schema.Types.Mixed,
       changedAt: { type: Date, default: Date.now }

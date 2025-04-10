@@ -5,6 +5,7 @@ const apiLogger = require('../../helpers/apiLogger');
 
 class FlightSearchService {
   static async searchFlights(params) {
+    let requestBody = {};
     try {
       const {
         departureCity,
@@ -45,7 +46,7 @@ class FlightSearchService {
         { adultCount: 0, childCount: 0 }
       );
 
-      const requestBody = {
+      requestBody = {
         adultCount: String(passengerCounts.adultCount),
         childCount: String(passengerCounts.childCount),
         infantCount: "0",
@@ -109,6 +110,9 @@ class FlightSearchService {
           details: error.response?.data || {}
         }
       };
+
+      // Log the full request body on error
+      errorLogData.requestData = requestBody;
 
       apiLogger.logApiData(errorLogData);
 

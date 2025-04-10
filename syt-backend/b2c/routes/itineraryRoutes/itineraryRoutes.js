@@ -31,7 +31,8 @@ const {
   removeFlight,
   removeTransfer,
   addHotel,
-  addTransfer
+  addTransfer,
+  addFlight
 } = require("../../controllers/itineraryController/itineraryModificationController");
 
 const {
@@ -132,6 +133,7 @@ router.put(
   updateActivityWithBookingRef
 );
 router.put("/:itineraryToken/room", checkAuth, checkInquiryToken, replaceRoom);
+
 router.put(
   "/:itineraryToken/flight",
   checkAuth,
@@ -151,6 +153,14 @@ router.put(
   updateFlightSeatsAndBaggage
 );
 
+// NEW: Add Flight Route
+router.post(
+  "/:itineraryToken/add-flight",
+  checkAuth,
+  checkInquiryToken,
+  addFlight
+);
+
 // Flight Change Routes
 router.post(
   "/flights/:inquiryToken",
@@ -167,7 +177,7 @@ router.get(
 );
 
 router.post(
-  "/flights/:inquiryToken/:resultIndex/select",
+  "/flights/:inquiryToken/select",
   checkAuth,
   checkInquiryToken,
   selectFlight

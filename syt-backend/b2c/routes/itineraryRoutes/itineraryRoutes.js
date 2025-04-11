@@ -58,7 +58,8 @@ const {
 // Import the new controller
 const {
   searchAvailableActivitiesForChange,
-  getActivityDetails
+  getActivityProductInfo,
+  getActivityAvailabilityDetail
 } = require("../../controllers/activityController/activityChangeController");
 
 const {
@@ -234,12 +235,22 @@ router.post(
   searchAvailableActivitiesForChange
 );
 
-// Route to get details of a specific activity product - now using the new implementation
+
 router.post(
   "/product-info/:activityCode",
   checkAuth,
   checkInquiryToken,
-  getActivityDetails
+  getActivityProductInfo
+);
+
+
+
+// --- NEW Route: Get Activity Availability Detail ---
+router.post(
+  "/availability-detail/:activityCode",
+  checkAuth,
+  checkInquiryToken,
+  getActivityAvailabilityDetail
 );
 
 // Route to create booking reference

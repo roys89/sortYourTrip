@@ -848,7 +848,7 @@ const FlightsPage = () => {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('crmToken')}`, // Use 'crmToken'
+            Authorization: `Bearer ${localStorage.getItem('token')}`, 
             'Content-Type': 'application/json',
             'X-Inquiry-Token': inquiryToken,
           },
@@ -1043,7 +1043,7 @@ const FlightsPage = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('crmToken')}`, // Use crmToken
+            Authorization: `Bearer ${localStorage.getItem('token')}`, 
             'X-Inquiry-Token': inquiryToken
           }
         }

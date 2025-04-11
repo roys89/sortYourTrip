@@ -1,5 +1,5 @@
 import CloseIcon from '@mui/icons-material/Close';
-import { Alert, Box, Button, Card, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, IconButton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, IconButton, Stack, TextField, Typography } from '@mui/material';
 import React, { useCallback, useEffect, useState, } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { closeChangeModal } from '../../redux/slices/activitySlice';
@@ -75,6 +75,69 @@ const calculateEndTime = (startTimeStr, durationInMinutes) => {
 
 // --- End Frontend Time Helper Functions ---
 
+// --- ADD categorizeTravelers Helper Function (Adapted for Customer Frontend) ---
+const categorizeTravelers = (travelerAgesObject, apiAgeBands) => {
+  // Convert travelersDetails format to simple age array
+  const ages = [];
+  if (travelerAgesObject?.rooms?.[0]?.adults) {
+    // Need a representative age for adults based on bands
+    const adultBand = apiAgeBands?.find(b => b.ageBand === 'ADULT');
+    const representativeAdultAge = adultBand ? adultBand.startAge : 30; // Default 30 if no ADULT band
+    ages.push(...Array(travelerAgesObject.rooms[0].adults.length).fill(representativeAdultAge));
+  }
+  if (travelerAgesObject?.rooms?.[0]?.children) {
+    ages.push(...travelerAgesObject.rooms[0].children.map(age => parseInt(age)));
+  }
+  // Handle potential top-level adult/child counts if rooms are not structured
+  else if (travelerAgesObject?.adults || travelerAgesObject?.children) {
+     const adultBand = apiAgeBands?.find(b => b.ageBand === 'ADULT');
+     const representativeAdultAge = adultBand ? adultBand.startAge : 30;
+     ages.push(...Array(travelerAgesObject.adults || 0).fill(representativeAdultAge));
+     // Assuming children means age < adultBand start age (or a default like 12)
+     const childCutoff = adultBand ? adultBand.startAge : 12;
+     // Need a representative age for children too, perhaps midpoint of CHILD band or default?
+     const childBand = apiAgeBands?.find(b => b.ageBand === 'CHILD');
+     const representativeChildAge = childBand ? Math.floor((childBand.startAge + childBand.endAge) / 2) : 6;
+     ages.push(...Array(travelerAgesObject.children || 0).fill(representativeChildAge));
+  }
+
+  const counts = { ADULT: 0, CHILD: 0, INFANT: 0, SENIOR: 0, YOUTH: 0 };
+  const defaultBand = 'ADULT';
+  const validAgeBands = Array.isArray(apiAgeBands) ? apiAgeBands : [];
+
+  if (validAgeBands.length === 0) {
+    console.warn('categorizeTravelers (Customer View Modal): No valid ageBands provided, using default counts.');
+    counts[defaultBand] = ages.length;
+  } else {
+    ages.forEach(age => {
+      let matched = false;
+      for (const band of validAgeBands) {
+        if (band && typeof band.startAge === 'number' && typeof band.endAge === 'number' && band.ageBand &&
+            age >= band.startAge && age <= band.endAge) {
+          if (counts.hasOwnProperty(band.ageBand)) {
+            counts[band.ageBand]++;
+            matched = true;
+            break;
+          } else {
+            console.warn(`categorizeTravelers (Customer View Modal): Unknown ageBand type '${band.ageBand}' found.`);
+          }
+        }
+      }
+      if (!matched) {
+        counts[defaultBand]++;
+        console.warn(`categorizeTravelers (Customer View Modal): Age ${age} did not fit any defined band, assigned to ${defaultBand}.`);
+      }
+    });
+  }
+
+  const groupCodeString = `${counts.ADULT}|${counts.CHILD}|${counts.INFANT}|${counts.SENIOR}|${counts.YOUTH}`;
+
+  return {
+    groupCode: groupCodeString // Only need the string for modifiedGroupCode construction
+  };
+};
+// --- END categorizeTravelers ---
+
 const ActivityViewModal = ({ 
   open, 
   onClose, 
@@ -88,21 +151,45 @@ const ActivityViewModal = ({
   const dispatch = useDispatch();
   const [replacing, setReplacing] = useState(false);
   const [error, setError] = useState(null);
-  const [activityDetails, setActivityDetails] = useState(null);
+  const [productInfoData, setProductInfoData] = useState(null);
+  const [availableOptions, setAvailableOptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productInfoLoading, setProductInfoLoading] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [priceComparison, setPriceComparison] = useState(null);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const { itineraryToken } = useSelector((state) => state.itinerary);
+  const [manualStartTime, setManualStartTime] = useState('');
+  const [bookingStatus, setBookingStatus] = useState({
+    loading: false,
+    error: null,
+    success: false,
+    message: ''
+  });
   
-  const fetchActivityDetails = useCallback(async () => {
-    if (!activity?.code) return;
-    
+  const fetchProductInfo = useCallback(async () => {
+    if (!activity?.code || !activity?.searchId || !inquiryToken || !city || !date) {
+      console.error("Customer View Modal: Missing data for fetching product info:", { activity, inquiryToken, city, date });
+      setError("Internal error: Missing required data to fetch product info.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setProductInfoLoading(true);
+    setError(null);
+    setProductInfoData(null);
+    setAvailableOptions([]);
+    setSelectedOption(null);
+    setAvailabilityError(null);
+    setPriceComparison(null);
+    setBookingStatus({ loading: false, error: null, success: false, message: '' });
+    setManualStartTime('');
+
     try {
-      setLoading(true);
-      setError(null);
-      setSelectedOption(null);
-  
+      console.log(`Customer View Modal: Fetching product info for activity code: ${activity.code}`);
       const response = await fetch(
         `http://localhost:5000/api/itinerary/product-info/${activity.code}`,
         {
@@ -115,37 +202,130 @@ const ActivityViewModal = ({
           body: JSON.stringify({
             city: { name: city },
             date: date,
-            travelersDetails: travelersDetails,
             searchId: activity.searchId,
-            groupCode: activity.groupCode
           })
         }
       );
-  
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch activity details');
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `Failed to fetch activity product info (${response.status})`);
       }
-  
+
       const data = await response.json();
-      setActivityDetails(data);
+      console.log("Customer View Modal: Fetched activity product info:", data);
+
+      if (!data || !data.title || !data.productCode) {
+        throw new Error("Invalid product info structure received (missing title or productCode).");
+      }
+      setProductInfoData(data); 
+      fetchAvailabilityDetails(data);
+
     } catch (err) {
+      console.error("Customer View Modal: Error fetching product info:", err);
       setError(err.message);
+      setLoading(false);
+      setProductInfoLoading(false);
+    } 
+    finally {
+      setProductInfoLoading(false); 
+    }
+  }, [activity, inquiryToken, city, date]);
+
+  const fetchAvailabilityDetails = useCallback(async (fetchedProductInfo) => {
+    if (!fetchedProductInfo || !travelersDetails || !activity?.groupCode || !activity?.searchId || !city || !date) {
+      console.error("Customer View Modal: Missing data for fetching availability details:", {
+        fetchedProductInfo, travelersDetails, activity, city, date
+      });
+      setAvailabilityError("Internal error: Cannot fetch options.");
+      setLoading(false);
+      return;
+    }
+
+    setAvailabilityLoading(true);
+    setAvailabilityError(null);
+    setAvailableOptions([]); 
+    setSelectedOption(null); 
+
+    try {
+      const baseGroupCode = activity.groupCode.split('-')[0];
+      if (!baseGroupCode) {
+        throw new Error("Could not determine base group code from selected activity.");
+      }
+      const { groupCode: ageDistribution } = categorizeTravelers(travelersDetails, fetchedProductInfo.ageBands);
+      const calculatedModifiedGroupCode = `${baseGroupCode}-${ageDistribution}`;
+      console.log(`Customer View Modal: Calculated modifiedGroupCode for availability: ${calculatedModifiedGroupCode}`);
+
+      console.log(`Customer View Modal: Fetching availability details using searchId ${activity.searchId} and modifiedGroupCode ${calculatedModifiedGroupCode}`);
+      const availabilityResponse = await fetch(
+        `http://localhost:5000/api/itinerary/availability-detail/${activity.code}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+            'X-Inquiry-Token': inquiryToken,
+          },
+          body: JSON.stringify({
+            searchId: activity.searchId,
+            modifiedGroupCode: calculatedModifiedGroupCode,
+            city: { name: city },
+            date: date,
+          })
+        }
+      );
+
+      if (!availabilityResponse.ok) {
+        const errorData = await availabilityResponse.json().catch(() => ({ message: availabilityResponse.statusText }));
+        throw new Error(errorData.message || `Failed to fetch availability details (${availabilityResponse.status})`);
+      }
+
+      const data = await availabilityResponse.json();
+      console.log("Customer View Modal: Fetched availability details (options):", data);
+
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid response structure received for availability details.");
+      }
+
+      if (data.length === 0) {
+        setAvailabilityError("No options found for the current travelers and selected activity.");
+      } else {
+        setAvailableOptions(data);
+        if (data.length === 1) {
+          handleOptionSelect(data[0]);
+        }
+      }
+
+    } catch (err) {
+      console.error("Customer View Modal: Error fetching availability details:", err);
+      setAvailabilityError(err.message);
     } finally {
+      setAvailabilityLoading(false);
       setLoading(false);
     }
   }, [activity, inquiryToken, city, date, travelersDetails]);
 
   useEffect(() => {
     if (open) {
-      fetchActivityDetails();
+      fetchProductInfo();
     }
-  }, [open, fetchActivityDetails]);
+    if (!open) {
+      setProductInfoData(null);
+      setAvailableOptions([]);
+      setSelectedOption(null);
+      setError(null);
+      setLoading(true);
+      setProductInfoLoading(false);
+      setAvailabilityLoading(false);
+      setManualStartTime('');
+      setPriceComparison(null);
+      setBookingStatus({ loading: false, error: null, success: false, message: '' });
+    }
+  }, [open, fetchProductInfo]);
 
   const handleOptionSelect = (option) => {
     setSelectedOption(option);
     
-    // Calculate price comparison when option is selected
     if (oldActivityCode) {
       const existingPrice = activity.existingPrice || 0;
       const newPrice = option.amount;
@@ -164,75 +344,101 @@ const ActivityViewModal = ({
 
   const handleConfirmChange = async () => {
     try {
-      setReplacing(true);
+      setBookingStatus({ loading: true, error: null, success: false, message: 'Changing activity...' }); 
       setError(null);
       setConfirmationOpen(false);
 
-      // --- Determine Start Time (assuming selectedOption.departureTime exists) --- 
-      const finalStartTime = validateAndNormalizeTime(selectedOption?.departureTime);
+      let finalStartTime = null;
+      const hasDepartureTime = selectedOption.departureTime && validateAndNormalizeTime(selectedOption.departureTime);
+
+      if (hasDepartureTime) {
+        finalStartTime = selectedOption.departureTime;
+        console.log(`Customer View Modal: Using provided departure time: ${finalStartTime}`);
+      } else {
+        finalStartTime = validateAndNormalizeTime(manualStartTime);
+        console.log(`Customer View Modal: Using manual start time: ${finalStartTime}`);
+        if (!finalStartTime) {
+          setBookingStatus({ loading: false, success: false, error: true, message: 'Please enter a valid start time (HH:MM).' });
+          return;
+        }
+      }
+
       if (!finalStartTime) {
          setError('Selected option does not have a valid departure time.');
-         setReplacing(false);
+         setBookingStatus({ loading: false, success: false, error: true, message: 'Selected option does not have a valid departure time.' });
          return;
       }
 
-      // --- Parse Duration to Minutes ---
-      const durationInMinutes = parseDurationToMinutes(activityDetails?.productInfo?.duration);
+      const durationInMinutes = parseDurationToMinutes(productInfoData?.duration);
+      console.log(`Customer View Modal: Parsed duration '${productInfoData?.duration}' to ${durationInMinutes} minutes.`);
       if (durationInMinutes === null) {
-         setError('Could not determine activity duration.');
-         setReplacing(false);
-         return;
-      }
+          setError('Could not determine activity duration.');
+          setBookingStatus({ loading: false, success: false, error: true, message: 'Could not determine activity duration.' });
+          return;
+       }
 
-      // --- Calculate End Time & Time Slot ---
       const finalEndTime = calculateEndTime(finalStartTime, durationInMinutes);
       const finalTimeSlot = getTimeSlot(finalStartTime);
+      console.log(`Customer View Modal: Calculated End Time: ${finalEndTime}, Time Slot: ${finalTimeSlot}`);
 
-      // Construct payload mirroring CRM modals
+      const baseGroupCode = activity?.groupCode?.split('-')[0];
+      if (!baseGroupCode) {
+        setBookingStatus({ loading: false, success: false, error: true, message: 'Could not determine base group code.'});
+        return;
+      }
+      const { groupCode: ageDistribution } = categorizeTravelers(travelersDetails, productInfoData.ageBands);
+      const finalModifiedGroupCode = `${baseGroupCode}-${ageDistribution}`;
+      console.log(`Customer View Modal: Final modifiedGroupCode for change request: ${finalModifiedGroupCode}`);
+
       const newActivityDetails = {
-         searchId: activity.searchId, // Assuming searchId is on the initial activity prop
-         activityType: activityDetails?.productInfo?.activityType || 'online',
+         searchId: activity.searchId,
+         activityType: productInfoData?.activityType || 'online',
          activityCode: activity.code,
-         activityName: selectedOption.title || activity.title, // Prefer option title
+         activityName: selectedOption.title || activity.title,
          selectedTime: finalStartTime, 
          activityProvider: 'GRNC',
          endTime: finalEndTime, 
          timeSlot: finalTimeSlot, 
-         isFlexibleTiming: false, // Assuming fixed time from selectedOption
+         isFlexibleTiming: !hasDepartureTime,
          bookingStatus: 'pending', 
          departureTime: {
              time: finalStartTime,
-             code: selectedOption?.ratekey || null // Use ratekey as code identifier
+             code: selectedOption?.code
          },
          packageDetails: {
              amount: selectedOption.amount,
              currency: selectedOption.currency, 
              ratekey: selectedOption.ratekey,
              title: selectedOption.title,
-             departureTime: selectedOption.departureTime, // Original departure time if needed
+             departureTime: selectedOption.departureTime,
              description: selectedOption.description
          },
-         // Include other relevant fields from productInfo
          duration: durationInMinutes,
-         images: activityDetails?.productInfo?.images || [],
-         description: activityDetails?.productInfo?.description || '',
-         groupCode: activityDetails?.productInfo?.groupCode || activity.groupCode || selectedOption.code || null, // Try various sources for groupCode
-         departurePoint: activityDetails?.productInfo?.departurePoint || null,
-         inclusions: activityDetails?.productInfo?.inclusions || [],
-         exclusions: activityDetails?.productInfo?.exclusions || [],
-         additionalInfo: activityDetails?.productInfo?.additionalInfo || [],
-         itinerary: activityDetails?.productInfo?.itinerary || null,
-         bookingRequirements: activityDetails?.productInfo?.bookingRequirements || null,
-         pickupHotellist: activityDetails?.productInfo?.PickupHotellist || null,
-         bookingQuestions: activityDetails?.productInfo?.bookingQuestions || [],
-         cancellationFromTourDate: activityDetails?.productInfo?.cancellationFromTourDate || [],
-         tourGrade: activityDetails?.productInfo?.tourGrades?.find(tg => tg.encryptgradeCode === selectedOption.code) || activityDetails?.productInfo?.tourGrades?.[0] || null, // Try to find matching tour grade
-         ageBands: activityDetails?.productInfo?.ageBands || [],
-         // Optional: Add lat/long if needed, but often derived backend
-         // lat: activity.lat || null, 
-         // long: activity.long || null, 
-         // price_difference: priceComparison?.priceDifference || 0, // Probably not needed in payload itself
+         images: productInfoData?.images || (activity.imgURL ? [{variants:[{url: activity.imgURL}]}] : []),
+         description: productInfoData?.description || activity.description || '',
+         groupCode: finalModifiedGroupCode,
+         departurePoint: productInfoData?.departurePoint || null,
+         inclusions: productInfoData?.inclusions || [],
+         exclusions: productInfoData?.exclusions || [],
+         additionalInfo: productInfoData?.additionalInfo || [],
+         itinerary: productInfoData?.itinerary || null,
+         bookingRequirements: productInfoData?.bookingRequirements || null,
+         pickupHotellist: productInfoData?.PickupHotellist || null,
+         bookingQuestions: productInfoData?.bookingQuestions || [],
+         cancellationFromTourDate: productInfoData?.cancellationFromTourDate || [],
+         tourGrade: productInfoData?.tourGrades?.find(tg => tg.encryptgradeCode === selectedOption.code) || null,
+         ageBands: productInfoData?.ageBands || [],
       };
+
+      const requestBody = {
+        cityName: city,
+        date: date,
+        oldActivityCode: oldActivityCode || null,
+        newActivityDetails: newActivityDetails,
+        travelersDetails: travelersDetails
+      };
+
+      console.log("Customer View Modal: Submitting POST /activity request:", JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(
         `http://localhost:5000/api/itinerary/${itineraryToken}/activity`,
@@ -243,18 +449,16 @@ const ActivityViewModal = ({
             'Content-Type': 'application/json',
             'X-Inquiry-Token': inquiryToken,
           },
-          body: JSON.stringify({
-            cityName: activity.city,
-            date: date,
-            oldActivityCode: oldActivityCode || null,
-            newActivityDetails
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to replace activity');
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `Failed to replace activity (${response.status})`);
       }
+
+      setBookingStatus({ loading: false, success: true, error: null, message: 'Activity changed successfully!' });
 
       await dispatch(fetchItinerary({
         itineraryToken,
@@ -262,11 +466,12 @@ const ActivityViewModal = ({
       })).unwrap();
 
       dispatch(closeChangeModal());
-      onClose();
+      setTimeout(onClose, 1500);
+
     } catch (err) {
-      setError(err.message);
+       setError(err.message);
+       setBookingStatus({ loading: false, success: false, error: true, message: err.message || "An unknown error occurred." });
     } finally {
-      setReplacing(false);
     }
   };
 
@@ -276,13 +481,11 @@ const ActivityViewModal = ({
       return;
     }
 
-    // If replacing existing activity, show confirmation
     if (oldActivityCode) {
       setConfirmationOpen(true);
       return;
     }
 
-    // If not replacing, proceed with API call directly
     handleConfirmChange();
   };
 
@@ -307,7 +510,7 @@ const ActivityViewModal = ({
       </DialogTitle>
 
       <DialogContent>
-        {loading ? (
+        {loading || productInfoLoading ? (
           <Box display="flex" justifyContent="center" p={4}>
             <CircularProgress />
           </Box>
@@ -315,11 +518,10 @@ const ActivityViewModal = ({
           <Alert severity="error">{error}</Alert>
         ) : (
           <Stack spacing={3}>
-            {/* Images section */}
-            {activityDetails?.productInfo?.images && (
+            {productInfoData?.images && productInfoData.images.length > 0 && (
               <Box sx={{ overflow: 'auto' }}>
                 <Stack direction="row" spacing={2}>
-                  {activityDetails.productInfo.images.map((image, index) => (
+                  {productInfoData.images.map((image, index) => (
                     <Box 
                       key={index}
                       sx={{ 
@@ -341,12 +543,18 @@ const ActivityViewModal = ({
               </Box>
             )}
 
-            {/* Available Options */}
-            {activityDetails?.availabilityDetails?.length > 0 && (
-              <Box>
-                <Typography variant="h6" gutterBottom>Available Options</Typography>
+            <Box>
+              <Typography variant="h6" gutterBottom>Available Options</Typography>
+              {availabilityLoading ? (
+                <Box display="flex" justifyContent="center" p={2}>
+                  <CircularProgress size={24} />
+                  <Typography sx={{ ml: 1 }}>Loading options...</Typography>
+                </Box>
+              ) : availabilityError ? (
+                <Alert severity="warning" sx={{ mt: 1 }}>{availabilityError}</Alert>
+              ) : (
                 <Stack spacing={2}>
-                  {activityDetails.availabilityDetails.map((option) => (
+                  {availableOptions.length > 0 ? availableOptions.map((option) => (
                     <Card 
                       key={option.ratekey}
                       onClick={() => handleOptionSelect(option)}
@@ -384,26 +592,29 @@ const ActivityViewModal = ({
                         )}
                       </Stack>
                     </Card>
-                  ))}
+                  ))
+                  : (
+                    <Typography sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                      No specific options available for the selected travelers.
+                    </Typography>
+                  )}
                 </Stack>
-              </Box>
-            )}
+              )}
+            </Box>
 
             <Divider />
 
-            {/* Description section */}
-            {activityDetails?.productInfo?.description && (
+            {productInfoData?.description && (
               <Typography variant="body1">
-                {activityDetails.productInfo.description}
+                {productInfoData.description}
               </Typography>
             )}
 
-            {/* Inclusions section */}
-            {activityDetails?.productInfo?.inclusions?.length > 0 && (
+            {productInfoData?.inclusions?.length > 0 && (
               <Box>
                 <Typography variant="subtitle1" gutterBottom>Inclusions</Typography>
                 <ul>
-                  {activityDetails.productInfo.inclusions.map((inclusion, index) => (
+                  {productInfoData.inclusions.map((inclusion, index) => (
                     <li key={index}>
                       <Typography variant="body2">
                         {inclusion.otherDescription}
@@ -414,12 +625,11 @@ const ActivityViewModal = ({
               </Box>
             )}
 
-            {/* Exclusions section */}
-            {activityDetails?.productInfo?.exclusions?.length > 0 && (
+            {productInfoData?.exclusions?.length > 0 && (
               <Box>
                 <Typography variant="subtitle1" gutterBottom>Exclusions</Typography>
                 <ul>
-                  {activityDetails.productInfo.exclusions.map((exclusion, index) => (
+                  {productInfoData.exclusions.map((exclusion, index) => (
                     <li key={index}>
                       <Typography variant="body2">
                         {exclusion.otherDescription || exclusion.typeDescription}
@@ -430,28 +640,58 @@ const ActivityViewModal = ({
               </Box>
             )}
 
-            {/* Action buttons */}
+            {selectedOption && !selectedOption.departureTime && (
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>Select Start Time</Typography>
+                <TextField
+                  type="time"
+                  fullWidth
+                  value={manualStartTime}
+                  onChange={(e) => setManualStartTime(e.target.value)}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  inputProps={{
+                    step: 300, // 5 min
+                  }}
+                  sx={{ mt: 1 }}
+                  helperText="This option has flexible timing. Please select a start time."
+                />
+              </Box>
+            )}
+
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
                 variant="outlined"
                 onClick={onClose}
+                disabled={bookingStatus.loading}
               >
                 Cancel
               </Button>
               <Button
                 variant="contained"
                 onClick={handleAddActivity}
-                disabled={replacing || !selectedOption}
+                disabled={bookingStatus.loading || !selectedOption || (!selectedOption.departureTime && !validateAndNormalizeTime(manualStartTime)) || bookingStatus.success}
               >
-                {replacing ? <CircularProgress size={24} /> : 
-                  oldActivityCode ? 'Change Activity' : 'Add Activity'}
+                {bookingStatus.loading ? <CircularProgress size={24} /> : 
+                  oldActivityCode ? 'Confirm Change' : 'Add Activity'}
               </Button>
             </Stack>
           </Stack>
         )}
       </DialogContent>
 
-      {/* Price Comparison Dialog */}
+      {bookingStatus.message && (
+        <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Alert 
+            severity={bookingStatus.success ? 'success' : bookingStatus.error ? 'error' : 'info'}
+            icon={bookingStatus.loading ? <CircularProgress size={20} /> : undefined}
+          >
+            {bookingStatus.message}
+          </Alert>
+        </Box>
+      )}
+
       {confirmationOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
@@ -460,7 +700,6 @@ const ActivityViewModal = ({
             {priceComparison && (
               <div className="space-y-3 mb-6">
                 <p>Current Activity Price: {priceComparison.currency} {priceComparison.existingPrice.toLocaleString()}</p>
-                <p>New Activity Price: {priceComparison.currency} {priceComparison.newPrice.toLocaleString()}</p>
                 <p className={`font-bold ${priceComparison.priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
                   Price {priceComparison.priceDifference > 0 ? 'Increase' : 'Decrease'}: {priceComparison.currency} {Math.abs(priceComparison.priceDifference).toLocaleString()} 
                   ({priceComparison.percentageChange.toFixed(1)}%)
@@ -477,10 +716,10 @@ const ActivityViewModal = ({
               </button>
               <button
                 onClick={handleConfirmChange}
-                disabled={replacing}
+                disabled={bookingStatus.loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {replacing ? 
+                {bookingStatus.loading ? 
                   <CircularProgress size={20} color="inherit" /> : 
                   'Confirm Change'}
               </button>

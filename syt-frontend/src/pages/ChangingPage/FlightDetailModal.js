@@ -189,7 +189,7 @@ const FlightDetailModal = ({
         payload,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('crmToken')}`, // Use crmToken
+            Authorization: `Bearer ${localStorage.getItem('token')}`, // Use crmToken
             'X-Inquiry-Token': inquiryToken, // Still needed? Check backend requirement
             'Content-Type': 'application/json'
           }

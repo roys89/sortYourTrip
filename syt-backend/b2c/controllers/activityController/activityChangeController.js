@@ -77,37 +77,28 @@ const searchAvailableActivitiesForChange = async (req, res) => {
     }
 };
 
-// New getActivityDetails function that uses direct service calls
-const getActivityDetails = async (req, res) => {
+// --- NEW Function: Get Activity Product Info ---
+const getActivityProductInfo = async (req, res) => {
     const { activityCode } = req.params;
     const inquiryToken = req.headers['x-inquiry-token'];
     const { 
         city, 
         date, 
-        travelersDetails,
-        searchId,     // Now required from frontend
-        groupCode     // Now required from frontend
     } = req.body;
 
     try {
-        // Validate required parameters
-        if (!activityCode || !searchId || !groupCode || !travelersDetails) {
+        if (!activityCode || !city || !date) {
             return res.status(400).json({ 
-                message: 'Missing required parameters. Need activityCode, searchId, groupCode, and travelersDetails' 
+                message: 'Missing required parameters. Need activityCode, city, and date' 
             });
         }
 
-        // Format travelers data
-        const formattedTravelers = formatTravelers(travelersDetails);
 
-        // Get product info directly using the service
+        
         const productInfo = await activityProductInfoService.checkProductInfo(
             activityCode,
-            formattedTravelers,
-            groupCode,
-            searchId,
             inquiryToken,
-            city.name,
+            city.name, // Assuming city object with name property
             date
         );
 
@@ -115,26 +106,51 @@ const getActivityDetails = async (req, res) => {
             throw new Error('Failed to fetch product info');
         }
 
-        // Get availability details using the service
+        res.json(productInfo);
+
+    } catch (error) {
+        console.error('Error fetching activity product info:', error);
+        res.status(500).json({ 
+            message: 'Failed to fetch activity product info',
+            error: error.message 
+        });
+    }
+};
+
+// --- NEW Function: Get Activity Availability Detail ---
+const getActivityAvailabilityDetail = async (req, res) => {
+    const { activityCode } = req.params; // activityCode might still be useful context, keep it in params
+    const inquiryToken = req.headers['x-inquiry-token'];
+    const { 
+        searchId, 
+        modifiedGroupCode, // Expecting this from the frontend after getting product info
+        city, 
+        date
+    } = req.body;
+
+    try {
+        if (!searchId || !modifiedGroupCode || !activityCode || !city || !date) { // Added activityCode check
+            return res.status(400).json({ 
+                message: 'Missing required parameters. Need searchId, modifiedGroupCode, activityCode, city, and date' 
+            });
+        }
+
+        console.log(`Fetching availability detail for activityCode: ${activityCode}, searchId: ${searchId}, modifiedGroupCode: ${modifiedGroupCode}`);
         const availabilityDetails = await activityAvailabilityDetailService.checkAvailabilityDetail(
             searchId,
             activityCode,
-            productInfo.modifiedGroupCode,
+            modifiedGroupCode,
             inquiryToken,
-            city.name,
+            city.name, // Assuming city object with name property
             date
         );
 
-        // Return combined response
-        res.json({
-            productInfo,
-            availabilityDetails
-        });
+        res.json(availabilityDetails); // Send only availability details
 
     } catch (error) {
-        console.error('Error fetching activity details:', error);
+        console.error('Error fetching activity availability detail:', error);
         res.status(500).json({ 
-            message: 'Failed to fetch activity details',
+            message: 'Failed to fetch activity availability detail',
             error: error.message 
         });
     }
@@ -142,5 +158,6 @@ const getActivityDetails = async (req, res) => {
 
 module.exports = {
     searchAvailableActivitiesForChange,
-    getActivityDetails
+    getActivityProductInfo,      // Add new export
+    getActivityAvailabilityDetail // Add new export
 }; 

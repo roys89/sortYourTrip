@@ -104,9 +104,7 @@ module.exports = {
               checkIn,
               checkOut,
               occupancies, // Use determined occupancies
-              cityName, // Keep for potential context
-              page,
-              limit,
+              cityName,
           };
       } else {
           // Original logic: Search by location if no hotelId

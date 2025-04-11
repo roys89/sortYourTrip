@@ -487,6 +487,35 @@ const extractOfflineActivityDetails = (activity) => {
   };
 };
 
+// ADD HELPER FUNCTIONS (moved from activityProductInfoService)
+const getAgeBandCounts = (ageBands, travelers) => {
+  const counts = categorizeTravelersByAgeBand(travelers, ageBands);
+  return `${counts.ADULT}|${counts.CHILD}|${counts.INFANT}|${counts.SENIOR}|${counts.YOUTH}`;
+};
+
+const categorizeTravelersByAgeBand = (travelers, ageBands) => {
+  const counts = { ADULT: 0, CHILD: 0, INFANT: 0, SENIOR: 0, YOUTH: 0 };
+
+  const matchAgeToBand = (age, counts, ageBands, defaultBand) => {
+    let matched = false;
+    ageBands.forEach(band => {
+      if (age >= band.startAge && age <= band.endAge) {
+        counts[band.ageBand]++;
+        matched = true;
+      }
+    });
+    if (!matched) counts[defaultBand]++;
+  };
+
+  travelers.adults.forEach(age => matchAgeToBand(parseInt(age), counts, ageBands, 'ADULT'));
+  if (travelers.childAges) {
+    travelers.childAges.forEach(age => matchAgeToBand(parseInt(age), counts, ageBands, 'CHILD'));
+  }
+
+  return counts;
+};
+// END ADD HELPER FUNCTIONS
+
 // Process online activity with external service calls
 const processOnlineActivity = async (
   baseDetails,
@@ -504,24 +533,37 @@ const processOnlineActivity = async (
       inquiryToken
     );
 
-    if (!availabilityResponse?.data?.[0]?.groupCode) {
-      return null;
+    // Use optional chaining for safer access
+    const initialGroupCode = availabilityResponse?.data?.[0]?.groupCode;
+    if (!initialGroupCode) {
+       console.warn(`processOnlineActivity: No initialGroupCode found for activity ${activity.activityCode} in availabilityResponse.`);
+       return null;
     }
 
     const { searchId } = availabilityResponse;
-    const groupCode = availabilityResponse.data[0].groupCode;
+    // const groupCode = availabilityResponse.data[0].groupCode; // Renamed to initialGroupCode
 
     const productInfo = await activityProductInfoService.checkProductInfo(
       activity.activityCode,
-      travelers,
-      groupCode,
+      travelers, // Still pass travelers, might be needed for logging or other context in service
+      initialGroupCode, // Pass initial group code for logging/context
       searchId,
       inquiryToken,
       city.name || city.city,
       itineraryDates.fromDate
     );
 
-    if (!productInfo) return null;
+    // Check if productInfo and ageBands exist before calculating modifiedGroupCode
+    if (!productInfo?.ageBands) { 
+        console.warn(`processOnlineActivity: No productInfo or ageBands received for activity ${activity.activityCode}.`);
+        return null;
+    }
+
+    // *** CALCULATE MODIFIED GROUP CODE HERE ***
+    const ageBandCounts = getAgeBandCounts(productInfo.ageBands, travelers);
+    const modifiedGroupCode = `${initialGroupCode}-${ageBandCounts}`;
+    console.log(`processOnlineActivity: Calculated modifiedGroupCode for ${activity.activityCode}: ${modifiedGroupCode}`);
+    // *** END CALCULATION ***
 
     // **Duration Conversion Point**: Assume productInfo.duration comes in hours (string/number)
     let durationInMinutes = activity.duration; // Use DB duration as default
@@ -540,7 +582,8 @@ const processOnlineActivity = async (
     const options = await activityAvailabilityDetailService.checkAvailabilityDetail(
       searchId,
       activity.activityCode,
-      productInfo.modifiedGroupCode,
+      // productInfo.modifiedGroupCode, // Use the locally calculated one
+      modifiedGroupCode, // Use the locally calculated one
       inquiryToken,
       city.name || city.city,
       itineraryDates.fromDate
@@ -580,7 +623,8 @@ const processOnlineActivity = async (
       additionalInfo: productInfo.additionalInfo,
       bookingQuestions: productInfo.bookingQuestions,
       cancellationFromTourDate: productInfo.cancellationFromTourDate,
-      groupCode: selectedOption.code,
+      groupCode: selectedOption.code, // This is the Tour Grade code (encryptgradeCode)
+      modifiedGroupCode: modifiedGroupCode, // Add the calculated modifiedGroupCode to the final object if needed elsewhere
       tourGrade: tourGrade,
       ageBands: productInfo.ageBands,
       bookingRequirements: productInfo.bookingRequirements,

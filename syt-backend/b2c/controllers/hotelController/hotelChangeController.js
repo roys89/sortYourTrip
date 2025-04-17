@@ -5,60 +5,32 @@ const HotelSearchService = require("../../../shared/services/hotelServicesTC/hot
 const HotelItineraryService = require("../../../shared/services/hotelServicesTC/hotelItineraryService");
 const HotelRoomRatesService = require("../../../shared/services/hotelServicesTC/hotelRoomRatesService");
 const ItineraryInquiry = require("../../models/ItineraryInquiry");
-const Itinerary = require("../../models/Itinerary");
-const logger = require('../../utils/logger');
 
-// Helper function to safely extract amenities from various data formats
-const extractAmenities = (hotel) => {
-  const facilities = hotel.facilities;
-  
-  if (typeof facilities === 'string') {
-    // If it's a string, split by semicolon
-    return facilities.split(';').map(a => a.trim()).filter(Boolean);
-  } else if (Array.isArray(facilities)) {
-    // If it's already an array, use it directly
-    return facilities.map(f => 
-      typeof f === 'string' ? f.trim() : 
-      (f && f.name ? f.name.trim() : String(f))
-    ).filter(Boolean);
-  } else if (facilities && typeof facilities === 'object') {
-    // If it's an object with amenities/facilities data
-    if (facilities.amenities && Array.isArray(facilities.amenities)) {
-      return facilities.amenities.map(a => 
-        typeof a === 'string' ? a.trim() : 
-        (a && a.name ? a.name.trim() : String(a))
-      ).filter(Boolean);
-    }
-  }
-  
-  // Default to empty array if no valid facilities found
-  return [];
-};
 
 module.exports = {
   searchAvailableHotels: async (req, res) => {
-    // --- Get required params from URL --- 
+    // --- Get required params from URL ---
     const { inquiryToken, cityName, checkIn, checkOut } = req.params;
-    
-    // --- Get optional params/body --- 
-    const { 
+
+    // --- Get optional params/body ---
+    const {
         occupancies: bodyOccupancies, // Occupancies passed directly in the body
-        hotelId, 
-        page: queryPage, 
-        limit: queryLimit 
+        hotelId,
+        page: queryPage,
+        traceId,  // Extract traceId from request body
+        filterBy,  // Extract filter parameters from request body
+        sortBy    // --- NEW: Extract sortBy object from request body --- 
     } = req.body; // Get optional params from the POST body
 
     const page = parseInt(queryPage) || 1;
-    const limit = parseInt(queryLimit) || 100;
 
     try {
       let occupancies;
       let inquiry = null; // Initialize inquiry as null
 
-      // --- Determine Occupancies --- 
+      // --- Determine Occupancies ---
       if (bodyOccupancies && Array.isArray(bodyOccupancies) && bodyOccupancies.length > 0) {
-          // Validate and use occupancies from request body
-          logger.info(`Using occupancies provided in request body for inquiry: ${inquiryToken}`);
+          // Removed logger.info
           occupancies = bodyOccupancies.map(occ => ({
               numOfAdults: parseInt(occ.numOfAdults) || 1, // Ensure valid numbers
               childAges: Array.isArray(occ.childAges) ? occ.childAges.map(age => parseInt(age)).filter(age => !isNaN(age) && age >= 0 && age <= 17) : []
@@ -68,12 +40,12 @@ module.exports = {
              throw new Error("Invalid occupancy data: Each room must have at least one adult.");
           }
       } else {
-          // Fetch inquiry details ONLY if occupancies are not provided
-          logger.info(`No valid occupancies in request body. Fetching inquiry ${inquiryToken} to derive occupancies.`);
+          // Removed logger.info
           inquiry = await ItineraryInquiry.findOne({
               itineraryInquiryToken: inquiryToken,
           });
           if (!inquiry) {
+              // Keep error response, but remove logger
               return res.status(404).json({ message: "Inquiry not found" });
           }
           // Derive occupancies from the fetched inquiry
@@ -83,7 +55,7 @@ module.exports = {
                   .map((age) => parseInt(age))
                   .filter((age) => !isNaN(age) && age >= 0 && age <= 17), // Added age range validation
           }));
-           logger.info(`Derived occupancies from inquiry ${inquiryToken}: ${JSON.stringify(occupancies)}`);
+           // Removed logger.info
       }
 
       // --- Get Auth Token --- (no change needed)
@@ -92,28 +64,95 @@ module.exports = {
         return authResponse.token;
       });
 
-      // --- Prepare Search Params --- 
+      // --- Process Filters ---
+      let processedFilters = null;
+      if (filterBy) {
+          // Create a clean copy of filters, ensuring proper types and handling nulls
+          processedFilters = {
+              // Boolean filters
+              freeBreakfast: filterBy.freeBreakfast === true,
+              isRefundable: filterBy.isRefundable === true,
+              
+              // String filters (null if not provided or empty)
+              hotelName: filterBy.hotelName && filterBy.hotelName.trim() !== '' ? filterBy.hotelName.trim() : null,
+              // --- NEW: Add type processing --- 
+              type: filterBy.type && typeof filterBy.type === 'string' && filterBy.type.trim() !== '' ? filterBy.type.trim() : null,
+              
+              // Array filters (null if not provided or empty)
+              ratings: Array.isArray(filterBy.ratings) && filterBy.ratings.length > 0 ? 
+                  filterBy.ratings.map(r => parseInt(r)).filter(r => !isNaN(r)) : null,
+              facilities: Array.isArray(filterBy.facilities) && filterBy.facilities.length > 0 ? 
+                  filterBy.facilities.map(f => String(f)) : null,
+              // --- NEW: Add tags processing --- 
+              tags: Array.isArray(filterBy.tags) && filterBy.tags.length > 0 ? 
+                  filterBy.tags.map(t => String(t).trim()).filter(t => t) : null,
+              reviewRatings: Array.isArray(filterBy.reviewRatings) && filterBy.reviewRatings.length > 0 ? 
+                  filterBy.reviewRatings.map(r => parseInt(r)).filter(r => !isNaN(r)) : null,
+              subLocationIds: Array.isArray(filterBy.subLocationIds) && filterBy.subLocationIds.length > 0 ? 
+                  filterBy.subLocationIds.map(id => parseInt(id)).filter(id => !isNaN(id)) : null
+          };
+          
+          // Remove null properties to keep the request clean
+          Object.keys(processedFilters).forEach(key => {
+              if (processedFilters[key] === null) {
+                  delete processedFilters[key];
+              }
+          });
+          
+          // If all filters were null, set processedFilters to null
+          if (Object.keys(processedFilters).length === 0) {
+              processedFilters = null;
+          }
+      }
+      
+      // --- NEW: Process sortBy object --- 
+      let processedSortBy = null;
+      if (sortBy && typeof sortBy === 'object') {
+          // SIMPLIFIED: Only keep the label and possibly finalRate as a number value
+          processedSortBy = {}; 
+          
+          // Keep the label if present
+          if (typeof sortBy.label === 'string') {
+              processedSortBy.label = sortBy.label;
+          }
+          
+          // Keep finalRate ONLY if it's a valid number (for max price filter)
+          if (sortBy.hasOwnProperty('finalRate') && 
+              typeof sortBy.finalRate === 'number' && 
+              !isNaN(sortBy.finalRate)) {
+              processedSortBy.finalRate = sortBy.finalRate;
+          }
+          
+          // If we have nothing, set to null and let service use default
+          if (Object.keys(processedSortBy).length === 0) {
+              processedSortBy = null;
+          }
+      }
+      // --- END: Process sortBy object ---
+
+      // --- Prepare Search Params ---
       let searchParams;
       let locationId = null;
 
       if (hotelId) {
-          // If hotelId is provided (e.g., in body)
-          logger.info(`Constructing search params using hotelId: ${hotelId} for inquiry: ${inquiryToken}`);
+          // Removed logger.info
           searchParams = {
               hotelId, // Use hotelId from body
               checkIn,
               checkOut,
               occupancies, // Use determined occupancies
               cityName,
+              traceId, // Add traceId to search params
+              filterBy: processedFilters, // Add processed filters
+              sortBy: processedSortBy    // --- NEW: Add processed sortBy --- 
           };
       } else {
-          // Original logic: Search by location if no hotelId
-          logger.info(`Constructing search params using location for city: ${cityName}, inquiry: ${inquiryToken}`);
+          // Removed logger.info
           const locationResponse = await HotelLocationService.searchLocation(
               cityName,
               authToken,
               inquiryToken,
-              checkIn 
+              checkIn
           );
 
           const cityLocation = locationResponse.results?.find(
@@ -123,7 +162,7 @@ module.exports = {
           );
 
           if (!cityLocation) {
-              logger.error(`City not found in location results for: ${cityName}, Inquiry: ${inquiryToken}`);
+              // Removed logger.error
               throw new Error("City not found in location results");
           }
           locationId = cityLocation.id;
@@ -135,9 +174,9 @@ module.exports = {
               occupancies, // Use determined occupancies
               cityName,
               page,
-              limit,
-              // TODO: Consider passing filterBy options from req.body as well
-              // filterBy: req.body.filterBy || {} 
+              traceId, // Add traceId to search params
+              filterBy: processedFilters, // Add processed filters
+              sortBy: processedSortBy    // --- NEW: Add processed sortBy --- 
           };
       }
 
@@ -148,52 +187,18 @@ module.exports = {
         inquiryToken
       );
 
-      // --- Process results --- (no change needed)
-      logger.info(`Retrieved hotel search results for inquiry: ${inquiryToken}. Search method: ${hotelId ? 'hotelId' : 'locationId'}. Page: ${page}`);
-      const allHotels = hotelsResponse.results[0].data || [];
-      const totalHotels = hotelsResponse.results[0].totalCount || allHotels.length;
-      const traceId = hotelsResponse.results[0].traceId;
-      const allPrices = allHotels
-        .map(h => h.rates?.[0]?.price || 0)
-        .filter(price => price > 0);
-      const minPrice = allPrices.length ? Math.min(...allPrices) : 0;
-      const maxPrice = allPrices.length ? Math.max(...allPrices) : 10000;
-      const allAmenities = [...new Set(
-        allHotels.flatMap(hotel => extractAmenities(hotel))
-      )].slice(0, 10); 
-      const allPropertyTypes = [...new Set(
-        allHotels
-          .map(h => h.accommodationType || 'Hotel')
-          .filter(Boolean)
-      )];
+      // --- Return RAW response ---
+      // Removed logger.info
+      // Removed all processing logic (calculating min/max price, amenities etc.)
 
+      // Directly return the response from the service
       res.json({
         success: true,
-        data: {
-          hotels: allHotels,
-          traceId: traceId, 
-          pagination: {
-            page,
-            limit,
-            total: totalHotels,
-            hasMore: page * limit < totalHotels,
-          },
-          dates: {
-            checkIn,
-            checkOut,
-          },
-          priceRange: {
-            min: minPrice,
-            max: maxPrice
-          },
-          availableFilters: {
-            amenities: allAmenities,
-            propertyTypes: allPropertyTypes
-          }
-        },
+        data: hotelsResponse // Send the raw response object
       });
     } catch (error) {
-      logger.error(`Error searching hotels for inquiry ${inquiryToken}:`, error);
+      // Removed logger.error
+      // Keep sending error response
       res.status(500).json({
         success: false,
         message: error.message || "Failed to search hotels",
@@ -234,7 +239,7 @@ module.exports = {
         data: hotelDetails,
       });
     } catch (error) {
-      console.error("Error fetching hotel details:", error);
+      // Removed console.error
       res.status(500).json({
         success: false,
         message: error.message || "Failed to fetch hotel details",
@@ -316,7 +321,7 @@ module.exports = {
         },
       });
     } catch (error) {
-      console.error("Error selecting hotel room:", error);
+      // Removed console.error
       res.status(500).json({
         success: false,
         message: error.message || "Failed to select hotel room",
@@ -356,7 +361,7 @@ module.exports = {
         data: hotelDetails,
       });
     } catch (error) {
-      console.error("Error fetching hotel rooms:", error);
+      // Removed console.error
       res.status(500).json({
         success: false,
         message: error.message || "Failed to fetch hotel rooms",
@@ -413,7 +418,7 @@ module.exports = {
       });
 
     } catch (error) {
-      console.error("Error fetching hotel itinerary details:", error);
+      // Removed console.error
       res.status(500).json({
         success: false,
         message: error.message || "Failed to fetch hotel itinerary details",

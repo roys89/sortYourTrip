@@ -59,34 +59,115 @@ module.exports = {
         return authResponse.token;
       });
 
-      // Search hotels using HotelSearchService
+      // --- Process Filters (similar to hotelChangeController) --- 
+      let processedFilters = null;
+      if (searchParams.filterBy) {
+          processedFilters = { ...searchParams.filterBy }; // Start with a copy
+          // Clean up common boolean/string/array fields
+          if ('freeBreakfast' in processedFilters) processedFilters.freeBreakfast = Boolean(processedFilters.freeBreakfast);
+          if ('isRefundable' in processedFilters) processedFilters.isRefundable = Boolean(processedFilters.isRefundable);
+          if (processedFilters.reviewRatings && Array.isArray(processedFilters.reviewRatings)) {
+              processedFilters.reviewRatings = processedFilters.reviewRatings.map(r => Number(r)).filter(r => !isNaN(r) && r >= 1 && r <= 5);
+              if (processedFilters.reviewRatings.length === 0) delete processedFilters.reviewRatings;
+          }
+          if ('type' in processedFilters && typeof processedFilters.type === 'string' && processedFilters.type.trim() !== '') {
+              processedFilters.type = processedFilters.type.trim();
+          } else { delete processedFilters.type; }
+          if ('tags' in processedFilters && Array.isArray(processedFilters.tags) && processedFilters.tags.length > 0) {
+              processedFilters.tags = processedFilters.tags.map(tag => String(tag).trim()).filter(tag => tag);
+              if (processedFilters.tags.length === 0) delete processedFilters.tags;
+          } else { delete processedFilters.tags; }
+          if (!processedFilters.hotelName || processedFilters.hotelName.trim() === '') {
+              delete processedFilters.hotelName;
+          }
+          if (processedFilters.ratings && Array.isArray(processedFilters.ratings)) {
+              processedFilters.ratings = processedFilters.ratings.map(r => Number(r)).filter(r => !isNaN(r));
+              if (processedFilters.ratings.length === 0) delete processedFilters.ratings;
+          } else { delete processedFilters.ratings; }
+          if (processedFilters.facilities && Array.isArray(processedFilters.facilities)) {
+              processedFilters.facilities = processedFilters.facilities.map(f => String(f).trim()).filter(f => f);
+              if (processedFilters.facilities.length === 0) delete processedFilters.facilities;
+          } else { delete processedFilters.facilities; }
+          // Remove finalRate if it accidentally came through here
+          delete processedFilters.finalRate; 
+          
+          // Remove null/empty properties
+          Object.keys(processedFilters).forEach(key => {
+              if (processedFilters[key] === null || (Array.isArray(processedFilters[key]) && processedFilters[key].length === 0)) {
+                  delete processedFilters[key];
+              }
+          });
+          if (Object.keys(processedFilters).length === 0) {
+              processedFilters = null;
+          }
+      }
+
+      // --- Process SortBy (similar to hotelChangeController) ---
+      let processedSortBy = null;
+      if (searchParams.sortBy && typeof searchParams.sortBy === 'object') {
+          processedSortBy = {}; 
+          if (typeof searchParams.sortBy.label === 'string') {
+              processedSortBy.label = searchParams.sortBy.label;
+          }
+          if (searchParams.sortBy.hasOwnProperty('finalRate') && typeof searchParams.sortBy.finalRate === 'number' && !isNaN(searchParams.sortBy.finalRate)) {
+              processedSortBy.finalRate = searchParams.sortBy.finalRate;
+          }
+          // Add specific sort keys if they exist (passed from frontend)
+          if (searchParams.sortBy.finalRate === 'asc' || searchParams.sortBy.finalRate === 'desc') processedSortBy.finalRate = searchParams.sortBy.finalRate;
+          if (searchParams.sortBy.rating === 'desc') processedSortBy.rating = 'desc';
+          if (searchParams.sortBy.name === 'asc') processedSortBy.name = 'asc';
+
+          if (Object.keys(processedSortBy).length === 0) {
+              processedSortBy = null; // Let service handle default if empty
+          }
+      }
+
+      // --- Prepare Params for Service --- 
+      const serviceParams = {
+          ...searchParams, // Include original params like checkIn, checkOut, locationId, page, occupancies etc.
+          filterBy: processedFilters, // Use processed filters
+          sortBy: processedSortBy     // Use processed sort
+      };
+      // Remove the original filterBy and sortBy from the root if they existed
+      delete serviceParams.filterBy; 
+      delete serviceParams.sortBy; 
+      // Add the processed ones back if they are not null
+      if(processedFilters) serviceParams.filterBy = processedFilters;
+      if(processedSortBy) serviceParams.sortBy = processedSortBy;
+
+      // Search hotels using HotelSearchService with processed params
       const searchResponse = await HotelSearchService.searchHotels(
-        searchParams,
-        authToken,
-        inquiryToken
+          serviceParams,
+          authToken,
+          inquiryToken
       );
 
-      logger.info(`Retrieved hotel search results for location: ${searchParams.locationId}`);
+      logger.info(`Retrieved hotel search results for location: ${serviceParams.locationId}`);
 
-      // Extract pagination info from response
-      const hotels = searchResponse?.results?.[0]?.data || [];
-      const totalCount = searchResponse?.results?.[0]?.totalCount || 0;
-      const totalPages = searchResponse?.results?.[0]?.totalPages || 1;
-      const currentPage = searchParams.page || 1;
-      const traceId = searchResponse?.results?.[0]?.traceId;
+      // Extract data from the service response
+      const resultData = searchResponse?.results?.[0];
+      const hotels = resultData?.data || [];
+      const total = resultData?.totalCount || 0;
+      const currentPg = resultData?.currentPage || searchParams.page || 1;
+      const totalPgs = resultData?.totalPages || Math.ceil(total / (searchParams.limit || 20)); // Calculate if missing
+      const trace = searchResponse?.traceId || resultData?.traceId;
+      const filtered = resultData?.filteredCount !== undefined ? resultData.filteredCount : total;
 
+      // --- Consistent Response Structure --- 
       res.json({
-        success: true,
-        data: {
-          results: [{
-            data: hotels,
-            totalCount,
-            totalPages,
-            currentPage,
-            traceId
-          }],
-          traceId
-        }
+          success: true,
+          data: {
+              results: [{
+                  data: hotels,
+                  totalCount: total,
+                  filteredCount: filtered, // Include filtered count
+                  totalPages: totalPgs,
+                  currentPage: currentPg,
+                  nextPage: currentPg < totalPgs ? currentPg + 1 : null, // Calculate nextPage
+                  traceId: trace // Include traceId within results if available
+              }],
+              traceId: trace // Also include traceId at the top level if available
+          }
       });
 
     } catch (error) {

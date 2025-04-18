@@ -1,36 +1,36 @@
 // src/pages/Payment/PaymentPage.js
 import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  Container,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControlLabel,
-  Grid,
-  IconButton,
-  Paper,
-  Snackbar,
-  Stack,
-  Typography,
-  alpha,
-  useTheme
+    Alert,
+    Box,
+    Button,
+    Checkbox,
+    CircularProgress,
+    Container,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    FormControlLabel,
+    Grid,
+    IconButton,
+    Paper,
+    Snackbar,
+    Stack,
+    Typography,
+    alpha,
+    useTheme
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  CreditCard,
-  FileText,
-  Receipt,
-  Shield,
-  Wallet,
-  X
+    AlertTriangle,
+    ArrowRight,
+    CheckCircle2,
+    CreditCard,
+    FileText,
+    Receipt,
+    Shield,
+    Wallet,
+    X
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from 'react-dom/client';
@@ -38,17 +38,17 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSummary from "../../components/BookingSummary/BookingSummary";
 import {
-  searchReplacementFlight, updateItineraryFlight
+    searchReplacementFlight, updateItineraryFlight
 } from '../../redux/slices/flightReplacementSlice';
 import {
-  searchReplacementHotel, updateItineraryHotel
+    searchReplacementHotel, updateItineraryHotel
 } from '../../redux/slices/hotelReplacementSlice';
 import {
-  createPaymentOrder,
-  setPaymentLoading,
-  setTermsAccepted,
-  validateItineraryComponents,
-  verifyPayment
+    createPaymentOrder,
+    setPaymentLoading,
+    setTermsAccepted,
+    validateItineraryComponents,
+    verifyPayment
 } from "../../redux/slices/paymentSlice";
 
 
@@ -503,8 +503,10 @@ const PaymentPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
 
   const { termsAccepted, loading } = useSelector((state) => state.payment);
+  const { priceSummary } = useSelector((state) => state.priceCheck);
 
   const [showTerms, setShowTerms] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -513,7 +515,20 @@ const PaymentPage = () => {
     severity: "info",
   });
 
-  const { bookingId, bookingData, itinerary } = location.state || {};
+  // Extract tokens from URL parameters or location state
+  const itineraryToken = searchParams.get('itineraryToken') || location.state?.itinerary?.itineraryToken;
+  const inquiryToken = searchParams.get('inquiryToken') || location.state?.itinerary?.inquiryToken;
+  const { bookingId, bookingData } = location.state || {};
+  const itinerary = location.state?.itinerary || priceSummary?.updatedItinerary;
+
+  useEffect(() => {
+    if (!itineraryToken || !inquiryToken) {
+      const params = new URLSearchParams({
+        error: 'Missing required tokens. Please start a new itinerary.'
+      });
+      navigate(`/itinerary?${params.toString()}`);
+    }
+  }, [itineraryToken, inquiryToken, navigate]);
 
   const handleReallocation = useCallback(async (components) => {
     try {
@@ -528,7 +543,7 @@ const PaymentPage = () => {
               searchReplacementFlight({
                 expiredFlight: component.flight.flightData,
                 itinerary,
-                inquiryToken: itinerary.inquiryToken
+                inquiryToken
               })
             ).unwrap();
 
@@ -543,12 +558,12 @@ const PaymentPage = () => {
 
             const updateResult = await dispatch(
               updateItineraryFlight({
-                itineraryToken: itinerary.itineraryToken,
+                itineraryToken,
                 cityName,
                 date: component.flight.flightData.departureDate,
                 newFlightDetails: searchResult[0],
                 type: component.flight.flightData.type || 'departure_flight',
-                inquiryToken: itinerary.inquiryToken
+                inquiryToken
               })
             ).unwrap();
 
@@ -566,7 +581,7 @@ const PaymentPage = () => {
                   details: component.hotel.data 
                 },
                 itinerary,
-                inquiryToken: itinerary.inquiryToken
+                inquiryToken
               })
             ).unwrap();
 
@@ -577,12 +592,12 @@ const PaymentPage = () => {
             // 2. Update itinerary with new hotel
             const updateResult = await dispatch(
               updateItineraryHotel({
-                itineraryToken: itinerary.itineraryToken,
+                itineraryToken,
                 date: component.hotel.data.searchRequestLog.checkIn || component.hotel.data.hotelDetails.checkIn,
                 newHotelDetails: searchResult.data,
                 checkIn: component.hotel.data.checkIn || component.hotel.data.hotelDetails.checkIn,
                 checkout: component.hotel.data.checkOut || component.hotel.data.hotelDetails.checkOut,
-                inquiryToken: itinerary.inquiryToken
+                inquiryToken
               })
             ).unwrap();
 
@@ -615,14 +630,16 @@ const PaymentPage = () => {
         });
       }
 
-      // Navigate to itinerary page with results
-      navigate("/itinerary", {
+      // Navigate to itinerary page with results and URL parameters
+      const params = new URLSearchParams({
+        itineraryToken,
+        inquiryToken
+      });
+      navigate(`/itinerary?${params.toString()}`, {
         state: {
-          itineraryToken: itinerary.itineraryToken,
-          itineraryInquiryToken: itinerary.inquiryToken,
           reason: "Components need reallocation",
           reallocationResults: successfulReallocations,
-          failedReallocations: failedReallocations
+          failedReallocations
         }
       });
     } catch (error) {
@@ -633,7 +650,7 @@ const PaymentPage = () => {
         severity: "error",
       });
     }
-  }, [dispatch, itinerary, navigate]);
+  }, [dispatch, itinerary, navigate, itineraryToken, inquiryToken]);
 
   const renderDialog = (DialogComponent) => {
     const dialogRoot = document.getElementById('dialog-root') || (() => {

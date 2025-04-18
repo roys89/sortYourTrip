@@ -28,9 +28,10 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import LoadingSpinner2 from "../../components/common/LoadingSpinner2";
+import { clearAllFlightStates } from "../../redux/slices/flightSlice";
 import FlightDetailModal from "./FlightDetailModal";
 import { FlightFilterMenu } from "./FlightFilterMenu";
 
@@ -739,6 +740,7 @@ const FlightsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { itineraryToken } = useSelector((state) => state.itinerary);
+  const dispatch = useDispatch();
   
   // Data states
   const [allFlights, setAllFlights] = useState([]); // Holds the raw, unfiltered flights from API
@@ -1071,9 +1073,20 @@ const FlightsPage = () => {
   };
 
   const handleBackToItinerary = () => {
-    navigate('/itinerary', {
-      state: { itineraryInquiryToken: inquiryToken }
-    });
+    dispatch(clearAllFlightStates()); // Clear any redux state if needed
+    // Navigate back using URL parameters
+    if (itineraryToken && inquiryToken) {
+      const params = new URLSearchParams({
+        itineraryToken,
+        inquiryToken
+      });
+      navigate(`/itinerary?${params.toString()}`, { 
+        state: { origin: 'flights' }
+      });
+    } else {
+      console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");
+      navigate('/'); // Fallback navigation
+    }
   };
 
   // Filter change handler
@@ -1133,6 +1146,19 @@ const FlightsPage = () => {
     });
   };
   // --- END: Load More Handler ---
+
+  // Update error navigation
+  if (error) {
+    const params = new URLSearchParams({
+      itineraryToken,
+      inquiryToken,
+      error: error.message || 'Failed to load flights'
+    });
+    navigate(`/itinerary?${params.toString()}`, {
+      state: { origin: 'flights' }
+    });
+    return;
+  }
 
   if (initialLoading) {
     return (

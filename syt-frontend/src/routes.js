@@ -58,102 +58,24 @@ const AppRoutes = () => {
         <Route path="/itinerary-inquiry" element={<ItineraryInquiryPage />} />
 
         {/* Protected Routes */}
-        <Route
-          path="/payment"
-          element={
-            <ProtectedRoute>
-              <PaymentPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/itinerary"
-          element={
-            <ProtectedRoute>
-              <ItineraryPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/activities"
-          element={
-            <ProtectedRoute>
-              <ActivitiesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/hotels"
-          element={
-            <ProtectedRoute>
-              <HotelsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/Flights"
-          element={
-            <ProtectedRoute>
-              <FlightPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/booking-form"
-          element={
-            <ProtectedRoute>
-              <BookingForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/markup-management"
-          element={
-            <ProtectedRoute>
-              <MarkupManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/booking-confirmation"
-          element={
-            <ProtectedRoute>
-              <BookingConfirmation />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/flight-voucher"
-          element={
-            <ProtectedRoute>
-              <FlightVoucherPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/hotel-voucher"
-          element={
-            <ProtectedRoute>
-              <HotelVoucherPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/transfer-voucher"
-          element={
-            <ProtectedRoute>
-              <TransferVoucherPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route element={<ProtectedRoute />}>
+          {/* Itinerary Routes */}
+          <Route path="/itinerary" element={<ItineraryPage />} />
+          <Route path="/itinerary/new/:inquiryToken" element={<ItineraryPage />} />
+          
+          {/* Other Protected Routes */}
+          <Route path="/payment" element={<PaymentPage />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/activities" element={<ActivitiesPage />} />
+          <Route path="/hotels" element={<HotelsPage />} />
+          <Route path="/flights" element={<FlightPage />} />
+          <Route path="/booking-form" element={<BookingForm />} />
+          <Route path="/markup-management" element={<MarkupManagement />} />
+          <Route path="/booking-confirmation" element={<BookingConfirmation />} />
+          <Route path="/flight-voucher" element={<FlightVoucherPage />} />
+          <Route path="/hotel-voucher" element={<HotelVoucherPage />} />
+          <Route path="/transfer-voucher" element={<TransferVoucherPage />} />
+        </Route>
       </Routes>
     </Suspense>
   );

@@ -8,7 +8,15 @@ export const checkExistingItinerary = createAsyncThunk(
   'itinerary/checkExisting',
   async (inquiryToken, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${BASE_URL}/itinerary/inquiry/${inquiryToken}`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${BASE_URL}/itinerary/inquiry/${inquiryToken}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
       return response.data;
     } catch (error) {
       if (error.response?.status === 404) {
@@ -23,13 +31,22 @@ export const createItinerary = createAsyncThunk(
   'itinerary/createItinerary',
   async (inquiryToken, { rejectWithValue, dispatch }) => {
     try {
+      const token = localStorage.getItem('token');
       const existingItinerary = await dispatch(checkExistingItinerary(inquiryToken)).unwrap();
       
       if (existingItinerary) {
         return existingItinerary;
       }
       
-      const response = await axios.post(`${BASE_URL}/itinerary/${inquiryToken}`);
+      const response = await axios.post(
+        `${BASE_URL}/itinerary/${inquiryToken}`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
       
       if (!response.data || typeof response.data === 'string') {
         throw new Error('Invalid response format from server');

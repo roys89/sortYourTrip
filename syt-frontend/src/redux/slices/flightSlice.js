@@ -75,6 +75,18 @@ const flightSlice = createSlice({
     },
     clearSeatSelectionError: (state) => {
       state.seatSelectionError = null;
+    },
+    clearAllFlightStates: (state) => {
+      state.selectedFlight = null;
+      state.changeFlight = null;
+      state.isModalOpen = false;
+      state.isChangeModalOpen = false;
+      state.isSeatModalOpen = false;
+      state.seatSelectionLoading = false;
+      state.seatSelectionError = null;
+      state.selectedSeats = {};
+      state.selectedBaggage = null;
+      state.selectedMeal = null;
     }
   },
   extraReducers: (builder) => {
@@ -104,7 +116,8 @@ export const {
   closeChangeModal,
   openSeatModal,
   closeSeatModal,
-  clearSeatSelectionError
+  clearSeatSelectionError,
+  clearAllFlightStates
 } = flightSlice.actions;
 
 export default flightSlice.reducer;

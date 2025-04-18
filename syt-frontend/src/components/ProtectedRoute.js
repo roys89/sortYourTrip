@@ -1,11 +1,19 @@
 import { Box, CircularProgress } from '@mui/material';
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = () => {
+  console.log('=== ProtectedRoute Component ===');
   const { isAuthenticated, loading, initialized } = useAuth();
   const location = useLocation();
+
+  console.log('ProtectedRoute State:', {
+    isAuthenticated,
+    loading,
+    initialized,
+    pathname: location.pathname
+  });
 
   if (!initialized || loading) {
     return (
@@ -24,13 +32,13 @@ const ProtectedRoute = ({ children }) => {
     return (
       <Navigate
         to="/auth/login"
-        state={{ from: location, showModal: true }}
+        state={{ from: location.pathname + location.search }}
         replace
       />
     );
   }
 
-  return children;
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

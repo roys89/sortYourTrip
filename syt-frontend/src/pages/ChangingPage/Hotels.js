@@ -514,11 +514,19 @@ const HotelsPage = () => {
   };
 
   const handleBackToItinerary = () => {
-    navigate("/itinerary", {
-      state: {
-        itineraryInquiryToken: inquiryToken,
-      },
-    });
+    // Navigate back using URL parameters
+    if (itineraryToken && inquiryToken) {
+      const params = new URLSearchParams({
+        itineraryToken,
+        inquiryToken
+      });
+      navigate(`/itinerary?${params.toString()}`, { 
+        state: { origin: 'hotels' }
+      });
+    } else {
+      console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");
+      navigate('/'); // Fallback navigation
+    }
   };
 
   const handleAddHotel = async (hotel) => {
@@ -657,61 +665,15 @@ const HotelsPage = () => {
   }
 
   if (error) {
-    return (
-      <Container 
-        maxWidth="lg" 
-        sx={{ 
-          mt: 5, 
-          px: { xs: 2, md: 4 },
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '50vh'
-        }}
-      >
-        <Paper
-          elevation={0}
-          component={motion.div}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          sx={{
-            p: 4,
-            borderRadius: '16px',
-            textAlign: 'center',
-            maxWidth: '500px',
-            width: '100%',
-            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
-            backgroundColor: alpha(theme.palette.error.main, 0.05),
-          }}
-        >
-          <Typography variant="h5" sx={{ mb: 2, color: theme.palette.error.main, fontWeight: 600 }}>
-            Error Loading Hotels
-          </Typography>
-          <Typography sx={{ mb: 3 }}>
-            {error}
-          </Typography>
-          <Button 
-            variant="contained" 
-            onClick={handleBackToItinerary}
-            startIcon={<ArrowBackIcon fontSize="small" />}
-            sx={{
-              borderRadius: '10px',
-              padding: '10px 24px',
-              textTransform: 'none',
-              fontWeight: 500,
-              boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.3)}`,
-              '&:hover': {
-                boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
-                transform: 'translateY(-2px)',
-              },
-              transition: 'all 0.2s ease',
-            }}
-          >
-            Return to Itinerary
-          </Button>
-        </Paper>
-      </Container>
-    );
+    const params = new URLSearchParams({
+      itineraryToken,
+      inquiryToken,
+      error: error.message || 'Failed to load hotels'
+    });
+    navigate(`/itinerary?${params.toString()}`, {
+      state: { origin: 'hotels' }
+    });
+    return;
   }
 
   return (

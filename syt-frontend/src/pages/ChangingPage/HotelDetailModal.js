@@ -171,11 +171,7 @@ const HotelDetailModal = ({
           alert('Hotel updated successfully, but transfers could not be updated automatically. Please check and update transfers manually if needed.');
         }
 
-        navigate("/itinerary", {
-          state: {
-            itineraryInquiryToken: inquiryToken,
-          },
-        });
+        handleBackToItinerary();
       } else {
         setBookingStatus({
           loading: false,
@@ -192,6 +188,22 @@ const HotelDetailModal = ({
         error: true,
         message: error.response?.data?.message || "Failed to book hotel. Please try again."
       });
+    }
+  };
+
+  const handleBackToItinerary = () => {
+    // Navigate back using URL parameters
+    if (itineraryToken && inquiryToken) {
+      const params = new URLSearchParams({
+        itineraryToken,
+        inquiryToken
+      });
+      navigate(`/itinerary?${params.toString()}`, { 
+        state: { origin: 'hotelDetail' }
+      });
+    } else {
+      console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");
+      navigate('/'); // Fallback navigation
     }
   };
 

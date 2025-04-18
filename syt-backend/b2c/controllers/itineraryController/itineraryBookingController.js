@@ -479,7 +479,9 @@ class ItineraryBookingController {
       
       const booking = await ItineraryBooking.findOne({
         itineraryToken,
-        'userInfo.userId': req.user._id
+        'userInfo.userId': req.user._id,
+        status: { $in: ['draft', 'pending'] }, // Only get draft or pending bookings
+        paymentStatus: 'pending' // Only get pending payments
       }).select('bookingId paymentStatus rooms specialRequirements razorpay');
   
       if (!booking) {

@@ -3,6 +3,12 @@ const mongoose = require('mongoose');
 
 // Define schema but don't create model yet
 const LeadSchema = new mongoose.Schema({
+  // User reference for website leads
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',  // References the B2C User model
+    required: false
+  },
   firstName: {
     type: String,
     required: true
@@ -23,11 +29,25 @@ const LeadSchema = new mongoose.Schema({
     enum: ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost'],
     default: 'new'
   },
+  leadType: {
+    type: String,
+    enum: ['website', 'updated', 'ad'],
+    default: 'website'
+  },
   source: {
     type: String,
     enum: ['website', 'referral', 'social_media', 'email_campaign', 'other'],
     default: 'website'
   },
+  // References to inquiries and itineraries
+  inquiries: [{
+    inquiryToken: String,
+    createdAt: Date
+  }],
+  itineraries: [{
+    itineraryToken: String,
+    createdAt: Date
+  }],
   notes: {
     type: String
   },
@@ -44,7 +64,10 @@ const LeadSchema = new mongoose.Schema({
   },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'CRMUser'  // Updated to match the new model name
+    ref: 'CRMUser'
+  },
+  assignedAt: {
+    type: Date
   },
   createdAt: {
     type: Date,
@@ -54,6 +77,12 @@ const LeadSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+// Update timestamps on save
+LeadSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
 });
 
 // Export a function that takes a connection and returns a model

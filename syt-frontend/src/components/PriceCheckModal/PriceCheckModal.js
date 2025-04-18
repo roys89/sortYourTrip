@@ -1,55 +1,55 @@
 import {
-  alpha,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Dialog,
-  DialogContent,
-  Divider,
-  Fade,
-  Grow,
-  IconButton,
-  Paper,
-  Stack,
-  Typography,
-  useTheme
+    alpha,
+    Box,
+    Button,
+    Chip,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    Divider,
+    Fade,
+    Grow,
+    IconButton,
+    Paper,
+    Stack,
+    Typography,
+    useTheme
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle,
-  Check,
-  ChevronLeft,
-  Clock,
-  DollarSign,
-  Hotel,
-  Info,
-  Minus,
-  Plane,
-  Plus,
-  RefreshCw,
-  TrendingDown,
-  TrendingUp,
-  X
+    AlertTriangle,
+    Check,
+    ChevronLeft,
+    Clock,
+    DollarSign,
+    Hotel,
+    Info,
+    Minus,
+    Plane,
+    Plus,
+    RefreshCw,
+    TrendingDown,
+    TrendingUp,
+    X
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  searchReplacementFlight,
-  updateItineraryFlight,
+    searchReplacementFlight,
+    updateItineraryFlight,
 } from '../../redux/slices/flightReplacementSlice';
 import {
-  searchReplacementHotel,
-  updateItineraryHotel,
+    searchReplacementHotel,
+    updateItineraryHotel,
 } from '../../redux/slices/hotelReplacementSlice';
 import {
-  recheckFlightPrices,
-  recheckHotelPrices,
-  resetPriceCheck,
-  selectFlightProgress,
-  selectHotelProgress,
-  updatePriceSummary
+    recheckFlightPrices,
+    recheckHotelPrices,
+    resetPriceCheck,
+    selectFlightProgress,
+    selectHotelProgress,
+    updatePriceSummary
 } from '../../redux/slices/priceCheckSlice';
 import { getPriceCheckSummary } from '../../utils/priceCalculations';
 
@@ -1358,11 +1358,12 @@ const PriceCheckModal = ({
             <Button
               variant="contained"
               onClick={() => {
-                navigate("/itinerary", {
-                  state: {
-                    itineraryToken: tokens.itinerary,
-                    itineraryInquiryToken: tokens.inquiry,
-                  },
+                const params = new URLSearchParams({
+                  itineraryToken: tokens.itinerary,
+                  inquiryToken: tokens.inquiry
+                });
+                navigate(`/itinerary?${params.toString()}`, {
+                  state: { origin: 'priceCheck' }
                 });
               }}
               startIcon={<ChevronLeft size={18} />}

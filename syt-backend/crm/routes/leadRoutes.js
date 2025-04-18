@@ -7,7 +7,10 @@ const {
   updateLead,
   deleteLead,
   deleteMultipleLeads,
-  uploadLeads
+  uploadLeads,
+  getWebsiteLeads,
+  getAgentLeads,
+  assignLeadToAgent
 } = require('../controllers/leadController');
 const { protect, checkPermission } = require('../middleware/auth');
 const { check } = require('express-validator');
@@ -33,6 +36,19 @@ const router = express.Router();
 
 router.use(protect);
 
+// Website leads routes
+router.get('/website', checkPermission('canViewLeads'), getWebsiteLeads);
+router.get('/agent-leads', checkPermission('canViewLeads'), getAgentLeads);
+router.post(
+  '/assign/:leadId',
+  [
+    check('agentId', 'Agent ID is required').not().isEmpty(),
+  ],
+  checkPermission('canAddLead'),
+  assignLeadToAgent
+);
+
+// Existing routes
 router
   .route('/')
   .get(checkPermission('canViewLeads'), getLeads)

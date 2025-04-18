@@ -40,7 +40,7 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import ItineraryDay from "../../components/Itinerary/ItineraryDay";
@@ -53,6 +53,7 @@ import { useAuth } from "../../context/AuthContext";
 import { clearAllActivityStates } from "../../redux/slices/activitySlice";
 import {
   createItinerary,
+  fetchItinerary,
   resetItineraryState,
 } from "../../redux/slices/itinerarySlice";
 import { generateItineraryPDF } from "../../utils/pdfGenerator";
@@ -102,7 +103,10 @@ const renderActivityIcon = (activityType, theme, size = 20) => {
 };
 
 const ItineraryPage = () => {
+  console.log('=== ItineraryPage Component Mounting ===');
+
   const theme = useTheme();
+  const { isAuthenticated } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedCity, setExpandedCity] = useState(null);
   const dayRefs = useRef({});
@@ -124,11 +128,26 @@ const ItineraryPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = location;
-  const { isAuthenticated } = useAuth();
+  const { inquiryToken: routeInquiryToken } = useParams();
+  
+  // Extract tokens from URL parameters
+  const searchParams = new URLSearchParams(location.search);
+  const urlItineraryToken = searchParams.get('itineraryToken');
+  const urlInquiryToken = searchParams.get('inquiryToken');
+  
+  // Get inquiry token from URL parameter, state, or route param
+  const inquiryToken = urlInquiryToken || location.state?.inquiryToken || routeInquiryToken;
+  const itineraryToken = urlItineraryToken || location.state?.itineraryToken;
 
-  const itineraryInquiryToken =
-    state?.itineraryInquiryToken || location.state?.itineraryInquiryToken;
+  console.log('Initial Component State:', {
+    routeInquiryToken,
+    locationState: location.state,
+    inquiryToken,
+    itineraryToken,
+    isAuthenticated,
+    pathname: location.pathname,
+    searchParams: location.search
+  });
 
   // Redux selectors
   const {
@@ -136,7 +155,7 @@ const ItineraryPage = () => {
     loading,
     error,
     checkingExisting,
-    itineraryToken,
+    itineraryToken: reduxItineraryToken,
   } = useSelector((state) => state.itinerary);
 
   const { markups, tcsRates } = useSelector((state) => state.markup);
@@ -212,7 +231,7 @@ const ItineraryPage = () => {
         },
         {
           headers: {
-            "X-Inquiry-Token": itineraryInquiryToken,
+            "X-Inquiry-Token": inquiryToken,
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
@@ -228,7 +247,7 @@ const ItineraryPage = () => {
         },
         {
           headers: {
-            "X-Inquiry-Token": itineraryInquiryToken,
+            "X-Inquiry-Token": inquiryToken,
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
@@ -271,7 +290,7 @@ const ItineraryPage = () => {
     try {
       setIsCreatingNewItinerary(true);
       await dispatch(resetItineraryState());
-      await dispatch(createItinerary(itineraryInquiryToken)).unwrap();
+      await dispatch(createItinerary(inquiryToken)).unwrap();
       setIsModificationModalOpen(false);
     } catch (error) {
       console.error("Error modifying itinerary:", error);
@@ -373,7 +392,7 @@ const ItineraryPage = () => {
         state: {
           itinerary,
           itineraryToken,
-          inquiryToken: itineraryInquiryToken,
+          inquiryToken,
         },
       });
     } catch (error) {
@@ -391,15 +410,27 @@ const ItineraryPage = () => {
   };
 
   useEffect(() => {
+    console.log("ItineraryPage Effect Running:", {
+      isAuthenticated,
+      inquiryToken,
+      itineraryToken,
+      pathname: location.pathname,
+      isNewRoute: location.pathname.includes('/itinerary/new/')
+    });
+
     if (!isAuthenticated) {
+      console.log("Not authenticated, redirecting to login");
       navigate("/auth/login", {
-        state: { from: location.pathname },
+        state: { 
+          from: location.pathname + location.search,
+        },
         replace: true,
       });
       return;
     }
 
-    if (!itineraryInquiryToken) {
+    if (!inquiryToken) {
+      console.log("No inquiry token found, redirecting to home");
       navigate("/", { replace: true });
       return;
     }
@@ -408,9 +439,38 @@ const ItineraryPage = () => {
 
     const handleItinerary = async () => {
       try {
-        await dispatch(createItinerary(itineraryInquiryToken)).unwrap();
+        // If we're on the /new route, always create new itinerary
+        if (location.pathname.includes('/itinerary/new/')) {
+          console.log("Creating new itinerary with inquiry token:", inquiryToken);
+          const result = await dispatch(createItinerary(inquiryToken)).unwrap();
+          console.log("Successfully created new itinerary:", result);
+          return;
+        }
+
+        // For other routes, try to get existing itinerary first
+        if (itineraryToken) {
+          console.log("Attempting to fetch existing itinerary:", {
+            itineraryToken,
+            inquiryToken
+          });
+          try {
+            const result = await dispatch(fetchItinerary({ 
+              itineraryToken,
+              inquiryToken 
+            })).unwrap();
+            console.log("Successfully fetched existing itinerary:", result);
+            return;
+          } catch (err) {
+            console.error("Failed to fetch existing itinerary:", err);
+          }
+        }
+
+        // If no existing itinerary or fetch failed, create new
+        console.log("Creating new itinerary (fallback) with inquiry token:", inquiryToken);
+        const result = await dispatch(createItinerary(inquiryToken)).unwrap();
+        console.log("Successfully created new itinerary (fallback):", result);
       } catch (err) {
-        console.error("Error handling itinerary:", err);
+        console.error("Error in handleItinerary:", err);
         navigate("/", { replace: true });
       }
     };
@@ -418,10 +478,12 @@ const ItineraryPage = () => {
     handleItinerary();
   }, [
     dispatch,
-    itineraryInquiryToken,
+    inquiryToken,
+    itineraryToken,
     navigate,
     isAuthenticated,
     location.pathname,
+    location.search,
   ]);
 
   // Setup click outside listener in a separate effect
@@ -908,7 +970,7 @@ const ItineraryPage = () => {
                           <ItineraryDay
                             day={day}
                             city={city}
-                            inquiryToken={itineraryInquiryToken}
+                            inquiryToken={inquiryToken}
                             itineraryToken={itineraryToken}
                             travelersDetails={itinerary.travelersDetails}
                             renderActivityIcon={renderActivityIcon}
@@ -1335,7 +1397,7 @@ const ItineraryPage = () => {
           <ModificationModal
             open={isModificationModalOpen}
             onClose={() => !isModifying && setIsModificationModalOpen(false)}
-            itineraryInquiryToken={itineraryInquiryToken}
+            itineraryInquiryToken={inquiryToken}
             onModify={handleModifyItinerary}
             isModifying={isModifying}
           />

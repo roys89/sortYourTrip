@@ -510,10 +510,14 @@ const ActivitiesPage = () => {
   // --- Back Navigation --- 
   const handleBackToItinerary = () => {
     dispatch(clearAllActivityStates()); // Clear any redux state if needed
-    // Navigate back using itineraryToken and inquiryToken if available
+    // Navigate back using URL parameters
     if (itineraryToken && inquiryToken) {
-        navigate('/itinerary', { 
-            state: { itineraryInquiryToken: inquiryToken, itineraryToken: itineraryToken } 
+        const params = new URLSearchParams({
+            itineraryToken,
+            inquiryToken
+        });
+        navigate(`/itinerary?${params.toString()}`, { 
+            state: { origin: 'activities' }
         });
     } else {
         console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");

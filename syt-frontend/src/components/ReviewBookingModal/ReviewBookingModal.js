@@ -1,51 +1,51 @@
 import {
-  alpha,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogContent,
-  Divider,
-  Fade,
-  Grid,
-  Grow,
-  IconButton,
-  Paper,
-  Stack,
-  Typography,
-  useTheme
+    alpha,
+    Box,
+    Button,
+    CircularProgress,
+    Dialog,
+    DialogContent,
+    Divider,
+    Fade,
+    Grid,
+    Grow,
+    IconButton,
+    Paper,
+    Stack,
+    Typography,
+    useTheme
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle,
-  ArrowRight,
-  Cake,
-  Check,
-  ChevronLeft,
-  Hotel,
-  Mail,
-  MessageSquare,
-  Phone,
-  Plane,
-  RefreshCw,
-  User,
-  UserCheck,
-  X
+    AlertTriangle,
+    ArrowRight,
+    Cake,
+    Check,
+    ChevronLeft,
+    Hotel,
+    Mail,
+    MessageSquare,
+    Phone,
+    Plane,
+    RefreshCw,
+    User,
+    UserCheck,
+    X
 } from "lucide-react";
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
-  searchReplacementFlight,
-  updateItineraryFlight,
+    searchReplacementFlight,
+    updateItineraryFlight,
 } from "../../redux/slices/flightReplacementSlice";
 import {
-  allocateFlightPassengers,
-  allocateHotelRooms,
+    allocateFlightPassengers,
+    allocateHotelRooms,
 } from "../../redux/slices/guestAllocationSlice";
 import {
-  searchReplacementHotel,
-  updateItineraryHotel,
+    searchReplacementHotel,
+    updateItineraryHotel,
 } from "../../redux/slices/hotelReplacementSlice";
 
 // Helper function to get remaining error message
@@ -1175,11 +1175,12 @@ const ReviewBookingModal = ({
                   <Button
                     variant="contained"
                     onClick={() => {
-                      navigate("/itinerary", {
-                        state: {
-                          itineraryToken: tokens.itinerary,
-                          itineraryInquiryToken: tokens.inquiry,
-                        },
+                      const params = new URLSearchParams({
+                        itineraryToken: tokens.itinerary,
+                        inquiryToken: tokens.inquiry
+                      });
+                      navigate(`/itinerary?${params.toString()}`, {
+                        state: { origin: 'reviewBooking' }
                       });
                     }}
                     startIcon={<ChevronLeft size={18} />}

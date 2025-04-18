@@ -14,7 +14,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   Container,
   Divider,
   Grid,
@@ -24,6 +23,7 @@ import {
   Typography,
   useTheme
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import axios from 'axios';
 import { CreditCard, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -120,20 +120,42 @@ const Profile = () => {
   };
 
   const handleViewItinerary = async (itinerary) => {
+    // Helper function to fetch complete itinerary data
+    const fetchCompleteItinerary = async () => {
+      const token = localStorage.getItem('token');
+      // First fetch inquiry data
+      const inquiryResponse = await axios.get(
+        `http://localhost:5000/api/itinerary/inquiry/${itinerary.inquiryToken}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // Then fetch complete itinerary
+      const itineraryResponse = await axios.get(
+        `http://localhost:5000/api/itinerary/${itinerary.itineraryToken}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-inquiry-token': itinerary.inquiryToken
+          }
+        }
+      );
+
+      return {
+        completeItinerary: itineraryResponse.data,
+        params: new URLSearchParams({
+          itineraryToken: itinerary.itineraryToken,
+          inquiryToken: itinerary.inquiryToken
+        })
+      };
+    };
+
     try {
       const token = localStorage.getItem('token');
       let bookingData;
-      
-      // Helper function to navigate to itinerary page (used in multiple places)
-      const navigateToItinerary = () => {
-        navigate('/itinerary', {
-          state: {
-            itineraryInquiryToken: itinerary.inquiryToken,
-            origin: 'profile'
-          },
-          replace: true
-        });
-      };
       
       // Use booking data if we already have it from initial fetch, otherwise fetch it
       if (itinerary.bookingData) {
@@ -150,7 +172,22 @@ const Profile = () => {
       
       // If no booking data exists, proceed to itinerary page
       if (!bookingData) {
-        navigateToItinerary();
+        const { completeItinerary, params } = await fetchCompleteItinerary();
+        console.log('Navigating to itinerary with data:', {
+          params: params.toString(),
+          state: {
+            origin: 'profile',
+            itinerary: completeItinerary
+          }
+        });
+        navigate(`/itinerary?${params.toString()}`, {
+          state: {
+            origin: 'profile',
+            itinerary: completeItinerary,
+            itineraryToken: itinerary.itineraryToken,
+            inquiryToken: itinerary.inquiryToken
+          }
+        });
         return;
       }
 
@@ -158,25 +195,24 @@ const Profile = () => {
       switch (bookingData.paymentStatus) {
         case 'completed':
           // For completed payments, navigate to booking confirmation
+          const { completeItinerary: bookingCompleteItinerary, params: bookingParams } = await fetchCompleteItinerary();
+          
           console.log('Navigating to booking confirmation with data:', {
             bookingId: bookingData.bookingId,
             paymentSuccess: true,
-            itinerary: {
-              itineraryToken: itinerary.itineraryToken,
-              inquiryToken: itinerary.inquiryToken
-            },
-            bookingData
+            itinerary: bookingCompleteItinerary,
+            bookingData,
+            params: bookingParams.toString()
           });
 
-          navigate('/booking-confirmation', {
+          navigate(`/booking-confirmation?${bookingParams.toString()}`, {
             state: {
               bookingId: bookingData.bookingId, 
               paymentSuccess: true,
-              itinerary: {
-                itineraryToken: itinerary.itineraryToken,
-                inquiryToken: itinerary.inquiryToken
-              },
-              bookingData
+              itinerary: bookingCompleteItinerary,
+              bookingData,
+              itineraryToken: itinerary.itineraryToken,
+              inquiryToken: itinerary.inquiryToken
             },
             replace: true
           });
@@ -185,49 +221,75 @@ const Profile = () => {
         case 'pending':
           // For pending payments, fetch complete itinerary and navigate to payment
           try {
-            // Fetch complete itinerary details
-            const itineraryResponse = await axios.get(
-              `http://localhost:5000/api/itinerary/${itinerary.itineraryToken}`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'x-inquiry-token': itinerary.inquiryToken
-                }
-              }
-            );
-
-            const completeItinerary = itineraryResponse.data;
+            const { completeItinerary: paymentCompleteItinerary, params: paymentParams } = await fetchCompleteItinerary();
             
             console.log('Navigating to payment with data:', {
               bookingId: bookingData.bookingId,
               bookingData,
-              itinerary: completeItinerary,
+              itinerary: paymentCompleteItinerary,
+              params: paymentParams.toString()
             });
 
-            navigate('/payment', {
+            navigate(`/payment?${paymentParams.toString()}`, {
               state: {
                 bookingId: bookingData.bookingId,
                 bookingData,
-                itinerary: completeItinerary,
+                itinerary: paymentCompleteItinerary,
+                itineraryToken: itinerary.itineraryToken,
+                inquiryToken: itinerary.inquiryToken
               },
               replace: true
             });
           } catch (error) {
-            // If error fetching complete itinerary, show error and fall back to itinerary page
             console.error('Error fetching complete itinerary:', error);
             setSnackbar({
               open: true,
               message: 'Error fetching itinerary details',
               severity: 'error'
             });
-            navigateToItinerary();
+            // Fall back to itinerary page with same flow
+            const { completeItinerary: fallbackCompleteItinerary, params: fallbackParams } = await fetchCompleteItinerary();
+            
+            console.log('Falling back to itinerary with data:', {
+              params: fallbackParams.toString(),
+              state: {
+                origin: 'profile',
+                itinerary: fallbackCompleteItinerary
+              }
+            });
+            
+            navigate(`/itinerary?${fallbackParams.toString()}`, {
+              state: {
+                origin: 'profile',
+                itinerary: fallbackCompleteItinerary,
+                itineraryToken: itinerary.itineraryToken,
+                inquiryToken: itinerary.inquiryToken
+              }
+            });
           }
           break;
             
         case 'failed':
         default:
           // For failed payments or default case, go to itinerary page
-          navigateToItinerary();
+          const { completeItinerary: defaultCompleteItinerary, params: defaultParams } = await fetchCompleteItinerary();
+          
+          console.log('Navigating to itinerary (default case) with data:', {
+            params: defaultParams.toString(),
+            state: {
+              origin: 'profile',
+              itinerary: defaultCompleteItinerary
+            }
+          });
+          
+          navigate(`/itinerary?${defaultParams.toString()}`, {
+            state: {
+              origin: 'profile',
+              itinerary: defaultCompleteItinerary,
+              itineraryToken: itinerary.itineraryToken,
+              inquiryToken: itinerary.inquiryToken
+            }
+          });
           break;
       }
     } catch (error) {
@@ -238,14 +300,41 @@ const Profile = () => {
         message: 'Error checking booking status. Redirecting to itinerary page.',
         severity: 'error'
       });
-      // In case of error, default to itinerary page
-      navigate('/itinerary', {
-        state: {
-          itineraryInquiryToken: itinerary.inquiryToken,
-          origin: 'profile'
-        },
-        replace: true
-      });
+      // In case of error, try to fetch data and navigate
+      try {
+        const { completeItinerary: errorCompleteItinerary, params: errorParams } = await fetchCompleteItinerary();
+        
+        console.log('Navigating to itinerary (error case) with data:', {
+          params: errorParams.toString(),
+          state: {
+            origin: 'profile',
+            itinerary: errorCompleteItinerary
+          }
+        });
+        
+        navigate(`/itinerary?${errorParams.toString()}`, {
+          state: {
+            origin: 'profile',
+            itinerary: errorCompleteItinerary,
+            itineraryToken: itinerary.itineraryToken,
+            inquiryToken: itinerary.inquiryToken
+          }
+        });
+      } catch (fetchError) {
+        console.error('Error fetching itinerary data:', fetchError);
+        // If we can't fetch data, just navigate with tokens
+        const params = new URLSearchParams({
+          itineraryToken: itinerary.itineraryToken,
+          inquiryToken: itinerary.inquiryToken
+        });
+        navigate(`/itinerary?${params.toString()}`, {
+          state: {
+            origin: 'profile',
+            itineraryToken: itinerary.itineraryToken,
+            inquiryToken: itinerary.inquiryToken
+          }
+        });
+      }
     }
   };
 
@@ -422,7 +511,7 @@ const Profile = () => {
   const ItineraryCard = ({ itinerary }) => {
     // Get payment status and booking ID if available
     const bookingData = itinerary.bookingData;
-    const paymentStatus = bookingData?.paymentStatus;
+    const paymentStatus = bookingData?.paymentStatus || 'new'; // Default to 'new' if no booking
     const bookingId = bookingData?.bookingId;
     
     // Determine button text and icon based on payment status
@@ -443,7 +532,8 @@ const Profile = () => {
         buttonIcon = <RefreshCw size={18} />;
         break;
       default:
-        // Default already set
+        buttonText = "View Itinerary";
+        buttonIcon = <ViewIcon sx={{ fontSize: 18 }} />;
         break;
     }
     
@@ -464,10 +554,17 @@ const Profile = () => {
         chipColor = "error";
         chipText = "FAILED";
         break;
+      case 'new':
       default:
-        // No chip for default case
+        chipColor = "default";
+        chipText = "NEW";
         break;
     }
+
+    // Get theme-safe color
+    const getThemeColor = (color) => {
+      return theme.palette[color]?.main || theme.palette.grey[500];
+    };
     
     return (
       <Card 
@@ -475,49 +572,95 @@ const Profile = () => {
           mb: 2,
           borderRadius: 2,
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-          transition: 'transform 0.3s ease-in-out',
+          transition: 'all 0.3s ease-in-out',
           '&:hover': {
             transform: 'translateY(-5px)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
           },
-          position: 'relative'
+          position: 'relative',
+          overflow: 'hidden'
         }}
       >
-        {chipText && (
-          <Box 
-            sx={{ 
-              position: 'absolute', 
-              top: '50%', 
-              left: '50%', 
-              transform: 'translate(-50%, -50%)',
-              zIndex: 2,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            <Chip 
-              label={chipText} 
-              color={chipColor} 
-              sx={{ 
-                fontWeight: 'bold', 
-                fontSize: '0.9rem',
-                padding: '20px 16px',
-                height: 'auto',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
-                border: '2px solid',
-                borderColor: theme => theme.palette[chipColor].main
-              }} 
-            />
-          </Box>
-        )}
-        <CardContent sx={{ pb: 1, pt: 2, position: 'relative', zIndex: 1 }}>
+        <CardContent 
+          sx={{ 
+            pb: 1, 
+            pt: 2, 
+            position: 'relative', 
+            zIndex: 1
+          }}
+        >
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={2}>
               <Box display="flex" alignItems="center" gap={1} flex={1}>
-                <LocationIcon sx={{ fontSize: 20 }} />
-                <Typography variant="h6" component="div" sx={{ flex: 1 }}>
-                  {itinerary.cities.map(city => city.city).join(' → ')}
-                </Typography>
+                <LocationIcon sx={{ 
+                  fontSize: 20,
+                  color: theme => theme.palette.primary.main 
+                }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                  <Typography 
+                    variant="h6" 
+                    component="div" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: theme => theme.palette.text.primary
+                    }}
+                  >
+                    {itinerary.cities.map(city => city.city).join(' → ')}
+                  </Typography>
+                  {/* Status Badge - Inline */}
+                  {chipText && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        bgcolor: theme => alpha(getThemeColor(chipColor), 0.1),
+                        border: '1px solid',
+                        borderColor: theme => alpha(getThemeColor(chipColor), 0.2),
+                        borderRadius: '20px',
+                        px: 1.5,
+                        py: 0.5,
+                        height: 24,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          bgcolor: theme => getThemeColor(chipColor),
+                          animation: 'pulse 2s infinite',
+                          '@keyframes pulse': {
+                            '0%': {
+                              transform: 'scale(0.95)',
+                              boxShadow: theme => `0 0 0 0 ${alpha(getThemeColor(chipColor), 0.7)}`,
+                            },
+                            '70%': {
+                              transform: 'scale(1)',
+                              boxShadow: theme => `0 0 0 4px ${alpha(getThemeColor(chipColor), 0)}`,
+                            },
+                            '100%': {
+                              transform: 'scale(0.95)',
+                              boxShadow: theme => `0 0 0 0 ${alpha(getThemeColor(chipColor), 0)}`,
+                            },
+                          },
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme => getThemeColor(chipColor),
+                          letterSpacing: '0.5px',
+                          fontSize: '0.75rem',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {chipText}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
               </Box>
               <Box display="flex" gap={1}>
                 <Button
@@ -525,10 +668,17 @@ const Profile = () => {
                   startIcon={buttonIcon}
                   onClick={() => handleViewItinerary(itinerary)}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: '30px',
                     textTransform: 'none',
-                    height: '100%',
-                    bgcolor: theme.palette.primary.main,
+                    height: '36px',
+                    px: 2,
+                    bgcolor: theme => theme.palette.primary.main,
+                    '&:hover': {
+                      bgcolor: theme => theme.palette.primary.dark,
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    },
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   {buttonText}
@@ -540,15 +690,17 @@ const Profile = () => {
                   onClick={() => handleDelete(itinerary.inquiryToken)}
                   disabled={deleteLoading[itinerary.inquiryToken]}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: '30px',
                     textTransform: 'none',
-                    height: '100%',
-                    borderColor: theme.palette.error.main,
-                    color: theme.palette.error.main,
+                    height: '36px',
+                    borderColor: theme => theme.palette.error.main,
+                    color: theme => theme.palette.error.main,
                     '&:hover': {
-                      backgroundColor: theme.palette.error.main,
-                      color: 'white',
+                      backgroundColor: theme => alpha(theme.palette.error.main, 0.1),
+                      borderColor: theme => theme.palette.error.dark,
+                      transform: 'translateY(-2px)',
                     },
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   Delete
@@ -558,28 +710,43 @@ const Profile = () => {
             
             <Grid item xs={12} display="flex" alignItems="center" justifyContent="space-between" gap={1}>
               <Box display="flex" alignItems="center" gap={1}>
-                <CalendarIcon sx={{ fontSize: 20 }} />
-                <Typography color="textSecondary">
+                <CalendarIcon sx={{ 
+                  fontSize: 20,
+                  color: theme => theme.palette.primary.main 
+                }} />
+                <Typography 
+                  color="textSecondary"
+                  sx={{ fontSize: '0.875rem' }}
+                >
                   {new Date(itinerary.cities[0].startDate).toLocaleDateString()} - {' '}
                   {new Date(itinerary.cities[itinerary.cities.length - 1].endDate).toLocaleDateString()}
                 </Typography>
               </Box>
-              <Box>
-                {/* Show booking ID for all cases where it exists */}
+              <Box sx={{ textAlign: 'right' }}>
                 {bookingId && (
-                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block',
+                      color: theme => alpha(theme.palette.text.primary, 0.7),
+                      fontWeight: 500
+                    }}
+                  >
                     Booking ID: {bookingId}
                   </Typography>
                 )}
-                
-                {/* Show payment ID if it exists (checking multiple possible paths) */}
                 {(bookingData?.razorpay?.paymentId) && (
-                  
-                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block',
+                      color: theme => alpha(theme.palette.text.primary, 0.7),
+                      fontWeight: 500
+                    }}
+                  >
                     Payment ID: {bookingData?.razorpay?.id || bookingData?.razorpay?.paymentId || bookingData?.payment?.id}
                   </Typography>
                 )}
-                
               </Box>
             </Grid>
           </Grid>
@@ -589,7 +756,11 @@ const Profile = () => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ mt: '2rem', py: 4, px: { xs: 1, sm: 2, md: 4 } }}>
+    <Container maxWidth="xl" sx={{ 
+      mt: { xs: '64px', sm: '72px' },
+      py: 4, 
+      px: { xs: 1, sm: 2, md: 4 } 
+    }}>
       <Grid container spacing={3}>
         <Grid item xs={12} md={4} lg={4}>
           <ProfileSection />

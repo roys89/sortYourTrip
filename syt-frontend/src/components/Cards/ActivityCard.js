@@ -152,21 +152,7 @@ const ActivityCard = ({
       isNewActivity: false, // Indicate this is for changing
       oldActivityCode: activity.activityCode, // Pass the code of the activity being replaced
       existingPrice: activity.packageDetails?.amount || 0, // Pass existing price
-      returnTo: '/itinerary' // Define where to return after change
     };
-
-    // Dispatch might still be useful for global state, but ensure navigation state is primary
-    // dispatch(setChangeActivity({
-    //   ...activity,
-    //   city,
-    //   country,
-    //   date,
-    //   inquiryToken,
-    //   itineraryToken,
-    //   travelersDetails,
-    //   oldActivityCode: activity.activityCode,
-    //   existingPrice: activity.packageDetails?.amount || 0
-    // }));
 
     console.log("Navigating to /activities for CHANGE with state:", navigationState);
     navigate('/activities', { state: navigationState });

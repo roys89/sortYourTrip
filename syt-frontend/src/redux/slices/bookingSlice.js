@@ -109,8 +109,38 @@ export const getItemVoucher = createAsyncThunk(
   }
 );
 
+// Update fetchExistingBooking thunk
+export const fetchExistingBooking = createAsyncThunk(
+  'booking/fetchExisting',
+  async ({ itineraryToken }, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/api/booking/itinerary/by-itinerary/${itineraryToken}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      if (response.data.success && response.data.data) {
+        console.log('Found existing booking:', response.data.data);
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      // If 404 (no booking found), return null instead of rejecting
+      if (error.response?.status === 404) {
+        return null;
+      }
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch existing booking');
+    }
+  }
+);
+
 const initialState = {
   currentBooking: null,
+  existingBooking: null, // Add new state for existing booking
   loading: false,
   error: null,
   success: false,
@@ -130,6 +160,9 @@ const bookingSlice = createSlice({
     resetBookingState: () => initialState,
     setCurrentBooking: (state, action) => {
       state.currentBooking = action.payload;
+    },
+    clearExistingBooking: (state) => {
+      state.existingBooking = null;
     }
   },
   extraReducers: (builder) => {
@@ -194,6 +227,22 @@ const bookingSlice = createSlice({
       .addCase(getItemVoucher.rejected, (state, action) => {
         const { type, itemId } = action.payload;
         state.voucherStatuses[`${type}-${itemId}`] = 'failed';
+      })
+
+      // Add cases for fetchExistingBooking
+      .addCase(fetchExistingBooking.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchExistingBooking.fulfilled, (state, action) => {
+        state.loading = false;
+        state.existingBooking = action.payload.data;
+        state.error = null;
+      })
+      .addCase(fetchExistingBooking.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+        state.existingBooking = null;
       });
   }
 });
@@ -202,7 +251,8 @@ export const {
   clearBookingError,
   clearBookingSuccess,
   resetBookingState,
-  setCurrentBooking
+  setCurrentBooking,
+  clearExistingBooking
 } = bookingSlice.actions;
 
 export default bookingSlice.reducer;

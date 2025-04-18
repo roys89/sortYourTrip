@@ -26,14 +26,14 @@ import {
 } from "@mui/material";
 
 import axios from "axios";
-import { Check, ChevronLeft, Info, Send, UserCheck } from "lucide-react";
+import { ArrowLeft, Check, Info, Send, UserCheck } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import Summary from "../../components/BookingSummary/BookingSummary";
 import PriceCheckModal from "../../components/PriceCheckModal/PriceCheckModal";
 import ReviewBookingModal from "../../components/ReviewBookingModal/ReviewBookingModal";
-import { createBooking } from "../../redux/slices/bookingSlice";
+import { clearExistingBooking, createBooking, fetchExistingBooking } from "../../redux/slices/bookingSlice";
 import { resetPriceCheck } from "../../redux/slices/priceCheckSlice";
 
 const calculateAge = (birthDate) => {
@@ -148,6 +148,9 @@ const BookingForm = () => {
       location.state?.inquiryToken ||
       new URLSearchParams(location.search).get("inquiry"),
   };
+
+  // Add selector for existing booking and loading states
+  const { existingBooking, loading: bookingLoading } = useSelector((state) => state.booking);
 
   // Styles
   const styles = {
@@ -566,11 +569,9 @@ const BookingForm = () => {
     getCountries();
   }, []);
 
-  // Combined effect for auth check and data fetching
+  // Modify the useEffect for initial data fetching
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
 
     if (!isAuthenticated) {
       navigate("/login", {
@@ -590,53 +591,66 @@ const BookingForm = () => {
       return;
     }
 
-    const getItineraryData = async () => {
+    const initializeForm = async () => {
       try {
         setLoading(true);
-        const data = await fetchItinerary();
-        setItinerary(data);
-
-        if (data.travelersDetails) {
-          const roomsWithTravelers = data.travelersDetails.rooms.map(
-            (room, roomIndex) => {
-              const roomTravelers = {
-                roomNumber: roomIndex + 1,
-                travelers: [],
-              };
-
-              room.adults?.forEach((age) => {
-                roomTravelers.travelers.push({
+        
+        // 1. Always fetch itinerary data first as we need it for the summary
+        console.log('Fetching itinerary data...');
+        const itineraryData = await fetchItinerary();
+        setItinerary(itineraryData);
+        
+        // 2. Then fetch existing booking if any
+        const bookingResult = await dispatch(fetchExistingBooking({ 
+          itineraryToken: tokens.itinerary 
+        })).unwrap();
+        
+        // 3. Set form data based on what we found
+        if (bookingResult) {
+          console.log('Using existing booking data:', bookingResult);
+          setFormData({
+            rooms: bookingResult.rooms,
+            specialRequirements: bookingResult.specialRequirements || ""
+          });
+        } else if (itineraryData.travelersDetails) {
+          console.log('Creating new form data from itinerary:', itineraryData.travelersDetails);
+          const roomsWithTravelers = itineraryData.travelersDetails.rooms.map(
+            (room, roomIndex) => ({
+              roomNumber: roomIndex + 1,
+              travelers: [
+                ...room.adults?.map(age => ({
                   ...initialTravelerState,
                   age: age.toString(),
-                  type: "adult",
-                });
-              });
-
-              room.children?.forEach((age) => {
-                roomTravelers.travelers.push({
+                  type: "adult"
+                })) || [],
+                ...room.children?.map(age => ({
                   ...initialTravelerState,
                   age: age.toString(),
-                  type: "child",
-                });
-              });
-
-              return roomTravelers;
-            }
+                  type: "child"
+                })) || []
+              ]
+            })
           );
 
           setFormData({
             rooms: roomsWithTravelers,
-            specialRequirements: "",
+            specialRequirements: ""
           });
         }
+
       } catch (err) {
-        setError(err.message);
+        console.error('Error initializing form:', err);
+        setError(err.message || 'Failed to initialize booking form');
       } finally {
         setLoading(false);
       }
     };
 
-    getItineraryData();
+    initializeForm();
+
+    return () => {
+      dispatch(clearExistingBooking());
+    };
   }, [
     authLoading,
     isAuthenticated,
@@ -647,10 +661,23 @@ const BookingForm = () => {
     location.pathname,
     location.search,
     initialTravelerState,
+    dispatch
   ]);
+
+  // Separate effect to handle pre-population when existingBooking changes
+  useEffect(() => {
+    if (existingBooking?.data && existingBooking.data.rooms) {
+      console.log('Pre-populating form with existing booking data:', existingBooking.data);
+      setFormData(prevData => ({
+        ...prevData,
+        rooms: existingBooking.data.rooms,
+        specialRequirements: existingBooking.data.specialRequirements || "",
+      }));
+    }
+  }, [existingBooking]);
   
-  // Loading state
-  if (authLoading || loading) {
+  // Update loading state to include booking loading
+  if (authLoading || loading || bookingLoading) {
     return (
       <Box
         display="flex"
@@ -662,7 +689,9 @@ const BookingForm = () => {
       >
         <CircularProgress size={40} />
         <Typography variant="body1" color="textSecondary" sx={{ mt: 2 }}>
-          {authLoading ? "Verifying authentication..." : "Loading booking form..."}
+          {authLoading ? "Verifying authentication..." : 
+           bookingLoading ? "Loading existing booking data..." :
+           "Loading booking form..."}
         </Typography>
       </Box>
     );
@@ -1411,6 +1440,22 @@ const BookingForm = () => {
     );
   };
 
+  const handleBackToItinerary = () => {
+    // Navigate back using URL parameters
+    if (tokens.itinerary && tokens.inquiry) {
+      const params = new URLSearchParams({
+        itineraryToken: tokens.itinerary,
+        inquiryToken: tokens.inquiry
+      });
+      navigate(`/itinerary?${params.toString()}`, { 
+        state: { origin: 'bookingForm' }
+      });
+    } else {
+      console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");
+      navigate('/'); // Fallback navigation
+    }
+  };
+
   return (
     <React.Fragment>
       <Box sx={styles.formContainer}>
@@ -1475,9 +1520,9 @@ const BookingForm = () => {
                     >
                       <Button
                         variant="outlined"
-                        onClick={() => navigate(-1)}
+                        onClick={handleBackToItinerary}
+                        startIcon={<ArrowLeft size={18} />}
                         disabled={loading}
-                        startIcon={<ChevronLeft size={18} />}
                         sx={styles.backButton}
                       >
                         Back to Itinerary

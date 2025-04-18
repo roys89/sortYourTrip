@@ -1,19 +1,19 @@
 import {
-  ArrowBack,
-  ArrowForward,
-  AttachMoney,
-  DirectionsWalk,
-  Favorite,
-  FlightTakeoff,
-  Group
+    ArrowBack,
+    ArrowForward,
+    AttachMoney,
+    DirectionsWalk,
+    Favorite,
+    FlightTakeoff,
+    Group
 } from "@mui/icons-material";
 import {
-  Box,
-  Button,
-  Grid,
-  Modal,
-  Typography,
-  useTheme
+    Box,
+    Button,
+    Grid,
+    Modal,
+    Typography,
+    useTheme
 } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterLuxon } from "@mui/x-date-pickers/AdapterLuxon";
@@ -188,7 +188,7 @@ const ItineraryInquiryPage = () => {
         "http://localhost:5000/api/itineraryInquiry",
         {
           ...itineraryData,
-          includeGroundTransfer: true, // Ensure it's always true when submitting
+          includeGroundTransfer: true,
           userId: user?._id
         },
         {
@@ -197,7 +197,7 @@ const ItineraryInquiryPage = () => {
       );
 
       const { itineraryInquiryToken } = response.data;
-      navigate("/itinerary", { state: { itineraryInquiryToken } });
+      navigate(`/itinerary/new/${itineraryInquiryToken}`);
     } catch (error) {
       console.error("Error saving itinerary inquiry:", error);
       if (error.response?.status === 401) {

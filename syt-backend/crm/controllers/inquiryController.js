@@ -79,13 +79,8 @@ exports.getCrmInquiries = async (req, res, next) => { // Added next
     // 1. Build Query for ItineraryInquiry based on role
     let inquiryQuery = {};
     if (user.role !== 'admin') {
-      inquiryQuery = {
-        $or: [
-          { agents: { $exists: false } },
-          { agents: { $size: 0 } },
-          { 'agents.agentId': user.id }
-        ]
-      };
+      // Only return inquiries assigned to this agent
+      inquiryQuery = { 'agents.agentId': user.id };
     }
 
     // 2. Fetch Inquiries

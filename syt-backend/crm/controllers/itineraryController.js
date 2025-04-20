@@ -42,14 +42,27 @@ const getB2CDatabaseConnection = async () => {
 const getAllItineraries = async (req, res, next) => {
     // console.log(`CRM: Attempting to fetch all itineraries by user ${req.user?.id} (${req.user?.role})`);
     try {
+        // Check if user is authenticated
+        const user = req.user;
+        if (!user || !user.id || !user.role) {
+            return res.status(401).json({ success: false, message: 'Authentication required or user role missing.' });
+        }
+
         // Get B2C DB Connection using the internal function
         const connection = await getB2CDatabaseConnection();
 
         // Get the Itinerary model scoped to this connection
         const ItineraryModel = connection.model('Itinerary', Itinerary.schema);
 
-        // Find all documents in the Itinerary collection
-        const itineraries = await ItineraryModel.find({})
+        // Set query based on user role
+        let query = {};
+        if (user.role !== 'admin') {
+            // Only return itineraries assigned to this agent
+            query = { 'agents.agentId': user.id };
+        }
+
+        // Find all documents in the Itinerary collection with the query filter
+        const itineraries = await ItineraryModel.find(query)
         .select( // Select necessary fields, MINIMIZING data from cities array
             'itineraryToken ' +
             'inquiryToken ' +

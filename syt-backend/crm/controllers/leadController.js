@@ -313,3 +313,89 @@ exports.uploadLeads = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+// @desc    Get all website leads
+// @route   GET /api/crm/leads/website
+// @access  Private
+exports.getWebsiteLeads = async (req, res) => {
+  try {
+    const { Lead } = getModels();
+    
+    const leads = await Lead.find({ source: 'website' })
+      .sort('-createdAt')
+      .populate({
+        path: 'assignedTo',
+        select: 'name email'
+      });
+    
+    res.status(200).json({
+      success: true,
+      count: leads.length,
+      data: leads
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Get all leads assigned to the current agent
+// @route   GET /api/crm/leads/agent-leads
+// @access  Private
+exports.getAgentLeads = async (req, res) => {
+  try {
+    const { Lead } = getModels();
+    
+    const leads = await Lead.find({ assignedTo: req.user.id })
+      .sort('-createdAt');
+    
+    res.status(200).json({
+      success: true,
+      count: leads.length,
+      data: leads
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
+// @desc    Assign a lead to an agent
+// @route   POST /api/crm/leads/assign/:leadId
+// @access  Private
+exports.assignLeadToAgent = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+  
+  try {
+    const { Lead, User } = getModels();
+    
+    // Check if agent exists
+    const agent = await User.findById(req.body.agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, message: 'Agent not found' });
+    }
+    
+    // Check if lead exists
+    const lead = await Lead.findById(req.params.leadId);
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Lead not found' });
+    }
+    
+    // Update lead with new agent
+    lead.assignedTo = req.body.agentId;
+    lead.updatedAt = Date.now();
+    
+    await lead.save();
+    
+    res.status(200).json({
+      success: true,
+      data: lead
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

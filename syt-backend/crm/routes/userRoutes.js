@@ -6,11 +6,12 @@ const {
   createUser,
   updateUser,
   deleteUser,
+  getAgents
 } = require('../controllers/userController');
 
 // Import B2C search and registration functions from the B2C controller
 const { searchB2CUsers, registerB2CCustomer } = require('../controllers/b2cUserController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, checkPermission } = require('../middleware/auth');
 const { check } = require('express-validator');
 
 const router = express.Router();
@@ -21,6 +22,9 @@ router.use(protect);
 // --- Routes handled by b2cUserController ---
 router.get('/search-b2c', searchB2CUsers);
 router.post('/register-customer', registerB2CCustomer); // Uses function from b2cUserController
+
+// --- Route for getting agents (accessible by users who can assign leads) ---
+router.get('/agents', authorize('admin', 'manager'), getAgents);
 
 // --- Admin-Only Routes for CRM Users (handled by userController) ---
 router.use(authorize('admin'));

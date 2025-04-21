@@ -153,3 +153,28 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
+
+// @desc    Get all agent users (for assignment dropdowns etc.)
+// @route   GET /api/crm/users/agents
+// @access  Private (Requires specific permission like 'canAddLead')
+exports.getAgents = async (req, res) => {
+  try {
+    const { User } = getModels();
+
+    // Find users with the role 'user' (or designated agent role)
+    const agents = await User.find({ role: 'user' })
+      .select('name email _id') // Select only necessary fields
+      .sort('name')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: agents.length,
+      agents: agents // Keep the key as 'agents' for consistency with frontend
+    });
+
+  } catch (error) {
+    console.error('Error fetching agents:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};

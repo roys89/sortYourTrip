@@ -9,7 +9,6 @@ const {
   deleteMultipleLeads,
   uploadLeads,
   getWebsiteLeads,
-  getAgentLeads,
   assignLeadToAgent
 } = require('../controllers/leadController');
 const { protect, checkPermission } = require('../middleware/auth');
@@ -38,15 +37,6 @@ router.use(protect);
 
 // Website leads routes
 router.get('/website', checkPermission('canViewLeads'), getWebsiteLeads);
-router.get('/agent-leads', checkPermission('canViewLeads'), getAgentLeads);
-router.post(
-  '/assign/:leadId',
-  [
-    check('agentId', 'Agent ID is required').not().isEmpty(),
-  ],
-  checkPermission('canAddLead'),
-  assignLeadToAgent
-);
 
 // Existing routes
 router
@@ -67,5 +57,14 @@ router
   .get(checkPermission('canViewLeads'), getLead)
   .put(checkPermission('canAddLead'), updateLead)
   .delete(checkPermission('canRemoveLead'), deleteLead);
+
+router.post(
+  '/assign/:leadId',
+  [
+    check('agentId', 'Agent ID is required').not().isEmpty(),
+  ],
+  checkPermission('canAddLead'),
+  assignLeadToAgent
+);
 
 module.exports = router;

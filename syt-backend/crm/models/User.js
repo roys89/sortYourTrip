@@ -17,9 +17,15 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  employeeId: {
+    type: String,
+    trim: true,
+    unique: true,
+    sparse: true
+  },
   role: {
     type: String,
-    enum: ['admin', 'user'],
+    enum: ['admin', 'manager', 'user'],
     default: 'user'
   },
   permissions: {

@@ -657,7 +657,7 @@ exports.createItinerary = async (req, res) => {
     if (inquiry.agents && inquiry.agents.length > 0) {
       itineraryData.agents = inquiry.agents.map(agent => ({
         agentId: agent.agentId,
-        agentCode: agent.agentCode,
+        employeeId: agent.employeeId,
         agentName: agent.agentName,
         agentEmail: agent.agentEmail
       }));

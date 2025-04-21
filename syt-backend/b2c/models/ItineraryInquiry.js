@@ -54,7 +54,7 @@ const itineraryInquirySchema = new mongoose.Schema({
   },
   agents: [{
     agentId: { type: mongoose.Schema.Types.ObjectId },
-    agentCode: { type: String },
+    employeeId: { type: String },
     agentName: { type: String },
     agentEmail: { type: String }
   }],

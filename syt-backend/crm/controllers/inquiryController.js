@@ -233,3 +233,182 @@ exports.assignUserToInquiry = async (req, res, next) => { // Added next
         next(error);
     }
 }; 
+
+// *** NEW: Get Inquiry Details (CRM Controller) ***
+exports.getInquiryDetails = async (req, res, next) => {
+  const { inquiryToken } = req.params;
+
+  if (!inquiryToken) {
+    const err = new Error('Inquiry token is required.');
+    err.statusCode = 400;
+    return next(err);
+  }
+
+  try {
+    // Get B2C Connection for reading
+    const connection = await getB2CDatabaseConnection();
+    const B2CItineraryInquiryModel = connection.model('ItineraryInquiry', ItineraryInquiry.schema);
+
+    const inquiry = await B2CItineraryInquiryModel.findOne({ itineraryInquiryToken: inquiryToken }).lean();
+
+    if (!inquiry) {
+      const err = new Error('Inquiry not found in B2C database.');
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    // Optional: Permission check (if needed based on CRM logic)
+    // if (req.user.role !== 'admin' && !inquiry.agents?.some(agent => agent.agentId?.toString() === req.user.id)) { ... }
+
+    res.status(200).json({ success: true, data: inquiry });
+
+  } catch (error) {
+    console.error(`CRM Controller: Error fetching inquiry details for token ${inquiryToken}:`, error);
+    if (!error.statusCode) error.statusCode = 500;
+    next(error);
+  }
+};
+
+// *** NEW: Update Inquiry Details (CRM Controller) ***
+exports.updateInquiryDetails = async (req, res, next) => {
+  const { inquiryToken } = req.params;
+  const updateData = req.body;
+
+  if (!inquiryToken) {
+    const err = new Error('Inquiry token is required.');
+    err.statusCode = 400;
+    return next(err);
+  }
+
+  if (!updateData || Object.keys(updateData).length === 0) {
+      const err = new Error('Update data is required.');
+      err.statusCode = 400;
+      return next(err);
+  }
+
+  // --- Define allowed fields to update ---
+  // Exclude sensitive/immutable fields or fields managed by other endpoints
+  const allowedUpdates = [
+      'departureDates',
+      'travelersDetails',
+      'tripType',
+      'preferences',
+      'selectedDestinations',
+      'selectedInterests',
+      'selectedActivities',
+      'selectedAccommodationStyle',
+      'budget',
+      'additionalNotes',
+      'originDetails',
+      'selectedCities', // Careful with this one, ensure structure is maintained
+      'status' // Assuming a 'status' field might exist or be added later for CRM tracking
+      // Add any other fields that should be updatable via this generic update endpoint
+  ];
+
+  // Filter out disallowed fields from updateData
+  const filteredUpdateData = {};
+  for (const key of allowedUpdates) {
+      if (updateData.hasOwnProperty(key)) {
+          filteredUpdateData[key] = updateData[key];
+      }
+  }
+
+  if (Object.keys(filteredUpdateData).length === 0) {
+      const err = new Error('No valid fields provided for update.');
+      err.statusCode = 400;
+      return next(err);
+  }
+  // ----------------------------------------
+
+  try {
+    // Get B2C Connection for updating
+    const connection = await getB2CDatabaseConnection();
+    const B2CItineraryInquiryModel = connection.model('ItineraryInquiry', ItineraryInquiry.schema);
+
+    // Find the inquiry first to ensure it exists
+    const inquiry = await B2CItineraryInquiryModel.findOne({ itineraryInquiryToken: inquiryToken });
+
+    if (!inquiry) {
+      const err = new Error('Inquiry not found in B2C database.');
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    // Apply the filtered updates
+    Object.assign(inquiry, filteredUpdateData);
+
+    // Save the updated inquiry
+    const updatedInquiry = await inquiry.save();
+
+    console.log(`CRM Controller: Inquiry ${inquiryToken} updated successfully by CRM user ${req.user?.id || 'Unknown'}`);
+    res.status(200).json({ success: true, message: 'Inquiry updated successfully.', data: updatedInquiry });
+
+  } catch (error) {
+    console.error(`CRM Controller: Error updating inquiry details for token ${inquiryToken}:`, error);
+    if (error.name === 'ValidationError') {
+        error.statusCode = 400; // Bad request due to validation error
+    } else if (!error.statusCode) {
+        error.statusCode = 500; // Internal server error
+    }
+    next(error);
+  }
+};
+
+// *** NEW: Delete Inquiry (CRM Controller) ***
+exports.deleteInquiry = async (req, res, next) => {
+  const { inquiryToken } = req.params;
+  const user = req.user; // CRM user performing the action
+
+  // Authorization: Only admin/manager can delete for now (CRM roles)
+  if (!['admin', 'manager'].includes(user.role)) {
+    const err = new Error('Not authorized to delete inquiries.');
+    err.statusCode = 403; // Forbidden
+    return next(err);
+  }
+
+  if (!inquiryToken) {
+    const err = new Error('Inquiry token is required for deletion.');
+    err.statusCode = 400;
+    return next(err);
+  }
+
+  try {
+    // Get B2C Connection for deleting
+    const connection = await getB2CDatabaseConnection();
+    const B2CItineraryInquiryModel = connection.model('ItineraryInquiry', ItineraryInquiry.schema);
+    const B2CItineraryModel = connection.model('Itinerary', Itinerary.schema); 
+
+    // Check if a corresponding B2C Itinerary exists
+    const existingItinerary = await B2CItineraryModel.findOne({ inquiryToken }).select('_id').lean();
+    if (existingItinerary) {
+      const err = new Error('Cannot delete inquiry: Corresponding itinerary exists in B2C DB. Delete the itinerary first.');
+      err.statusCode = 400; // Bad Request
+      return next(err);
+    }
+
+    // Delete the inquiry from B2C DB
+    const result = await B2CItineraryInquiryModel.deleteOne({ itineraryInquiryToken: inquiryToken });
+
+    if (result.deletedCount === 0) {
+      const err = new Error('Inquiry not found in B2C database for deletion.');
+      err.statusCode = 404;
+      return next(err);
+    }
+
+    console.log(`CRM Controller: Inquiry ${inquiryToken} deleted from B2C DB by CRM user ${user.id}`);
+    res.status(200).json({ success: true, message: 'Inquiry deleted successfully.' });
+
+  } catch (error) {
+    console.error(`CRM Controller: Error deleting inquiry ${inquiryToken}:`, error);
+    if (!error.statusCode) error.statusCode = 500;
+    next(error);
+  }
+}; 
+
+module.exports = {
+    getCrmInquiries,
+    assignUserToInquiry,
+    getInquiryDetails,
+    updateInquiryDetails,
+    deleteInquiry
+}; 

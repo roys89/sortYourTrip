@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Itinerary = require('../../b2c/models/Itinerary'); // CORRECT Itinerary model
+const ItineraryBooking = require('../../b2c/models/ItineraryBooking'); // Needed for delete check
 
 // --- Internal B2C DB Connection Logic (copied from inquiryController.js pattern) ---
 let b2cDbConnection = null;
@@ -120,6 +121,58 @@ const getAllItineraries = async (req, res, next) => {
     }
 };
 
+// *** NEW: Delete Itinerary (CRM Controller) ***
+const deleteItinerary = async (req, res, next) => {
+    const { itineraryToken } = req.params;
+    const user = req.user; // CRM user performing the action
+
+    // Authorization: Only admin/manager can delete for now (CRM roles)
+    if (!['admin', 'manager'].includes(user.role)) {
+        const err = new Error('Not authorized to delete itineraries.');
+        err.statusCode = 403; // Forbidden
+        return next(err);
+    }
+
+    if (!itineraryToken) {
+        const err = new Error('Itinerary token is required for deletion.');
+        err.statusCode = 400;
+        return next(err);
+    }
+
+    try {
+        // Get B2C Connection for deleting
+        const connection = await getB2CDatabaseConnection();
+        const B2CItineraryModel = connection.model('Itinerary', Itinerary.schema);
+        const B2CItineraryBookingModel = connection.model('ItineraryBooking', ItineraryBooking.schema);
+
+        // Check if a corresponding B2C ItineraryBooking exists
+        const existingBooking = await B2CItineraryBookingModel.findOne({ itineraryToken }).select('_id').lean();
+        if (existingBooking) {
+            const err = new Error('Cannot delete itinerary: Corresponding booking exists in B2C DB.');
+            err.statusCode = 400; // Bad Request
+            return next(err);
+        }
+
+        // Delete the itinerary from B2C DB
+        const result = await B2CItineraryModel.deleteOne({ itineraryToken: itineraryToken });
+
+        if (result.deletedCount === 0) {
+            const err = new Error('Itinerary not found in B2C database for deletion.');
+            err.statusCode = 404;
+            return next(err);
+        }
+
+        console.log(`CRM Controller: Itinerary ${itineraryToken} deleted from B2C DB by CRM user ${user.id}`);
+        res.status(200).json({ success: true, message: 'Itinerary deleted successfully.' });
+
+    } catch (error) {
+        console.error(`CRM Controller: Error deleting itinerary ${itineraryToken}:`, error);
+        if (!error.statusCode) error.statusCode = 500;
+        next(error);
+    }
+};
+
 module.exports = {
     getAllItineraries,
+    deleteItinerary, // Export new function
 };

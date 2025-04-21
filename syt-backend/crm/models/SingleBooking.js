@@ -21,7 +21,7 @@ const singleBookingSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  agentCode: {
+  employeeId: {
     type: String,
     required: true
   },

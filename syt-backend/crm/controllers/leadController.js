@@ -47,32 +47,55 @@ exports.getLeads = async (req, res) => {
     const { Lead } = getModels(); 
     const user = req.user; // Get the authenticated user
     
-    // Build query object initially from request query parameters
+    // ** MODIFIED: Build query with filters and search **
     let queryFilter = {};
-    const reqQuery = { ...req.query };
-    const removeFields = ['select', 'sort', 'page', 'limit'];
-    removeFields.forEach(param => delete reqQuery[param]);
-    let queryStr = JSON.stringify(reqQuery);
-    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
-    queryFilter = JSON.parse(queryStr);
+    const { status, leadType, assignedTo, startDate, endDate, search } = req.query;
 
-    // *** Add Role-Based Filtering ***
-    // If the user is not admin or manager, filter by assignedTo
-    if (user && user.role !== 'admin' && user.role !== 'manager') {
-      queryFilter.assignedTo = user.id; // Add filter for leads assigned to the current user
+    // Basic Filters
+    if (status) queryFilter.status = status;
+    if (leadType) queryFilter.leadType = leadType;
+    if (assignedTo) queryFilter.assignedTo = assignedTo; // Assumes assignedTo is passed as ObjectId string
+
+    // Date Range Filter (on createdAt)
+    if (startDate || endDate) {
+      queryFilter.createdAt = {};
+      if (startDate) queryFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        queryFilter.createdAt.$lte = endOfDay;
+      }
     }
-    // *** End Role-Based Filtering ***
+
+    // Search Filter (Name, Email)
+    if (search) {
+      const searchRegex = new RegExp(search, 'i'); // Case-insensitive regex
+      queryFilter.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex }
+      ];
+      // Note: Searching by assignedTo employeeId requires a more complex lookup/aggregation
+    }
+    
+    // Role-Based Filtering (Keep existing logic)
+    if (user && user.role !== 'admin' && user.role !== 'manager') {
+      queryFilter.assignedTo = user.id; 
+    }
+    // ** END MODIFICATION **
     
     // Finding resource using the combined filter
     let query = Lead.find(queryFilter);
     
-    // Select Fields
+    // Select Fields (Keep existing logic, ensure status is selected)
     if (req.query.select) {
       const fields = req.query.select.split(',').join(' ');
-      query = query.select(fields);
+      query = query.select(fields + ' status'); // Ensure status is included if select is used
+    } else {
+       query = query.select('-__v'); // Default select excluding __v
     }
     
-    // Sort
+    // Sort (Keep existing logic)
     if (req.query.sort) {
       const sortBy = req.query.sort.split(',').join(' ');
       query = query.sort(sortBy);
@@ -80,47 +103,39 @@ exports.getLeads = async (req, res) => {
       query = query.sort('-createdAt');
     }
     
-    // Pagination
+    // Pagination (Keep existing logic, use final queryFilter for count)
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    // Use the final queryFilter for counting documents
-    const total = await Lead.countDocuments(queryFilter);
+    const total = await Lead.countDocuments(queryFilter); 
     
     query = query.skip(startIndex).limit(limit);
     
-    // Executing query - ensure assignedTo is populated
+    // Executing query - ensure assignedTo is populated (include employeeId)
     const leads = await query.populate({
       path: 'assignedTo',
-      select: 'name email'
+      select: 'name email employeeId' // Keep employeeId
     });
     
-    // Pagination result
+    // Pagination result (Keep existing logic)
     const pagination = {};
-    
     if (endIndex < total) {
-      pagination.next = {
-        page: page + 1,
-        limit
-      };
+      pagination.next = { page: page + 1, limit };
     }
-    
     if (startIndex > 0) {
-      pagination.prev = {
-        page: page - 1,
-        limit
-      };
+      pagination.prev = { page: page - 1, limit };
     }
     
     res.status(200).json({
       success: true,
       count: leads.length,
+      total: total, // Add total count for pagination info
       pagination,
       data: leads
     });
   } catch (error) {
-    console.error(error);
+    console.error('Error in getLeads:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
@@ -141,7 +156,7 @@ exports.getLead = async (req, res) => {
     if (!lead) {
       return res.status(404).json({ success: false, message: 'Lead not found' });
     }
-
+    
     // *** Enhance if it's a website lead ***
     let enhancedLeadData = lead.toObject(); // Convert to plain object for modification
 
@@ -315,22 +330,34 @@ exports.deleteLead = async (req, res) => {
   try {
     const { Lead } = getModels();
     
-    const lead = await Lead.findById(req.params.id);
+    // Find the lead and populate assignedTo BEFORE deleting
+    const lead = await Lead.findById(req.params.id).populate('assignedTo', '_id'); 
     
     if (!lead) {
       return res.status(404).json({ success: false, message: 'Lead not found' });
     }
     
     // Make sure user is lead owner or admin
-    if (lead.assignedTo && lead.assignedTo.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (lead.assignedTo && lead.assignedTo._id.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(401).json({ success: false, message: `Not authorized to delete this lead` });
     }
     
+    // Remove agent from B2C records BEFORE deleting CRM lead
+    if (lead.leadType === 'website' && lead.user && lead.assignedTo) {
+      try {
+        await removeAgentFromB2CRecords(lead.user.toString(), lead.assignedTo._id);
+      } catch (b2cError) {
+        // Log the error but allow CRM deletion to proceed
+        console.error(`Non-fatal error during B2C agent removal for lead ${lead._id}:`, b2cError);
+      }
+    }
+    
+    // Proceed with deleting CRM lead
     await lead.deleteOne();
     
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
-    console.error(error);
+    console.error(`Error in deleteLead for ID ${req.params.id}:`, error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
@@ -348,13 +375,19 @@ exports.deleteMultipleLeads = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide an array of lead IDs' });
     }
     
-    // Find all leads
-    const leads = await Lead.find({ _id: { $in: ids } });
+    // Find all leads to get details before deleting
+    const leads = await Lead.find({ _id: { $in: ids } }).populate('assignedTo', '_id');
+    
+    // Basic check if leads were found matching IDs
+    if (!leads) {
+       console.error('Lead.find returned null/undefined during multi-delete!');
+       return res.status(500).json({ success: false, message: 'Error fetching leads for deletion.' });
+    }
     
     // Check authorization
     if (req.user.role !== 'admin') {
       const unauthorized = leads.some(lead => 
-        lead.assignedTo && lead.assignedTo.toString() !== req.user.id
+        lead.assignedTo && lead.assignedTo._id.toString() !== req.user.id
       );
       
       if (unauthorized) {
@@ -362,11 +395,26 @@ exports.deleteMultipleLeads = async (req, res) => {
       }
     }
     
+    // Remove agent from B2C records BEFORE deleting CRM lead
+    const b2cCleanupPromises = leads.map(lead => {
+      // Removed detailed logging inside map
+      if (lead.leadType === 'website' && lead.user && lead.assignedTo) {
+        return removeAgentFromB2CRecords(lead.user.toString(), lead.assignedTo._id);
+      } else {
+        return Promise.resolve(); 
+      }
+    });
+
+    await Promise.allSettled(b2cCleanupPromises);
+    // Optional: Keep a summary log if desired
+    // console.log('Finished attempting B2C agent removal for selected leads.');
+    
+    // Proceed with deleting CRM leads
     await Lead.deleteMany({ _id: { $in: ids } });
     
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting multiple leads:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
@@ -453,8 +501,7 @@ exports.uploadLeads = async (req, res) => {
 exports.getWebsiteLeads = async (req, res) => {
   try {
     // Verify user authentication
-    const user = req.user;
-    if (!user || !user.id || !user.role) {
+    if (!req.user || !req.user.id || !req.user.role) {
         return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
@@ -468,28 +515,35 @@ exports.getWebsiteLeads = async (req, res) => {
     const ItinerarySchema = require('../../b2c/models/Itinerary').schema;
     const ItineraryInquiryModel = connection.model('ItineraryInquiry', ItineraryInquirySchema);
     const ItineraryModel = connection.model('Itinerary', ItinerarySchema);
-
+    
     // Import CRM Lead Model
     const { Lead } = getModels(); // Get CRM Lead model instance
     
+    // *** NEW: Import B2C ItineraryBooking and Payment models ***
+    const ItineraryBookingSchema = require('../../b2c/models/ItineraryBooking').schema;
+    const PaymentSchema = require('../../b2c/models/Payment').schema;
+    const ItineraryBookingModel = connection.model('ItineraryBooking', ItineraryBookingSchema);
+    const PaymentModel = connection.model('Payment', PaymentSchema);
+
     // Find all B2C users 
-    const users = await B2CUserModel.find()
+    const b2cUsers = await B2CUserModel.find()
       .select('_id firstName lastName email phoneNumber countryCode country createdAt')
       .sort('-createdAt')
       .lean();
     
-    const userIds = users.map(user => user._id);
-    const userIdsStrings = userIds.map(id => id.toString());
+    const userIds = b2cUsers.map(user => user._id);
 
-    // Find corresponding CRM Lead records for these B2C users
+    // ** MODIFIED: Find corresponding CRM Leads, include status **
     const crmLeads = await Lead.find({
       leadType: 'website',
-      user: { $in: userIds } // Match B2C user ID
+      user: { $in: userIds } 
     })
-    .populate('assignedTo', 'name email') // Populate the assigned agent
+    // Select necessary fields including status
+    .select('user assignedTo status') 
+    .populate('assignedTo', 'name email employeeId') 
     .lean();
 
-    // Create a map of CRM leads keyed by B2C user ID
+    // Create map of CRM leads keyed by B2C user ID (Keep existing)
     const crmLeadMap = {};
     crmLeads.forEach(lead => {
       if (lead.user) {
@@ -497,12 +551,15 @@ exports.getWebsiteLeads = async (req, res) => {
       }
     });
     
+    // Fetch inquiries and itineraries (Keep existing logic)
+    // ... (inquiryMap, itineraryMap creation) ...
+     const userIdsStrings = userIds.map(id => id.toString());
     // Build query for inquiries based on user role
     let inquiryQuery = { 'userInfo.userId': { $in: userIdsStrings } };
-    if (user.role !== 'admin' && user.role !== 'manager') {
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
         inquiryQuery = {
             ...inquiryQuery, 
-            'agents.agentId': user.id
+            'agents.agentId': req.user.id
         };
     }
     const inquiries = await ItineraryInquiryModel.find(inquiryQuery)
@@ -511,10 +568,10 @@ exports.getWebsiteLeads = async (req, res) => {
     
     // Build query for itineraries based on user role
     let itineraryQuery = { 'userInfo.userId': { $in: userIdsStrings } };
-    if (user.role !== 'admin' && user.role !== 'manager') {
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
         itineraryQuery = {
             ...itineraryQuery, 
-            'agents.agentId': user.id
+            'agents.agentId': req.user.id
         };
     }
     const itineraries = await ItineraryModel.find(itineraryQuery)
@@ -540,60 +597,119 @@ exports.getWebsiteLeads = async (req, res) => {
       });
     });
     
-    // Create itinerary map by userId
+    // Create itinerary map by userId and collect itineraryTokens
     const itineraryMap = {};
+    const allItineraryTokens = []; // Collect all tokens
     itineraries.forEach(itinerary => {
       const userId = itinerary.userInfo?.userId;
       if (!userId) return;
       if (!itineraryMap[userId]) {
         itineraryMap[userId] = [];
       }
+      // Store basic itinerary info for now, enhance later
       itineraryMap[userId].push({
         itineraryToken: itinerary.itineraryToken,
         inquiryToken: itinerary.inquiryToken,
         createdAt: itinerary.createdAt,
         agentId: itinerary.agents && itinerary.agents.length > 0 ? itinerary.agents[0].agentId : null,
         agentName: itinerary.agents && itinerary.agents.length > 0 ? itinerary.agents[0].agentName : null,
-        status: itinerary.paymentStatus || 'pending'
+        // Initial status from Itinerary model (might be overridden)
+        status: itinerary.paymentStatus || itinerary.status || 'pending' 
       });
+      // Collect token for fetching booking/payment details
+      if (itinerary.itineraryToken) {
+        allItineraryTokens.push(itinerary.itineraryToken);
+      }
     });
+
+    // *** NEW: Fetch ItineraryBookings and Payments based on itineraryTokens ***
+    let itineraryBookingMap = {};
+    let paymentMap = {};
+
+    if (allItineraryTokens.length > 0) {
+      const itineraryBookings = await ItineraryBookingModel.find({ 
+        itineraryToken: { $in: allItineraryTokens } 
+      })
+      .select('itineraryToken bookingId status paymentStatus razorpay.orderId') // Select needed fields
+      .lean();
     
-    // Filter B2C users based on agent visibility rules (if applicable)
-    // Admins/Managers see all. Agents see users IF they have matching inquiries/itineraries OR if the CRM lead is assigned to them.
-    let relevantUsers = users;
-    if (user.role !== 'admin' && user.role !== 'manager') {
-        relevantUsers = users.filter(u => {
+      const bookingIds = itineraryBookings.map(ib => ib.bookingId).filter(Boolean);
+      
+      // Create booking map keyed by itineraryToken
+      itineraryBookings.forEach(ib => {
+         itineraryBookingMap[ib.itineraryToken] = ib;
+      });
+      
+      // Fetch related payments if bookingIds exist
+      if (bookingIds.length > 0) {
+          const payments = await PaymentModel.find({ 
+              bookingId: { $in: bookingIds } 
+          })
+          .select('bookingId razorpay.paymentId') // Select needed fields
+        .lean();
+      
+          // Create payment map keyed by bookingId
+          payments.forEach(p => {
+              paymentMap[p.bookingId] = p; 
+          });
+      }
+    }
+    // *** END NEW FETCHING ***
+
+    // Filter B2C users (Keep existing visibility logic)
+     let relevantUsers = b2cUsers;
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+        relevantUsers = b2cUsers.filter(u => {
             const userIdStr = u._id.toString();
             const hasMatchingActivity = inquiryMap[userIdStr]?.length > 0 || itineraryMap[userIdStr]?.length > 0;
-            const isAssignedInCrm = crmLeadMap[userIdStr]?.assignedTo?._id.toString() === user.id;
+            const isAssignedInCrm = crmLeadMap[userIdStr]?.assignedTo?._id.toString() === req.user.id;
             return hasMatchingActivity || isAssignedInCrm;
         });
     }
 
-    // Enhance the filtered user data with CRM Lead info, inquiries, and itineraries
-    const enhancedUsers = relevantUsers.map(user => {
-      const userIdStr = user._id.toString();
+    // ** MODIFIED: Enhance B2C user data with CRM Lead status & detailed itinerary info **
+    const enhancedUsers = relevantUsers.map(b2cUser => {
+      const userIdStr = b2cUser._id.toString();
       const crmLead = crmLeadMap[userIdStr]; // Get corresponding CRM Lead
-
-      return {
-        _id: userIdStr, // Use B2C user ID as the primary ID for the row
-        crmLeadId: crmLead?._id, // Optionally include CRM Lead ID if needed elsewhere
-        firstName: user.firstName,
-        lastName: user.lastName,
-        fullName: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        phone: user.phoneNumber,
-        countryCode: user.countryCode,
-        country: user.country,
-        createdAt: user.createdAt, // B2C User creation date
+      
+      // Enhance itineraries with booking/payment details
+      const enhancedItineraries = (itineraryMap[userIdStr] || []).map(itin => {
+          const bookingInfo = itineraryBookingMap[itin.itineraryToken];
+          let paymentInfo = null;
+          if (bookingInfo && bookingInfo.bookingId) {
+             paymentInfo = paymentMap[bookingInfo.bookingId];
+          }
+          
+          return {
+              ...itin,
+              bookingStatus: bookingInfo?.status || null,
+              bookingId: bookingInfo?.bookingId || null,
+              paymentStatus: bookingInfo?.paymentStatus || null, // Use status from ItineraryBooking
+              // Use razorpay.paymentId if available from Payment collection
+              paymentId: paymentInfo?.razorpay?.paymentId || bookingInfo?.razorpay?.orderId || null 
+          };
+      });
+        
+        return {
+        _id: userIdStr, 
+        crmLeadId: crmLead?._id, 
+        firstName: b2cUser.firstName,
+        lastName: b2cUser.lastName,
+        fullName: `${b2cUser.firstName} ${b2cUser.lastName}`,
+        email: b2cUser.email,
+        phone: b2cUser.phoneNumber,
+        countryCode: b2cUser.countryCode,
+        country: b2cUser.country,
+        createdAt: b2cUser.createdAt, 
         inquiries: inquiryMap[userIdStr] || [],
-        itineraries: itineraryMap[userIdStr] || [],
+        // Use the enhanced itineraries
+        itineraries: enhancedItineraries, 
         leadType: 'website',
-        assignedTo: crmLead?.assignedTo || null // Use the populated assignedTo from CRM Lead
-        // assignedAt: crmLead?.assignedAt // Can include if needed
-      };
-    });
-
+        assignedTo: crmLead?.assignedTo || null, 
+        status: crmLead?.status || 'N/A' // Add status from CRM lead, default to N/A
+        };
+      });
+    
     res.status(200).json({
       success: true,
       count: enhancedUsers.length,
@@ -681,6 +797,7 @@ exports.assignLeadToAgent = async (req, res) => {
     // Update lead with new agent
     lead.assignedTo = req.body.agentId;
     lead.assignedAt = Date.now();
+    lead.status = 'assigned'; // Set status to assigned upon assignment
     
     await lead.save();
     
@@ -690,7 +807,8 @@ exports.assignLeadToAgent = async (req, res) => {
         lead.user.toString(),
         req.body.agentId,
         agent.name,
-        agent.email
+        agent.email,
+        agent.employeeId // Pass agent's employeeId here
       );
     }
     
@@ -705,7 +823,7 @@ exports.assignLeadToAgent = async (req, res) => {
 };
 
 // Helper function to update inquiries and itineraries with agent info
-async function updateUserInquiriesAndItinerariesWithAgent(userId, agentId, agentName, agentEmail) {
+async function updateUserInquiriesAndItinerariesWithAgent(userId, agentId, agentName, agentEmail, employeeId) {
   try {
     // Connect to B2C database
     const connection = await getB2CDatabaseConnection();
@@ -720,7 +838,8 @@ async function updateUserInquiriesAndItinerariesWithAgent(userId, agentId, agent
     const agentInfo = {
       agentId: agentId,
       agentName: agentName,
-      agentEmail: agentEmail
+      agentEmail: agentEmail,
+      employeeId: employeeId
     };
     
     // Update inquiries
@@ -729,7 +848,7 @@ async function updateUserInquiriesAndItinerariesWithAgent(userId, agentId, agent
       { $addToSet: { agents: agentInfo } }
     );
     console.log(`Inquiry update for user ${userId}: Matched ${inquiryUpdateResult.matchedCount}, Modified ${inquiryUpdateResult.modifiedCount}`);
-
+    
     // Update itineraries
     const itineraryUpdateResult = await ItineraryModel.updateMany(
       { 'userInfo.userId': userId },
@@ -741,7 +860,7 @@ async function updateUserInquiriesAndItinerariesWithAgent(userId, agentId, agent
     } else if (itineraryUpdateResult.modifiedCount === 0 && itineraryUpdateResult.matchedCount > 0) {
       console.warn(`WARN: Itinerary documents found for user ${userId}, but none modified. Agent ${agentId} might already exist.`);
     } else {
-      console.log(`Successfully updated itineraries for user ${userId} with agent ${agentId}`);
+      console.log(`Successfully updated inquiries and itineraries for user ${userId} with agent ${agentId}`);
     }
     
     console.log(`Finished updating inquiries and itineraries for user ${userId} with agent ${agentId}`);
@@ -750,3 +869,102 @@ async function updateUserInquiriesAndItinerariesWithAgent(userId, agentId, agent
     throw error;
   }
 }
+
+// Helper function to remove a specific agent from a B2C user's inquiries and itineraries
+async function removeAgentFromB2CRecords(userId, agentId) {
+  try {
+    const connection = await getB2CDatabaseConnection();
+    if (!connection) {
+        throw new Error("Failed to establish B2C DB connection for agent removal.");
+    }
+    
+    const ItineraryInquirySchema = require('../../b2c/models/ItineraryInquiry').schema;
+    const ItinerarySchema = require('../../b2c/models/Itinerary').schema;
+    const ItineraryInquiryModel = connection.model('ItineraryInquiry', ItineraryInquirySchema);
+    const ItineraryModel = connection.model('Itinerary', ItinerarySchema);
+    
+    let agentPullCondition;
+    try {
+      agentPullCondition = { agentId: new mongoose.Types.ObjectId(agentId) }; 
+    } catch (objectIdError) {
+      throw new Error(`Invalid agentId format: ${agentId}`);
+    }
+    
+    // Update inquiries: Remove agent from agents array
+    const inquiryUpdateResult = await ItineraryInquiryModel.updateMany(
+      { 'userInfo.userId': userId },
+      { $pull: { agents: agentPullCondition } }
+    );
+    // Keep summary log
+    console.log(`B2C Inquiry agent removal for user ${userId}, agent ${agentId}: Matched ${inquiryUpdateResult.matchedCount}, Modified ${inquiryUpdateResult.modifiedCount}`);
+
+    // Update itineraries: Remove agent from agents array
+    const itineraryUpdateResult = await ItineraryModel.updateMany(
+      { 'userInfo.userId': userId },
+      { $pull: { agents: agentPullCondition } }
+    );
+    // Keep summary log
+    console.log(`B2C Itinerary agent removal for user ${userId}, agent ${agentId}: Matched ${itineraryUpdateResult.matchedCount}, Modified ${itineraryUpdateResult.modifiedCount}`);
+    
+  } catch (error) {
+    // Keep error log, but make it clear it's from the helper
+    console.error(`Error in removeAgentFromB2CRecords (user: ${userId}, agent: ${agentId}):`, error);
+    // Re-throwing allows the Promise.allSettled to report failure, but deletion still proceeds
+    throw error; 
+  }
+}
+
+// *** NEW: Update Lead Status and Add Note ***
+// @desc    Update lead status and add note
+// @route   PUT /api/crm/leads/:id/status
+// @access  Private
+exports.updateLeadStatus = async (req, res) => {
+  try {
+    const { Lead } = getModels();
+    const { status, note } = req.body;
+    const leadId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (!status || !note) {
+      return res.status(400).json({ success: false, message: 'New status and note are required' });
+    }
+
+    const lead = await Lead.findById(leadId).populate('assignedTo', '_id'); // Populate to check ownership
+
+    if (!lead) {
+      return res.status(404).json({ success: false, message: 'Lead not found' });
+    }
+
+    // Authorization: Admin or the assigned agent can update status
+    if (userRole !== 'admin' && (!lead.assignedTo || lead.assignedTo._id.toString() !== userId)) {
+      return res.status(401).json({ success: false, message: 'Not authorized to update this lead status' });
+    }
+
+    // Validate Status against Schema Enum
+    if (!Lead.schema.path('status').enumValues.includes(status)) {
+       return res.status(400).json({ success: false, message: `Invalid status value: ${status}` });
+    }
+
+    // Prepend note
+    const timestamp = new Date().toISOString();
+    const formattedNote = `[${timestamp}] Status changed to ${status}. Note: ${note}\n--------------------\n${lead.notes || ''}`;
+
+    // Update lead
+    lead.status = status;
+    lead.notes = formattedNote;
+    lead.updatedAt = Date.now();
+
+    const updatedLead = await lead.save();
+
+    // Repopulate assignedTo for the response if needed (or select fields)
+    await updatedLead.populate({ path: 'assignedTo', select: 'name email employeeId' });
+
+    res.status(200).json({ success: true, data: updatedLead });
+
+  } catch (error) {
+    console.error(`Error updating lead status for ID ${req.params.id}:`, error);
+    res.status(500).json({ success: false, message: 'Server Error updating status' });
+  }
+};
+// *** END NEW FUNCTION ***

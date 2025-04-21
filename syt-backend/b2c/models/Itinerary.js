@@ -297,7 +297,7 @@ const UserInfoSchema = new Schema({
 // Schema for Agent Information within the Itinerary
 const AgentInfoSchema = new Schema({
   agentId: { type: Schema.Types.ObjectId, ref: 'User' }, // Assuming CRM users are in a 'User' collection
-  agentCode: String,
+  employeeId: String, // Adding employeeId
   agentName: String,
   agentEmail: String
 }, { _id: false });

@@ -287,19 +287,80 @@ const ItineraryPage = () => {
   };
 
   const handleModifyItinerary = async (modifiedData) => {
-    try {
-      setIsCreatingNewItinerary(true);
-      await dispatch(resetItineraryState());
-      await dispatch(createItinerary(inquiryToken)).unwrap();
-      setIsModificationModalOpen(false);
-    } catch (error) {
-      console.error("Error modifying itinerary:", error);
-      setModificationError(
-        error.response?.data?.message || "Error modifying itinerary"
-      );
-    } finally {
-      setIsCreatingNewItinerary(false);
+    setIsModifying(true); // Set loading state for the entire modification process
+    setModificationError(null);
+    const token = localStorage.getItem("token");
+
+    if (!inquiryToken) {
+      setModificationError("Inquiry token is missing.");
       setIsModifying(false);
+      return;
+    }
+    if (!token) {
+      setModificationError("Authentication token is missing.");
+      setIsModifying(false);
+      navigate("/auth/login"); // Redirect to login if token is missing
+      return;
+    }
+
+    try {
+      console.log("Step 1: Updating Itinerary Inquiry with token:", inquiryToken);
+      console.log("Update Data:", modifiedData);
+
+      // Step 1: Call API to update the Itinerary Inquiry document
+      const updateResponse = await axios.put(
+        `http://localhost:5000/api/itineraryInquiry/${inquiryToken}`,
+        modifiedData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (updateResponse.status !== 200) {
+        // Handle potential non-200 success codes if necessary, or rely on axios throwing for >= 400
+        throw new Error(updateResponse.data?.message || "Failed to update itinerary inquiry details.");
+      }
+
+      console.log("Step 1 Success: Inquiry updated.", updateResponse.data);
+
+      // Step 2: Reset Redux state and create the new Itinerary based on the UPDATED inquiry
+      console.log("Step 2: Resetting state and creating new itinerary...");
+      setIsCreatingNewItinerary(true); // Indicate new itinerary creation phase
+      await dispatch(resetItineraryState());
+      
+      // Instead of using the Redux thunk action that has the existing itinerary check,
+      // make a direct API call to the backend which will automatically handle deletion
+      // of any existing itinerary with this inquiry token before creating a new one
+      const directApiResponse = await axios.post(
+        `http://localhost:5000/api/itinerary/${inquiryToken}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      // Update Redux store with the newly created itinerary
+      console.log("Step 2 Success: New itinerary created.", directApiResponse.data);
+      
+      // Update Redux store with the new itinerary data
+      dispatch({ 
+        type: 'itinerary/createItinerary/fulfilled', 
+        payload: directApiResponse.data 
+      });
+
+      setIsModificationModalOpen(false); // Close modal only after full success
+
+    } catch (error) {
+      console.error("Error during itinerary modification process:", error);
+      const errMsg = error.response?.data?.message || error.message || "An error occurred during modification.";
+      setModificationError(errMsg);
+    } finally {
+      setIsCreatingNewItinerary(false); // Reset creation indicator regardless of outcome
+      setIsModifying(false); // Reset overall modifying indicator
     }
   };
 

@@ -9,7 +9,8 @@ const {
   deleteMultipleLeads,
   uploadLeads,
   getWebsiteLeads,
-  assignLeadToAgent
+  assignLeadToAgent,
+  updateLeadStatus
 } = require('../controllers/leadController');
 const { protect, checkPermission } = require('../middleware/auth');
 const { check } = require('express-validator');
@@ -57,6 +58,9 @@ router
   .get(checkPermission('canViewLeads'), getLead)
   .put(checkPermission('canAddLead'), updateLead)
   .delete(checkPermission('canRemoveLead'), deleteLead);
+
+// ** NEW: Route for updating status **
+router.put('/:id/status', checkPermission('canAddLead'), updateLeadStatus);
 
 router.post(
   '/assign/:leadId',

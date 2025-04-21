@@ -48,7 +48,7 @@ exports.createUser = async (req, res) => {
 
   try {
     const { User } = getModels();
-    const { name, email, password, role, permissions } = req.body;
+    const { name, email, password, role, permissions, employeeId } = req.body;
 
     // Check if user exists
     const userExists = await User.findOne({ email });
@@ -57,20 +57,27 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    // Create user
-    const user = await User.create({
+    // Create user object including employeeId
+    const userObject = {
       name,
       email,
       password,
       role: role || 'user',
       permissions: permissions || {
-        canAddLead: role === 'admin',
-        canRemoveLead: role === 'admin',
+        canAddLead: role === 'admin' || role === 'manager',
+        canRemoveLead: role === 'admin' || role === 'manager',
         canViewLeads: true,
-        canAddUser: role === 'admin',
-        canRemoveUser: role === 'admin'
+        canAddUser: role === 'admin' || role === 'manager',
+        canRemoveUser: role === 'admin' || role === 'manager',
+        bookings: role === 'admin' || role === 'manager' // Adjust permissions as needed
       }
-    });
+    };
+    // Add employeeId only if provided
+    if (employeeId) {
+        userObject.employeeId = employeeId;
+    }
+
+    const user = await User.create(userObject);
 
     res.status(201).json({
       success: true,
@@ -79,10 +86,15 @@ exports.createUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        permissions: user.permissions
+        permissions: user.permissions,
+        employeeId: user.employeeId // Include employeeId in response
       }
     });
   } catch (error) {
+    // Add check for unique constraint violation on employeeId
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.employeeId) {
+        return res.status(400).json({ success: false, message: 'Employee ID already exists' });
+    }
     console.error(error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
@@ -94,7 +106,7 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { User } = getModels();
-    const { name, email, role, permissions } = req.body;
+    const { name, email, role, permissions, employeeId } = req.body;
 
     const user = await User.findById(req.params.id);
 
@@ -107,6 +119,8 @@ exports.updateUser = async (req, res) => {
     if (email) user.email = email;
     if (role) user.role = role;
     if (permissions) user.permissions = permissions;
+    // Update employeeId - allow setting to null/undefined or changing it
+    if (employeeId !== undefined) user.employeeId = employeeId;
 
     // Save user
     await user.save();
@@ -118,10 +132,15 @@ exports.updateUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        permissions: user.permissions
+        permissions: user.permissions,
+        employeeId: user.employeeId // Include employeeId in response
       }
     });
   } catch (error) {
+    // Add check for unique constraint violation on employeeId
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.employeeId) {
+        return res.status(400).json({ success: false, message: 'Employee ID already exists' });
+    }
     console.error(error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
@@ -161,9 +180,9 @@ exports.getAgents = async (req, res) => {
   try {
     const { User } = getModels();
 
-    // Find users with the role 'user' (or designated agent role)
+    // Find users with the role 'user' 
     const agents = await User.find({ role: 'user' })
-      .select('name email _id') // Select only necessary fields
+      .select('name email _id employeeId') // Select employeeId
       .sort('name')
       .lean();
 

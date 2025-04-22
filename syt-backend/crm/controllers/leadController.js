@@ -170,6 +170,10 @@ exports.getLead = async (req, res) => {
         const ItinerarySchema = require('../../b2c/models/Itinerary').schema;
         const ItineraryInquiryModel = connection.model('ItineraryInquiry', ItineraryInquirySchema);
         const ItineraryModel = connection.model('Itinerary', ItinerarySchema);
+        const PaymentSchema = require('../../b2c/models/Payment').schema;
+        const PaymentModel = connection.model('Payment', PaymentSchema);
+        const ItineraryBookingSchema = require('../../b2c/models/ItineraryBooking').schema;
+        const ItineraryBookingModel = connection.model('ItineraryBooking', ItineraryBookingSchema);
         
         // Fetch inquiries with more details
         const inquiries = await ItineraryInquiryModel.find({ 'userInfo.userId': b2cUserId })
@@ -182,10 +186,35 @@ exports.getLead = async (req, res) => {
         // Fetch itineraries with more details
         const itineraries = await ItineraryModel.find({ 'userInfo.userId': b2cUserId })
           .select(
-            'itineraryToken inquiryToken itineraryTitle destinations departureDate returnDate numberOfTravelers status totalAmount currency createdAt agents' // Added fields
+            'itineraryToken inquiryToken itineraryTitle destinations departureDate returnDate numberOfTravelers status totalAmount currency createdAt agents paymentStatus' // Added paymentStatus
           )
           .sort('-createdAt')
           .lean();
+
+        // Get all itinerary tokens for payment and booking lookup
+        const itineraryTokens = itineraries.map(itin => itin.itineraryToken);
+
+        // Fetch payments for completed itineraries
+        const payments = await PaymentModel.find({
+          itineraryToken: { $in: itineraryTokens },
+          status: 'completed'
+        }).select('itineraryToken razorpay.paymentId').lean();
+
+        // Fetch bookings
+        const bookings = await ItineraryBookingModel.find({
+          itineraryToken: { $in: itineraryTokens }
+        }).select('itineraryToken bookingId status').lean();
+
+        // Create maps for quick lookup
+        const paymentMap = {};
+        payments.forEach(payment => {
+          paymentMap[payment.itineraryToken] = payment;
+        });
+
+        const bookingMap = {};
+        bookings.forEach(booking => {
+          bookingMap[booking.itineraryToken] = booking;
+        });
 
         // Add fetched data to the lead object with detailed mapping
         enhancedLeadData.inquiries = inquiries.map(inq => {
@@ -208,30 +237,31 @@ exports.getLead = async (req, res) => {
               departureCity: inq.departureCity?.name || 'N/A',
               startDate: inq.departureDates?.startDate,
               endDate: inq.departureDates?.endDate,
-              travelers: totalTravelers, // Use calculated value
-              adults: totalAdults,       // Use calculated value
-              children: totalChildren,   // Use calculated value
-              // Keep original rooms data if needed for other purposes, but display count on frontend
-              rooms: inq.travelersDetails?.rooms || [], 
+              travelers: totalTravelers,
+              adults: totalAdults,
+              children: totalChildren,
+              rooms: inq.travelersDetails?.rooms || [],
               interests: inq.preferences?.selectedInterests?.join(', ') || 'N/A',
-              // Use budget string directly as per schema
               budget: inq.preferences?.budget || 'N/A', 
             };
         }) || [];
 
-        enhancedLeadData.itineraries = itineraries.map(itin => ({
-          itineraryToken: itin.itineraryToken,
-          inquiryToken: itin.inquiryToken, // Link back to inquiry if exists
-          title: itin.itineraryTitle || 'N/A',
-          createdAt: itin.createdAt,
-          agentName: itin.agents?.[0]?.agentName || 'Unassigned',
-          status: itin.status || 'Pending', // Use itinerary status
-          destinations: itin.destinations?.map(dest => dest.city?.name).join(', ') || 'N/A', // Assuming destinations array has city objects
-          departureDate: itin.departureDate,
-          returnDate: itin.returnDate,
-          travelers: itin.numberOfTravelers || 'N/A',
-          price: itin.totalAmount ? `${itin.totalAmount} ${itin.currency || ''}`.trim() : 'N/A',
-        })) || [];
+        enhancedLeadData.itineraries = itineraries.map(itin => {
+          const payment = paymentMap[itin.itineraryToken];
+          const booking = bookingMap[itin.itineraryToken];
+          
+          return {
+            itineraryToken: itin.itineraryToken,
+            inquiryToken: itin.inquiryToken,
+            createdAt: itin.createdAt,
+            agentName: itin.agents?.[0]?.agentName || 'Unassigned',
+            paymentStatus: itin.paymentStatus,
+            paymentId: payment?.razorpay?.paymentId || null,
+            bookingStatus: booking?.status || null,
+            bookingId: ['confirmed', 'cancelled', 'failed'].includes(booking?.status) ? booking?.bookingId : null,
+            price: itin.totalAmount ? `${itin.totalAmount} ${itin.currency || ''}`.trim() : 'N/A',
+          };
+        }) || [];
 
         // Optionally, fetch and add B2C user details if needed
         // const B2CUserSchema = require('../../b2c/models/User').schema;
@@ -614,7 +644,7 @@ exports.getWebsiteLeads = async (req, res) => {
         agentId: itinerary.agents && itinerary.agents.length > 0 ? itinerary.agents[0].agentId : null,
         agentName: itinerary.agents && itinerary.agents.length > 0 ? itinerary.agents[0].agentName : null,
         // Initial status from Itinerary model (might be overridden)
-        status: itinerary.paymentStatus || itinerary.status || 'pending' 
+        paymentStatus: itinerary.paymentStatus 
       });
       // Collect token for fetching booking/payment details
       if (itinerary.itineraryToken) {
@@ -684,8 +714,6 @@ exports.getWebsiteLeads = async (req, res) => {
               ...itin,
               bookingStatus: bookingInfo?.status || null,
               bookingId: bookingInfo?.bookingId || null,
-              paymentStatus: bookingInfo?.paymentStatus || null, // Use status from ItineraryBooking
-              // Use razorpay.paymentId if available from Payment collection
               paymentId: paymentInfo?.razorpay?.paymentId || bookingInfo?.razorpay?.orderId || null 
           };
       });

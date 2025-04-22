@@ -405,10 +405,3 @@ exports.deleteInquiry = async (req, res, next) => {
   }
 }; 
 
-module.exports = {
-    getCrmInquiries,
-    assignUserToInquiry,
-    getInquiryDetails,
-    updateInquiryDetails,
-    deleteInquiry
-}; 

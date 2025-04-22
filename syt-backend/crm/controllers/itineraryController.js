@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Itinerary = require('../../b2c/models/Itinerary'); // CORRECT Itinerary model
 const ItineraryBooking = require('../../b2c/models/ItineraryBooking'); // Needed for delete check
+const Payment = require('../../b2c/models/Payment'); // Needed for payment details
 
 // --- Internal B2C DB Connection Logic (copied from inquiryController.js pattern) ---
 let b2cDbConnection = null;
@@ -52,8 +53,10 @@ const getAllItineraries = async (req, res, next) => {
         // Get B2C DB Connection using the internal function
         const connection = await getB2CDatabaseConnection();
 
-        // Get the Itinerary model scoped to this connection
+        // Get Models scoped to this connection
         const ItineraryModel = connection.model('Itinerary', Itinerary.schema);
+        const ItineraryBookingModel = connection.model('ItineraryBooking', ItineraryBooking.schema);
+        const PaymentModel = connection.model('Payment', Payment.schema);
 
         // Set query based on user role
         let query = {};
@@ -64,16 +67,16 @@ const getAllItineraries = async (req, res, next) => {
 
         // Find all documents in the Itinerary collection with the query filter
         const itineraries = await ItineraryModel.find(query)
-        .select( // Select necessary fields, MINIMIZING data from cities array
+        .select( // Select necessary fields
             'itineraryToken ' +
             'inquiryToken ' +
             'userInfo ' +
             'agents ' +
             'paymentStatus ' +
             'createdAt ' +
-            'cities.city ' +         // Only get city names
-            'cities.startDate ' +    // Only get city start dates
-            'cities.days'            // Need this (or its length) for totalDays calc
+            'cities.city ' +
+            'cities.startDate ' +
+            'cities.days'
         )
         .sort({ createdAt: -1 })
         .lean();
@@ -83,7 +86,42 @@ const getAllItineraries = async (req, res, next) => {
             return res.status(200).json({ success: true, count: 0, data: [] });
         }
 
-        // Format the data for the frontend (same logic as before)
+        // --- Fetch related data efficiently ---
+        const itineraryTokens = itineraries.map(it => it.itineraryToken);
+
+        // Fetch related bookings
+        const bookings = await ItineraryBookingModel.find({ itineraryToken: { $in: itineraryTokens } })
+            .select('itineraryToken status bookingId paymentId') // Select needed fields
+            .lean();
+
+        // Fetch related completed payments (use bookingId if available, else itineraryToken as fallback)
+        // Note: This assumes Payment might be linked via bookingId OR itineraryToken+inquiryToken
+        const bookingIds = bookings.map(b => b.bookingId).filter(Boolean);
+        const paymentQueryCriteria = [
+            { bookingId: { $in: bookingIds } }, // Primary link: bookingId from ItineraryBooking
+            { itineraryToken: { $in: itineraryTokens }, status: 'completed' } // Fallback/Direct link: itineraryToken for completed payments
+        ];
+        const payments = await PaymentModel.find({ $or: paymentQueryCriteria, status: 'completed' })
+            .select('itineraryToken bookingId paymentId _id') // Select needed fields including _id for paymentId
+            .lean();
+
+        // Create lookup maps for faster access
+        const bookingMap = bookings.reduce((map, booking) => {
+            map[booking.itineraryToken] = booking;
+            return map;
+        }, {});
+
+        const paymentMap = payments.reduce((map, payment) => {
+            // Prioritize mapping by bookingId if it exists, otherwise use itineraryToken
+            const key = payment.bookingId || payment.itineraryToken;
+            if (key) {
+                map[key] = payment;
+            }
+            return map;
+        }, {});
+        // --- End Fetch related data ---
+
+        // Format the data for the frontend, now including booking and payment details
         const formattedItineraries = itineraries.map(itinerary => {
             let startDate = null;
             let totalDays = 0;
@@ -96,20 +134,45 @@ const getAllItineraries = async (req, res, next) => {
             }
             const primaryAgent = itinerary.agents?.[0];
 
+            // Get related booking and payment info
+            const bookingInfo = bookingMap[itinerary.itineraryToken];
+            // Try finding payment by bookingId first, then by itineraryToken as fallback
+            const paymentInfo = bookingInfo?.bookingId ? paymentMap[bookingInfo.bookingId] : paymentMap[itinerary.itineraryToken];
+
+            const bookingStatusInfo = {};
+            if (bookingInfo) {
+                bookingStatusInfo.bookingStatus = bookingInfo.status;
+                // Only include bookingId if status is relevant
+                if (['processing', 'confirmed', 'cancelled', 'failed'].includes(bookingInfo.status)) {
+                    bookingStatusInfo.bookingId = bookingInfo.bookingId;
+                }
+            }
+
+            const paymentIdInfo = {};
+            if (itinerary.paymentStatus === 'completed' && paymentInfo) {
+                 // Use payment._id as the paymentId to show on frontend
+                paymentIdInfo.paymentId = paymentInfo._id?.toString();
+            } else if (itinerary.paymentStatus === 'completed' && bookingInfo?.paymentId) {
+                 // Fallback to paymentId stored directly on booking if Payment record lookup failed but status is completed
+                 paymentIdInfo.paymentId = bookingInfo.paymentId.toString();
+            }
+
             return {
                  clientName: itinerary.userInfo ? `${itinerary.userInfo.firstName || ''} ${itinerary.userInfo.lastName || ''}`.trim() : 'N/A',
                  clientEmail: itinerary.userInfo?.email,
                  itineraryToken: itinerary.itineraryToken,
                  inquiryToken: itinerary.inquiryToken,
-                 status: itinerary.paymentStatus || 'Unknown',
+                 paymentStatus: itinerary.paymentStatus || 'Unknown',
                  totalDays: totalDays,
                  startDate: startDate ? startDate.toISOString().split('T')[0] : null,
                  assignedTo: primaryAgent ? { id: primaryAgent.agentId, name: primaryAgent.agentName } : null,
-                 createdAt: itinerary.createdAt
+                 createdAt: itinerary.createdAt,
+                 ...bookingStatusInfo, // Add bookingStatus and bookingId if available
+                 ...paymentIdInfo,    // Add paymentId if available
             };
         });
 
-        // console.log(`CRM: Successfully fetched ${formattedItineraries.length} itineraries.`);
+        // console.log(`CRM: Successfully fetched ${formattedItineraries.length} itineraries with booking/payment details.`);
         res.status(200).json({ success: true, count: formattedItineraries.length, data: formattedItineraries });
 
     } catch (error) {

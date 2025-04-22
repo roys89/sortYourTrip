@@ -1276,7 +1276,6 @@ module.exports = {
       // Get provider-specific services
       const tokenManager = getProviderService(provider, 'tokenManager');
       const authService = getProviderService(provider, 'authService');
-      const bookingDetailsService = new FlightBookingDetailsService();
 
       // Get auth token
       const authToken = await tokenManager.getOrSetToken(
@@ -1286,8 +1285,8 @@ module.exports = {
         }
       );
 
-      // Get booking details
-      const bookingResponse = await bookingDetailsService.getBookingDetails({
+      // Get booking details - Call statically on the class
+      const bookingResponse = await FlightBookingDetailsService.getBookingDetails({
         bmsBookingCode,
         token: authToken
       });

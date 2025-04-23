@@ -913,9 +913,47 @@ exports.updateFlightSeatsAndBaggage = async (req, res) => {
             updatedFlightData = {
               ...currentFlightData,  // Preserve all existing flight data
               flightCode,
-              selectedSeats: seatMap || null,
-              selectedBaggage: baggageOptions || null,
-              selectedMeal: mealOptions || null,
+              // Store seat selections with passenger information
+              selectedSeats: seatMap ? seatMap.map(segment => ({
+                ...segment,
+                rows: segment.rows.map(row => ({
+                  ...row,
+                  seats: row.seats.map(seat => ({
+                    ...seat,
+                    // Preserve passenger information
+                    passengerId: seat.passengerId,
+                    passengerIndex: seat.passengerIndex,
+                    passengerName: seat.passengerName,
+                    passengerType: seat.passengerType
+                  }))
+                }))
+              })) : null,
+              
+              // Store baggage selections with passenger information
+              selectedBaggage: baggageOptions ? baggageOptions.map(segment => ({
+                ...segment,
+                options: segment.options.map(option => ({
+                  ...option,
+                  // Preserve passenger information
+                  passengerId: option.passengerId,
+                  passengerIndex: option.passengerIndex,
+                  passengerName: option.passengerName,
+                  passengerType: option.passengerType
+                }))
+              })) : null,
+              
+              // Store meal selections with passenger information
+              selectedMeal: mealOptions ? mealOptions.map(segment => ({
+                ...segment,
+                options: segment.options.map(option => ({
+                  ...option,
+                  // Preserve passenger information
+                  passengerId: option.passengerId,
+                  passengerIndex: option.passengerIndex,
+                  passengerName: option.passengerName,
+                  passengerType: option.passengerType
+                }))
+              })) : null,
               isSeatSelected: Array.isArray(seatMap) && seatMap.length > 0,
               isBaggageSelected: Array.isArray(baggageOptions) && baggageOptions.length > 0,
               isMealSelected: Array.isArray(mealOptions) && mealOptions.length > 0

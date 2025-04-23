@@ -245,62 +245,105 @@ const transformFlightBookings = (flightData, travelers) => {
   }
 
   try {
-    // Process seat selections
-    const seatsBySegment = (flightData.selectedSeats || []).reduce((acc, segment) => {
-      const segmentSeats = segment.rows?.flatMap(row => 
-        (row.seats || []).map(seat => ({
-          origin: segment.origin,
-          destination: segment.destination,
-          code: seat.code,
-          amt: seat.price,
-          seat: seat.seatNo
-        }))
-      ) || [];
+    // Process seat selections per passenger
+    // const seatsBySegment = (flightData.selectedSeats || []).reduce((acc, segment) => {
+    //   const segmentSeats = segment.rows?.flatMap(row => 
+    //     (row.seats || []).map(seat => ({
+    //       origin: segment.origin,
+    //       destination: segment.destination,
+    //       code: seat.code,
+    //       amt: seat.price,
+    //       seat: seat.seatNo
+    //     }))
+    //   ) || [];
 
-      acc[`${segment.origin}-${segment.destination}`] = segmentSeats;
-      return acc;
-    }, {});
+    //   acc[`${segment.origin}-${segment.destination}`] = segmentSeats;
+    //   return acc;
+    // }, {});
 
     // Process meal selections
-    const meals = (flightData.selectedMeal || []).flatMap(segment =>
-      (segment.options || []).map(meal => ({
-        origin: segment.origin,
-        destination: segment.destination,
-        code: meal.code,
-        amt: meal.price,
-        description: meal.description
-      }))
-    );
+    // const meals = (flightData.selectedMeal || []).flatMap(segment =>
+    //   (segment.options || []).map(meal => ({
+    //     origin: segment.origin,
+    //     destination: segment.destination,
+    //     code: meal.code,
+    //     amt: meal.price,
+    //     description: meal.description
+    //   }))
+    // );
 
     // Transform flight booking
     return [{
       bookingArray: [{
         traceId: flightData.traceId,
         passengers: travelers.map((traveler, index) => {
-          // Assign seats for each traveler
-          const assignedSeats = Object.values(seatsBySegment).map(segmentSeats => {
-            return segmentSeats[index] || (segmentSeats.length > 0 ? segmentSeats[0] : null);
-          }).filter(Boolean);
+          // --- Find selections for the current passenger (by index) ---
 
+          // Seats for this passenger
+          const passengerSeats = (flightData.selectedSeats || [])
+            .flatMap(segment => 
+              segment.rows?.flatMap(row => 
+                row.seats?.filter(seat => seat.passengerIndex === index)
+                  .map(seat => ({ 
+                    origin: segment.origin, 
+                    destination: segment.destination, 
+                    code: seat.code, 
+                    amt: seat.price, 
+                    seat: seat.seatNo 
+                  })) || []
+              ) || []
+            );
+            
+          // Meals for this passenger
+          const passengerMeals = (flightData.selectedMeal || [])
+            .filter(segment => segment.passengerSelections?.[index]?.selectedOption)
+            .map(segment => {
+              const meal = segment.passengerSelections[index].selectedOption;
+              return { 
+                origin: segment.origin, 
+                destination: segment.destination, 
+                code: meal.code, 
+                amt: meal.price, 
+                description: meal.description 
+              };
+            });
+
+          // Baggage for this passenger
+          const passengerBaggage = (flightData.selectedBaggage || [])
+            .filter(segment => segment.passengerSelections?.[index]?.selectedOption)
+            .map(segment => {
+              const baggage = segment.passengerSelections[index].selectedOption;
+              return { 
+                origin: segment.origin, 
+                destination: segment.destination, 
+                code: baggage.code, 
+                amt: baggage.price, 
+                description: baggage.description, 
+                weight: baggage.weight 
+              };
+            });
+          
           // Format dates in YYYY-MM-DD
           const formattedDob = formatDateToYYYYMMDD(traveler.dateOfBirth);
           const formattedPassportExpiry = formatDateToYYYYMMDD(traveler.passportExpiryDate);
           const formattedPassportIssue = formatDateToYYYYMMDD(traveler.passportIssueDate);
 
-          // Log the date transformations for debugging
-          console.log('Date transformations:', {
-            original: {
-              dob: traveler.dateOfBirth,
-              passportExpiry: traveler.passportExpiryDate,
-              passportIssue: traveler.passportIssueDate
-            },
-            formatted: {
-              dob: formattedDob,
-              passportExpiry: formattedPassportExpiry,
-              passportIssue: formattedPassportIssue
-            }
-          });
-
+          // Construct the SSR object for this passenger
+          const ssrData = {};
+          let hasSSR = false;
+          if (passengerMeals.length > 0) {
+            ssrData.meal = passengerMeals;
+            hasSSR = true;
+          }
+          if (passengerBaggage.length > 0) {
+            ssrData.baggage = passengerBaggage;
+            hasSSR = true;
+          }
+          if (passengerSeats.length > 0) {
+            ssrData.seat = passengerSeats;
+            hasSSR = true;
+          }
+          
           return {
             title: traveler.title,
             firstName: traveler.firstName,
@@ -310,7 +353,7 @@ const transformFlightBookings = (flightData, travelers) => {
             passportIssueDate: formattedPassportIssue,
             gender: traveler.gender,
             isLeadPax: index === 0,
-            paxType: calculatePaxType(traveler.age),
+            paxType: calculatePaxType(traveler.age), // 1 for Adult, 2 for Child
             addressLineOne: traveler.addressLineOne,
             addressLineTwo: traveler.addressLineTwo || '',
             city: traveler.city,
@@ -322,14 +365,8 @@ const transformFlightBookings = (flightData, travelers) => {
             email: traveler.email,
             frequentFlyerAirlineCode: traveler.frequentFlyerAirlineCode || null,
             frequentFlyerNumber: traveler.frequentFlyerNumber || null,
-            ...(flightData.isSeatSelected || flightData.isMealSelected || flightData.isBaggageSelected) && {
-              ssr: {
-                meal: flightData.isMealSelected ? meals : [],
-                baggage: flightData.isBaggageSelected ? [] : [],
-                seat: flightData.isSeatSelected ? assignedSeats : []
-              }
-            },
-            ...(calculatePaxType(traveler.age) === 1) && {
+            ...(hasSSR && { ssr: ssrData }), // Only include ssr if there's data
+            ...(calculatePaxType(traveler.age) === 1) && { // GST only for Adults (PaxType 1)
               gstCompanyAddress: traveler.gstCompanyAddress || null,
               gstCompanyContactNumber: traveler.gstCompanyContactNumber || null,
               gstCompanyEmail: traveler.gstCompanyEmail || null,
@@ -362,7 +399,8 @@ const transformFlightBookings = (flightData, travelers) => {
 // Helper function to calculate passenger type
 function calculatePaxType(age) {
   const ageNum = parseInt(age);
-  return ageNum >= 12 ? 1 : 2; // 1 for adult, 2 for child
+  if (isNaN(ageNum)) return 1; // Default to adult if age is invalid
+  return ageNum >= 12 ? 1 : (ageNum >= 2 ? 2 : 3); // 1: Adult, 2: Child, 3: Infant
 }
 
 

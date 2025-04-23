@@ -236,7 +236,7 @@ const bookingSlice = createSlice({
       })
       .addCase(fetchExistingBooking.fulfilled, (state, action) => {
         state.loading = false;
-        state.existingBooking = action.payload.data;
+        state.existingBooking = action.payload;
         state.error = null;
       })
       .addCase(fetchExistingBooking.rejected, (state, action) => {

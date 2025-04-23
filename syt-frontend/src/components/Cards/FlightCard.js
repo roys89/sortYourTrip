@@ -89,7 +89,7 @@ const FlightCard = ({
   const handleChangeFlight = () => {
     navigate('/flights', { 
       state: {
-        type: flight.type,
+        type: flightData.type,
         origin: flightData.originAirport,
         destination: flightData.arrivalAirport,
         departureDate: flightData.departureDate,
@@ -103,6 +103,8 @@ const FlightCard = ({
   };
 
   const handleChooseSeats = () => {
+    console.log('FlightCard - Travelers Details:', travelersDetails);
+    
     const flightWithFullSeatMap = {
       ...flight,
       flightData: {
@@ -110,15 +112,29 @@ const FlightCard = ({
         // Keep the original seatMap
         seatMap: flightData.seatMap,
         // If seats are already selected, include them
-        selectedSeats: flightData.selectedSeats || null
+        selectedSeats: flightData.selectedSeats || null,
+        // Include baggage and meal selections if they exist
+        selectedBaggage: flightData.selectedBaggage || null,
+        selectedMeal: flightData.selectedMeal || null,
+        // Add flags for UI state
+        isSeatSelected: flightData.isSeatSelected || false,
+        isBaggageSelected: flightData.isBaggageSelected || false,
+        isMealSelected: flightData.isMealSelected || false
       }
     };
   
-    dispatch(openSeatModal({ 
-      ...flightWithFullSeatMap,
+    console.log('FlightCard - Opening seat modal with:', {
+      flight: flightWithFullSeatMap,
+      travelersDetails,
       inquiryToken,
-      itineraryToken,
-      travelersDetails
+      itineraryToken
+    });
+
+    dispatch(openSeatModal({ 
+      flight: flightWithFullSeatMap,
+      travelersDetails,
+      inquiryToken,
+      itineraryToken
     }));
   };
 

@@ -758,19 +758,34 @@ exports.replaceRoom = async (req, res) => {
 
 exports.replaceFlight = async (req, res) => {
   const { itineraryToken } = req.params;
-  const { 
-    cityName, 
-    date, 
+  const {
+    cityName,
+    date,
     newFlightDetails,
-    type // departure_flight, return_flight, inter_city_flight, etc.
+    type, // Type of the *new* flight being added/replacing
+    oldFlightCode // <<< Add this to destructuring
   } = req.body;
   const inquiryToken = req.headers['x-inquiry-token'];
 
+  // Basic validation for required fields
+  if (!cityName || !date || !newFlightDetails || !type || !oldFlightCode) { // <<< Add oldFlightCode check
+    return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: cityName, date, newFlightDetails, type, or oldFlightCode.'
+    });
+  }
+  // It's good practice to also validate the new flight details minimally
+  if (!newFlightDetails.flightCode) {
+      console.warn('Warning: newFlightDetails is missing flightCode.', newFlightDetails);
+      // return res.status(400).json({ success: false, message: 'newFlightDetails must include a flightCode.' });
+  }
+
+
   try {
     // Find the itinerary
-    const itinerary = await Itinerary.findOne({ 
+    const itinerary = await Itinerary.findOne({
       itineraryToken,
-      inquiryToken 
+      inquiryToken
     });
 
     if (!itinerary) {
@@ -785,7 +800,7 @@ exports.replaceFlight = async (req, res) => {
     if (cityIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: 'City not found in itinerary'
+        message: `City '${cityName}' not found in itinerary`
       });
     }
 
@@ -793,74 +808,111 @@ exports.replaceFlight = async (req, res) => {
     if (dayIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: 'Day not found in itinerary'
+        message: `Day for date '${date}' not found in city '${cityName}'`
       });
     }
 
-    // Prepare flight for storage
+    // Prepare the NEW flight object with the correct structure for storage
+    const flightDataWithInternalType = {
+        ...newFlightDetails,
+        type: type // Ensure type is inside the flightData object
+    };
     const flightToStore = {
-      type: type || 'departure_flight',
-      flightData: newFlightDetails
+      type: type, // Type at the top level reflects the new/replacement flight's type
+      flightData: flightDataWithInternalType // Nested flightData object
     };
 
     // Update the flight for the specific day
     const currentDay = itinerary.cities[cityIndex].days[dayIndex];
-    
-    // If flights don't exist or we want to replace all flights
-    currentDay.flights = [flightToStore];
 
-    // Update related transfers
+    // Ensure flights array exists
+    if (!currentDay.flights) {
+        currentDay.flights = [];
+    }
+
+    // --- CORRECTED LOGIC: Find the index using oldFlightCode ---
+    const existingFlightIndex = currentDay.flights.findIndex(
+        f => f.flightData?.flightCode === oldFlightCode // <<< CHANGE HERE: Use oldFlightCode
+    );
+
+    if (existingFlightIndex !== -1) {
+        console.log(`Replacing existing flight with code '${oldFlightCode}' at index ${existingFlightIndex} with new flight type '${type}'`);
+        // Replace the flight at the found index
+        currentDay.flights[existingFlightIndex] = flightToStore;
+    } else {
+        // If the flight to replace wasn't found, this is likely an error
+        console.error(`Flight with code '${oldFlightCode}' not found on date '${date}' in city '${cityName}' for replacement.`);
+        // You should probably return an error here instead of adding
+        return res.status(404).json({ success: false, message: `Flight with code '${oldFlightCode}' not found for replacement.` });
+        // // Or handle as adding if that's intended (less likely for replacement)
+        // console.warn(`Flight with code '${oldFlightCode}' not found... Adding new flight instead.`);
+        // currentDay.flights.push(flightToStore);
+    }
+
+    // --- Transfer Update Logic (Pass correctly structured data) ---
+    let transferUpdateFailed = false;
     try {
+      console.log(`Calling updateTransfersForChange after replacing flight ${oldFlightCode} with type: ${type}`);
       const updatedTransfers = await TransferOrchestrationService.updateTransfersForChange({
         itinerary,
         changeType: 'FLIGHT_CHANGE',
         changeDetails: {
           cityName,
           date,
-          newFlightDetails,
-          type: type || 'departure_flight'
+          // Pass the new flight data (which includes the internal type)
+          newFlightDetails: flightDataWithInternalType,
+          type: type // Pass the type of the *new* flight
         },
         inquiryToken
       });
 
-      // Replace the transfers for the day 
+      // Replace the transfers for the day
       currentDay.transfers = updatedTransfers;
+      console.log('Transfers updated successfully following flight replacement.');
+
     } catch (transferError) {
-      console.error('Error updating transfers:', transferError);
-      return res.status(200).json({
-        success: true,
-        partialSuccess: true,
-        transferUpdateFailed: true,
-        message: 'Flight updated but transfers could not be updated automatically',
-        error: transferError.message
-      });
+      console.error('Error updating transfers during flight replacement:', transferError);
+      // Set flag, but continue to save the flight change
+      transferUpdateFailed = true;
     }
 
-    // Validate flight data 
-    try {
-      // You might want to create a more comprehensive validation method
-      if (!newFlightDetails.flightCode || !newFlightDetails.origin || !newFlightDetails.destination) {
-        console.warn('Incomplete flight data:', newFlightDetails);
-        // You can choose to throw an error or just log a warning
-      }
-    } catch (validationError) {
-      console.warn('Flight data validation warning:', validationError.message);
+    // Mark paths as modified *before* saving
+    itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.flights`);
+    if (!transferUpdateFailed) {
+         // Only mark transfers modified if the update succeeded
+         itinerary.markModified(`cities.${cityIndex}.days.${dayIndex}.transfers`);
     }
 
-    const updatedFlight = currentDay.flights;
     // Save the updated itinerary
     await itinerary.save();
+    console.log('Itinerary saved with flight changes.');
+
+
+    // Construct response based on transfer update success
+    const responseMessage = transferUpdateFailed
+        ? 'Flight updated but transfers could not be updated automatically.'
+        : 'Flight and related transfers updated successfully.';
 
     res.json({
       success: true,
-      message: 'Flight and related transfers updated successfully',
-      partialSuccess: false,
-      transferUpdateFailed: false,
-      updatedFlight: updatedFlight
+      partialSuccess: transferUpdateFailed, // True if transfers failed
+      transferUpdateFailed: transferUpdateFailed,
+      message: responseMessage,
+      updatedFlights: currentDay.flights // Return the potentially updated flights array
     });
 
   } catch (error) {
     console.error('Error replacing flight:', error);
+    // Log the specific error details
+    apiLogger.logApiData({
+        inquiryToken,
+        cityName,
+        date,
+        apiType: 'replace-flight-error',
+        requestBody: req.body,
+        error: error.message,
+        stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Error updating flight and transfers',
@@ -1595,7 +1647,8 @@ exports.addFlight = async (req, res) => {
     const flightToAdd = {
       type: type, 
       flightData: {
-        ...newFlightDetails, // Use the already formatted data directly
+        ...newFlightDetails,
+        type: type, // Use the already formatted data directly
         bookingStatus: 'pending' // Initialize booking status (or keep from formatted data if present)
       }
     };

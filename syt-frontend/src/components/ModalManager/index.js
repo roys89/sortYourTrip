@@ -60,11 +60,11 @@ const ModalManager = () => {
           onClose={handleSeatModalClose}
           flightData={selectedFlight.flightData}
           maxSeats={
-            selectedFlight.travelersDetails.type === 'SOLO' 
+            selectedFlight.travelersDetails?.type === 'SOLO' 
               ? 1 
-              : selectedFlight.travelersDetails.type === 'COUPLE' 
+              : selectedFlight.travelersDetails?.type === 'COUPLE' 
                 ? 2 
-                : selectedFlight.travelersDetails.rooms?.reduce(
+                : selectedFlight.travelersDetails?.rooms?.reduce(
                     (total, room) => total + (room.adults?.length || 0) + (room.children?.length || 0), 
                     0
                   ) || 1

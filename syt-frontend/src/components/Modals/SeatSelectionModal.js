@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Card,
+  Chip,
   Grid,
   Paper,
   Tab,
@@ -10,14 +11,16 @@ import {
   styled
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Plane, ShoppingBag, X } from "lucide-react";
+import { Plane, ShoppingBag, User, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import {
   closeSeatModal,
-  updateFlightSeats,
+  setActivePassengerIndex,
+  updateFlightSeats
 } from "../../redux/slices/flightSlice";
+import "./SeatSelectionModal.css";
 
 // Styled components using MUI theme
 const ModalOverlay = styled(Box)(({ theme }) => ({
@@ -172,10 +175,27 @@ const SeatSelectionModal = ({
 }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
+  
+  // Get passengers and active passenger from Redux store
+  const { passengers, activePassengerIndex } = useSelector(state => state.flights);
+  
+  // Debug logging
+  console.log('SeatModal - Received Props:', {
+    flightData,
+    maxSeats,
+    inquiryToken,
+    itineraryToken
+  });
+  
+  console.log('SeatModal - Passengers from Redux:', {
+    passengers,
+    activePassengerIndex
+  });
+
   const [activeView, setActiveView] = useState("seats");
   const [activeFlightSegment, setActiveFlightSegment] = useState(0);
 
-  // Initialize selections maintaining exact flight data structure
+  // Initialize selections with passenger information
   const [selectedSeats, setSelectedSeats] = useState(() => {
     const initialSeatMap = flightData.seatMap?.map(segment => {
       const matchingSelectedSegment = flightData.selectedSeats?.find(
@@ -189,14 +209,20 @@ const SeatSelectionModal = ({
         destination: segment.destination,
         resultIdentifier: segment.resultIdentifier,
         rows: segment.rows.map(row => ({
-          seats: row.seats.filter(seat => seat.code !== null).map(seat => ({
-            ...seat,
-            isSelected: matchingSelectedSegment?.rows.some(selectedRow => 
-              selectedRow.seats.some(selectedSeat => 
-                selectedSeat.code === seat.code
-              )
-            ) || false
-          }))
+          seats: row.seats.filter(seat => seat.code !== null).map(seat => {
+            const selectedSeat = matchingSelectedSegment?.rows
+              ?.flatMap(r => r.seats)
+              ?.find(s => s.code === seat.code);
+            
+            return {
+              ...seat,
+              isSelected: !!selectedSeat,
+              passengerId: selectedSeat?.passengerId,
+              passengerIndex: selectedSeat?.passengerIndex,
+              passengerName: selectedSeat?.passengerName,
+              passengerType: selectedSeat?.passengerType
+            };
+          })
         }))
       };
     });
@@ -204,42 +230,70 @@ const SeatSelectionModal = ({
     return initialSeatMap || [];
   });
 
-  // Also update the baggage initialization to match segments correctly
+  // --- Initialize Baggage per passenger ---
   const [selectedBaggage, setSelectedBaggage] = useState(() => {
-    return flightData.baggageOptions?.map(segment => {
-      const matchingSelected = flightData.selectedBaggage?.find(
-        selected => 
-          selected.origin === segment.origin && 
-          selected.destination === segment.destination
-      );
-  
-      return {
-        origin: segment.origin,
-        destination: segment.destination,
-        resultIdentifier: segment.resultIdentifier,
-        options: segment.options,
-        selectedOption: matchingSelected?.options[0] || null
-      };
-    }) || [];
+    const initialBaggage = flightData.baggageOptions?.map(segment => ({
+      origin: segment.origin,
+      destination: segment.destination,
+      resultIdentifier: segment.resultIdentifier,
+      options: segment.options || [],
+      // Initialize selection for each passenger
+      passengerSelections: passengers.map(passenger => ({
+        passengerId: passenger.id,
+        selectedOption: null // Will be populated from existing selections if available
+      }))
+    })) || [];
+
+    // Populate existing baggage selections
+    if (flightData.selectedBaggage && flightData.selectedBaggage.length > 0) {
+      flightData.selectedBaggage.forEach(selBag => {
+        const segmentIndex = initialBaggage.findIndex(
+          seg => seg.origin === selBag.origin && seg.destination === selBag.destination
+        );
+        if (segmentIndex >= 0 && selBag.options && selBag.options.length > 0) {
+          selBag.options.forEach(option => {
+            const passengerIdx = option.passengerIndex !== undefined ? option.passengerIndex : 0;
+            if (passengerIdx < initialBaggage[segmentIndex].passengerSelections.length) {
+              initialBaggage[segmentIndex].passengerSelections[passengerIdx].selectedOption = option;
+            }
+          });
+        }
+      });
+    }
+    return initialBaggage;
   });
-  
-  // And update the meal initialization similarly
+
+  // --- Initialize Meals per passenger ---
   const [selectedMeal, setSelectedMeal] = useState(() => {
-    return flightData.mealOptions?.map(segment => {
-      const matchingSelected = flightData.selectedMeal?.find(
-        selected => 
-          selected.origin === segment.origin && 
-          selected.destination === segment.destination
-      );
-  
-      return {
-        origin: segment.origin,
-        destination: segment.destination,
-        resultIdentifier: segment.resultIdentifier,
-        options: segment.options,
-        selectedOption: matchingSelected?.options[0] || null
-      };
-    }) || [];
+    const initialMeals = flightData.mealOptions?.map(segment => ({
+      origin: segment.origin,
+      destination: segment.destination,
+      resultIdentifier: segment.resultIdentifier,
+      options: segment.options || [],
+      // Initialize selection for each passenger
+      passengerSelections: passengers.map(passenger => ({
+        passengerId: passenger.id,
+        selectedOption: null // Will be populated from existing selections if available
+      }))
+    })) || [];
+
+    // Populate existing meal selections
+    if (flightData.selectedMeal && flightData.selectedMeal.length > 0) {
+      flightData.selectedMeal.forEach(selMeal => {
+        const segmentIndex = initialMeals.findIndex(
+          seg => seg.origin === selMeal.origin && seg.destination === selMeal.destination
+        );
+        if (segmentIndex >= 0 && selMeal.options && selMeal.options.length > 0) {
+          selMeal.options.forEach(option => {
+            const passengerIdx = option.passengerIndex !== undefined ? option.passengerIndex : 0;
+            if (passengerIdx < initialMeals[segmentIndex].passengerSelections.length) {
+              initialMeals[segmentIndex].passengerSelections[passengerIdx].selectedOption = option;
+            }
+          });
+        }
+      });
+    }
+    return initialMeals;
   });
 
   const [error, setError] = useState("");
@@ -276,24 +330,108 @@ const SeatSelectionModal = ({
     return total;
   }, [selectedSeats, selectedBaggage, selectedMeal]);
 
-  // Seat selection handler
+  // Get passenger selections for current segment
+  const getCurrentPassengerSelections = (segmentIndex) => {
+    // Guard against undefined segment
+    if (!selectedSeats || !selectedSeats[segmentIndex]) {
+      return [];
+    }
+    
+    const segment = selectedSeats[segmentIndex];
+    return segment?.rows.reduce((acc, row) => {
+      row.seats.forEach(seat => {
+        if (seat.isSelected && seat.passengerId) {
+          acc.push({
+            passengerId: seat.passengerId,
+            passengerIndex: seat.passengerIndex,
+            passengerName: seat.passengerName || 'Passenger',
+            seatCode: seat.code,
+            price: seat.price
+          });
+        }
+      });
+      return acc;
+    }, []) || [];
+  };
+
+  // Handle passenger tab change
+  const handlePassengerChange = (passengerIndex) => {
+    dispatch(setActivePassengerIndex(passengerIndex));
+  };
+
+  // Updated seat selection handler with passenger information
   const handleSeatClick = (segmentIndex, rowIndex, seatIndex, isBooked) => {
     if (isBooked) return;
+    
+    // Guard against empty passengers array
+    if (!passengers || passengers.length === 0) {
+      setError("No passenger information available");
+      return;
+    }
+    
+    // Guard against invalid passenger index
+    if (activePassengerIndex < 0 || activePassengerIndex >= passengers.length) {
+      setError("Invalid passenger selection");
+      return;
+    }
 
     setSelectedSeats((prev) => {
       const newSeats = [...prev];
       const segment = newSeats[segmentIndex];
-      const currentSelectedCount = segment.rows.reduce(
+      const currentPassenger = passengers[activePassengerIndex];
+      
+      // Ensure passenger data exists
+      if (!currentPassenger) {
+        setError("Passenger information not available");
+        return prev;
+      }
+      
+      // Count seats selected for current passenger
+      const passengerSeatCount = segment.rows.reduce(
         (count, row) =>
-          count + row.seats.filter((seat) => seat.isSelected).length,
+          count + row.seats.filter((seat) => 
+            seat.isSelected && seat.passengerIndex === activePassengerIndex
+          ).length,
         0
       );
 
       const seat = segment.rows[rowIndex].seats[seatIndex];
-      const isCurrentlySelected = seat.isSelected;
+      
+      // If seat is already selected by this passenger, unselect it
+      if (seat.isSelected && seat.passengerIndex === activePassengerIndex) {
+        newSeats[segmentIndex] = {
+          ...segment,
+          rows: segment.rows.map((row, rIndex) => {
+            if (rIndex !== rowIndex) return row;
+            return {
+              ...row,
+              seats: row.seats.map((s, sIndex) => {
+                if (sIndex !== seatIndex) return s;
+                return {
+                  ...s,
+                  isSelected: false,
+                  passengerId: null,
+                  passengerIndex: null,
+                  passengerName: null,
+                  passengerType: null
+                };
+              }),
+            };
+          }),
+        };
+        setError("");
+        return newSeats;
+      }
 
-      if (!isCurrentlySelected && currentSelectedCount >= maxSeats) {
-        setError(`You can only select ${maxSeats} seats per flight segment`);
+      // Check if passenger already has a seat
+      if (passengerSeatCount >= 1) {
+        setError(`Each passenger can only select one seat per flight segment`);
+        return prev;
+      }
+
+      // Check if seat is already selected by another passenger
+      if (seat.isSelected) {
+        setError(`This seat is already selected by ${seat.passengerName || 'another passenger'}`);
         return prev;
       }
 
@@ -303,11 +441,15 @@ const SeatSelectionModal = ({
           if (rIndex !== rowIndex) return row;
           return {
             ...row,
-            seats: row.seats.map((seat, sIndex) => {
-              if (sIndex !== seatIndex) return seat;
+            seats: row.seats.map((s, sIndex) => {
+              if (sIndex !== seatIndex) return s;
               return {
-                ...seat,
-                isSelected: !seat.isSelected,
+                ...s,
+                isSelected: true,
+                passengerId: currentPassenger.id,
+                passengerIndex: activePassengerIndex,
+                passengerName: currentPassenger.name,
+                passengerType: currentPassenger.type
               };
             }),
           };
@@ -319,31 +461,55 @@ const SeatSelectionModal = ({
     });
   };
 
-  // Baggage selection handler
+  // --- Updated Baggage selection handler per passenger ---
   const handleBaggageSelect = (segmentIndex, option) => {
     setSelectedBaggage((prev) => {
       const newBaggage = [...prev];
+      if (!newBaggage[segmentIndex] || !newBaggage[segmentIndex].passengerSelections) return prev; // Guard clause
+      
+      const passengerSelections = [...newBaggage[segmentIndex].passengerSelections];
+      if (activePassengerIndex >= passengerSelections.length) return prev; // Guard clause
+      
+      const currentPassengerSelection = passengerSelections[activePassengerIndex];
+      const currentOption = currentPassengerSelection.selectedOption;
+
+      // Update the selection for the active passenger
+      passengerSelections[activePassengerIndex] = {
+        ...currentPassengerSelection,
+        // Toggle: if same option clicked, deselect; otherwise select new option
+        selectedOption: currentOption?.code === option.code ? null : option,
+      };
+
       newBaggage[segmentIndex] = {
         ...newBaggage[segmentIndex],
-        selectedOption:
-          newBaggage[segmentIndex].selectedOption?.code === option.code
-            ? null
-            : option,
+        passengerSelections: passengerSelections,
       };
       return newBaggage;
     });
   };
 
-  // Meal selection handler
+  // --- Updated Meal selection handler per passenger ---
   const handleMealSelect = (segmentIndex, option) => {
     setSelectedMeal((prev) => {
       const newMeal = [...prev];
+      if (!newMeal[segmentIndex] || !newMeal[segmentIndex].passengerSelections) return prev; // Guard clause
+      
+      const passengerSelections = [...newMeal[segmentIndex].passengerSelections];
+      if (activePassengerIndex >= passengerSelections.length) return prev; // Guard clause
+
+      const currentPassengerSelection = passengerSelections[activePassengerIndex];
+      const currentOption = currentPassengerSelection.selectedOption;
+
+      // Update the selection for the active passenger
+      passengerSelections[activePassengerIndex] = {
+        ...currentPassengerSelection,
+        // Toggle: if same option clicked, deselect; otherwise select new option
+        selectedOption: currentOption?.code === option.code ? null : option,
+      };
+      
       newMeal[segmentIndex] = {
         ...newMeal[segmentIndex],
-        selectedOption:
-          newMeal[segmentIndex].selectedOption?.code === option.code
-            ? null
-            : option,
+        passengerSelections: passengerSelections,
       };
       return newMeal;
     });
@@ -367,7 +533,11 @@ const SeatSelectionModal = ({
                 seatNo: seat.seatNo,
                 price: seat.price,
                 type: seat.type,
-                priceBracket: seat.priceBracket
+                priceBracket: seat.priceBracket,
+                passengerId: seat.passengerId,
+                passengerIndex: seat.passengerIndex,
+                passengerName: seat.passengerName || 'Unknown',
+                passengerType: seat.passengerType || 'Unknown'
               }))
             })).filter(row => row.seats.length > 0)
           })),
@@ -427,7 +597,59 @@ const SeatSelectionModal = ({
             <X size={24} />
           </Button>
         </ModalHeader>
-  
+
+        {/* Passenger Selection */}
+        <Box className="passenger-selector">
+          <Box className="passenger-tabs">
+            {passengers && passengers.length > 0 ? (
+              passengers.map((passenger, index) => (
+                <Button
+                  key={passenger.id || index}
+                  onClick={() => handlePassengerChange(index)}
+                  className={`passenger-tab ${index === activePassengerIndex ? 'active' : ''}`}
+                  startIcon={<User size={16} />}
+                >
+                  {passenger.name || `Passenger ${index + 1}`}
+                </Button>
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No passenger information available
+              </Typography>
+            )}
+          </Box>
+          
+          <Box className="selections-summary">
+            {getCurrentPassengerSelections(activeFlightSegment).map((selection, index) => (
+              <Chip
+                key={selection.passengerId || `selection-${index}`}
+                label={`${selection.passengerName || 'Passenger'}: ${selection.seatCode}`}
+                className={`selection-chip ${selection.passengerIndex === activePassengerIndex ? 'active' : ''}`}
+                onDelete={() => {
+                  // Only change passenger if available
+                  if (passengers && passengers.length > 0 && 
+                      selection.passengerIndex >= 0 && 
+                      selection.passengerIndex < passengers.length) {
+                    handlePassengerChange(selection.passengerIndex);
+                  }
+                  
+                  // Find and unselect the seat
+                  const segmentData = selectedSeats[activeFlightSegment];
+                  if (segmentData) {
+                    segmentData.rows.forEach((row, rowIndex) => {
+                      row.seats.forEach((seat, seatIndex) => {
+                        if (seat.code === selection.seatCode) {
+                          handleSeatClick(activeFlightSegment, rowIndex, seatIndex, false);
+                        }
+                      });
+                    });
+                  }
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
+
         {/* Error Alert */}
         {error && (
           <Box sx={{ p: 2 }}>
@@ -507,22 +729,32 @@ const SeatSelectionModal = ({
                   <Grid container spacing={2} justifyContent="center">
                     {selectedSeats[activeFlightSegment].rows.map((row, rowIndex) => (
                       <Grid item xs={12} key={rowIndex} sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                        {row.seats.filter(seat => seat.code !== null).map((seat, seatIndex) => (
-                          <SeatButton
-                            key={seat.code}
-                            onClick={() => handleSeatClick(activeFlightSegment, rowIndex, seatIndex, seat.isBooked)}
-                            disabled={seat.isBooked || isLoading}
-                            selected={seat.isSelected}
-                            isAisle={seat.type?.isAisle}
-                          >
-                            <Typography variant="body2">{seat.code}</Typography>
-                            {!seat.isBooked && (
-                              <SeatPrice variant="caption" selected={seat.isSelected}>
-                                ₹{seat.price}
-                              </SeatPrice>
-                            )}
-                          </SeatButton>
-                        ))}
+                        {selectedSeats[activeFlightSegment].rows[rowIndex].seats.filter(seat => seat.code !== null).map((seat, seatIndex) => {
+                          // Log the seat object being rendered
+                          console.log(`Rendering SeatButton for seat:`, seat);
+                          
+                          return (
+                            <SeatButton
+                              key={seat.code}
+                              onClick={() => handleSeatClick(activeFlightSegment, rowIndex, seatIndex, seat.isBooked)}
+                              disabled={seat.isBooked || isLoading}
+                              selected={seat.isSelected}
+                              isAisle={seat.type?.isAisle || false}
+                            >
+                              <Typography variant="body2">{seat.code}</Typography>
+                              {!seat.isBooked && (
+                                <SeatPrice variant="caption" selected={seat.isSelected}>
+                                  ₹{seat.price}
+                                </SeatPrice>
+                              )}
+                              {seat.isSelected && seat.passengerName && (
+                                <span className="passenger-name-tooltip">
+                                  {seat.passengerName}
+                                </span>
+                              )}
+                            </SeatButton>
+                          );
+                        })}
                       </Grid>
                     ))}
                   </Grid>
@@ -551,17 +783,23 @@ const SeatSelectionModal = ({
                 ))}
               </Tabs>
   
-              {/* Active segment baggage options */}
+              {/* Active segment baggage options - Updated Logic */} 
               {selectedBaggage[activeFlightSegment] && (
                 <Grid container spacing={2}>
+                  <Typography variant="body2" sx={{ width: '100%', mb: 1, pl: 2, color: 'text.secondary' }}>
+                    Select baggage for: {passengers[activePassengerIndex]?.name || `Passenger ${activePassengerIndex + 1}`}
+                  </Typography>
                   {selectedBaggage[activeFlightSegment].options.map((option) => {
-                    const isSelected = selectedBaggage[activeFlightSegment].selectedOption?.code === option.code;
+                    // Determine if this option is selected for the *active* passenger
+                    const currentPassengerSelection = selectedBaggage[activeFlightSegment].passengerSelections?.[activePassengerIndex];
+                    const isSelected = currentPassengerSelection?.selectedOption?.code === option.code;
+                    
                     return (
                       <Grid item xs={12} key={option.code}>
                         <OptionCard
                           onClick={() => handleBaggageSelect(activeFlightSegment, option)}
                           disabled={isLoading}
-                          selected={isSelected}
+                          selected={isSelected} // Use the correct isSelected status
                           fullWidth
                         >
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -606,17 +844,23 @@ const SeatSelectionModal = ({
                 ))}
               </Tabs>
   
-              {/* Active segment meal options */}
+              {/* Active segment meal options - Updated Logic */} 
               {selectedMeal[activeFlightSegment] && (
                 <Grid container spacing={2}>
+                  <Typography variant="body2" sx={{ width: '100%', mb: 1, pl: 2, color: 'text.secondary' }}>
+                    Select meal for: {passengers[activePassengerIndex]?.name || `Passenger ${activePassengerIndex + 1}`}
+                  </Typography>
                   {selectedMeal[activeFlightSegment].options.map((option) => {
-                    const isSelected = selectedMeal[activeFlightSegment].selectedOption?.code === option.code;
+                    // Determine if this option is selected for the *active* passenger
+                    const currentPassengerSelection = selectedMeal[activeFlightSegment].passengerSelections?.[activePassengerIndex];
+                    const isSelected = currentPassengerSelection?.selectedOption?.code === option.code;
+                    
                     return (
                       <Grid item xs={12} key={option.code}>
                         <OptionCard
                           onClick={() => handleMealSelect(activeFlightSegment, option)}
                           disabled={isLoading}
-                          selected={isSelected}
+                          selected={isSelected} // Use the correct isSelected status
                           fullWidth
                         >
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>

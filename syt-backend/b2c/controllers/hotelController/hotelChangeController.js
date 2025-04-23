@@ -135,9 +135,10 @@ module.exports = {
       let locationId = null;
 
       if (hotelId) {
-          // Removed logger.info
+          console.log("Searching by hotelId:", hotelId);
           searchParams = {
-              hotelId, // Use hotelId from body
+              // Use hotelId directly as hotelId, not in hotelIds array - this is a key fix
+              hotelId: hotelId, 
               checkIn,
               checkOut,
               occupancies, // Use determined occupancies
@@ -198,6 +199,7 @@ module.exports = {
       });
     } catch (error) {
       // Removed logger.error
+      console.error("Hotel search error:", error); // Add console.error for debugging
       // Keep sending error response
       res.status(500).json({
         success: false,

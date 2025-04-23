@@ -3,9 +3,13 @@ const apiLogger = require('../../helpers/apiLogger');
 
 class HotelSearchService {
   static async searchHotels(searchParams, accessToken, inquiryToken) {
+    // Create variables outside try/catch for access in both success and error cases
+    let requestBody;
+    let requestBodyForLogging;
+
     try {
       // --- Construct the request body based on external API spec ---
-      const requestBody = {
+      requestBody = {
         checkIn: searchParams.checkIn, // Will be formatted later
         checkOut: searchParams.checkOut, // Will be formatted later
         filterBy: {
@@ -22,20 +26,35 @@ class HotelSearchService {
         nationality: searchParams.nationality ?? 'IN', // Default to 'IN' or null based on requirements
         occupancies: searchParams.occupancies, // Will be formatted later
         locationId: searchParams.locationId ?? null,
-        // Handle hotelIds array (prefer plural if exists, fallback to singular)
-        hotelIds: searchParams.hotelIds 
-          ? (Array.isArray(searchParams.hotelIds) ? searchParams.hotelIds : [searchParams.hotelIds]) 
-          : (searchParams.hotelId ? [searchParams.hotelId] : null),
+        // Handle hotelIds array or single hotelId
+        hotelIds: null,
         // Default sort order if not provided
         sortBy: searchParams.sortBy ?? { finalRate: 'default', id: 1, value: 1, label: 'Relevance' }, 
         page: searchParams.page ? parseInt(searchParams.page) : 1, // Default page 1
         traceId: searchParams.traceId ?? null // Use traceId if provided for pagination/continuity
       };
       
+      // Handle hotelId vs hotelIds appropriately
+      if (searchParams.hotelIds) {
+        // If hotelIds is provided, use it directly
+        requestBody.hotelIds = Array.isArray(searchParams.hotelIds) ? searchParams.hotelIds : [searchParams.hotelIds];
+      } else if (searchParams.hotelId) {
+        // If only hotelId is provided, use it directly as a single value - DO NOT WRAP IN ARRAY
+        delete requestBody.hotelIds; // Remove hotelIds field
+        requestBody.hotelId = searchParams.hotelId; // Set hotelId directly
+        console.log("Using direct hotel ID:", searchParams.hotelId);
+      }
+      
       // --- Validation --- 
-      // Validate required fields - Either locationId or hotelIds must be present
-      if (!requestBody.locationId && (!requestBody.hotelIds || requestBody.hotelIds.length === 0)) {
-        throw new Error('Either Location ID or Hotel IDs are required for hotel search');
+      // Validate required fields - Either locationId, hotelId, or hotelIds must be present
+      if (!requestBody.locationId && !requestBody.hotelId && (!requestBody.hotelIds || requestBody.hotelIds.length === 0)) {
+        console.error("Hotel search validation failed: Missing required parameters", {
+          locationId: requestBody.locationId,
+          hotelId: requestBody.hotelId,
+          hotelIds: requestBody.hotelIds,
+          originalHotelId: searchParams.hotelId
+        });
+        throw new Error('Either Location ID or Hotel ID is required for hotel search');
       }
 
       // Format and Validate dates
@@ -134,7 +153,7 @@ class HotelSearchService {
       // --- END: Validate sortBy ---
       
       // --- Create a deep copy for logging BEFORE deleting null fields ---
-      const requestBodyForLogging = JSON.parse(JSON.stringify(requestBody));
+      requestBodyForLogging = JSON.parse(JSON.stringify(requestBody));
       
       // --- Remove null/empty fields from the ACTUAL request body sent to the API ---
       if (requestBody.filterBy) {
@@ -148,12 +167,19 @@ class HotelSearchService {
               delete requestBody.filterBy;
           }
       }
+      // Clean up hotelIds if empty
       if (!requestBody.hotelIds || requestBody.hotelIds.length === 0) {
           delete requestBody.hotelIds;
       }
+      // Clean up hotelId if null
+      if (requestBody.hotelId === null || requestBody.hotelId === undefined) {
+          delete requestBody.hotelId;
+      }
+      // Clean up locationId if null
       if (requestBody.locationId === null) {
           delete requestBody.locationId;
       }
+      // Clean up traceId if null
       if (requestBody.traceId === null) {
           delete requestBody.traceId;
       }
@@ -197,38 +223,28 @@ class HotelSearchService {
       return response.data;
 
     } catch (error) {
-      // Log error
-      let loggedRequestData = {};
-      // Use the copied body for logging if available, otherwise fallback
-      if (typeof requestBodyForLogging !== 'undefined') { 
-        loggedRequestData = {
+      // Use the same requestBodyForLogging for error cases that was created for success
+      const errorLogData = {
+        inquiryToken: inquiryToken || 'unknown',
+        cityName: searchParams.cityName, 
+        date: searchParams.checkIn, 
+        apiType: 'hotel_search_error',
+        requestData: requestBodyForLogging ? {
           ...requestBodyForLogging,
           headers: {
             'Authorization': 'Bearer [REDACTED]',
             'Authorization-Type': 'external-service',
             'source': 'website'
           }
-        };
-      } else if (typeof requestBody !== 'undefined') { // Fallback to potentially modified body
-         loggedRequestData = {
-          ...requestBody,
-          headers: {
-            'Authorization': 'Bearer [REDACTED]',
-            'Authorization-Type': 'external-service',
-            'source': 'website'
-          }
-        };
-      } else {
-        // Fallback if requestBody wasn't even defined
-        loggedRequestData = { originalSearchParams: searchParams };
-      }
-
-      const errorLogData = {
-        inquiryToken: inquiryToken || 'unknown',
-        cityName: searchParams.cityName, 
-        date: searchParams.checkIn, 
-        apiType: 'hotel_search_error',
-        requestData: loggedRequestData, // Log the intended or best-available request structure
+        } : {
+          // If requestBodyForLogging wasn't created yet, create a similar structure
+          originalSearchParams: searchParams,
+          hotelId: searchParams.hotelId,
+          locationId: searchParams.locationId,
+          checkIn: searchParams.checkIn,
+          checkOut: searchParams.checkOut,
+          occupancies: searchParams.occupancies
+        },
         responseData: { 
           error: error.message,
           details: error.response?.data || {}

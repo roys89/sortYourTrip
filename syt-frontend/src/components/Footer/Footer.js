@@ -11,9 +11,9 @@ const Footer = () => {
     background: 'transparent',
     border: '1px solid rgba(255, 255, 255, 0.3)',
     color: 'white',
-    padding: '16px 32px',
+    padding: '12px 24px',
     cursor: 'pointer',
-    fontSize: '1.125rem',
+    fontSize: '0.95rem',
     transition: 'all 0.3s ease',
     borderRadius: '50px',
     margin: '0 auto',
@@ -62,8 +62,8 @@ const Footer = () => {
         height: '100%',
         color: 'white',
         pt: 0,
-        pb: 8,
-        minHeight: '800px',
+        pb: 4,
+        minHeight: '550px',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative'
@@ -73,12 +73,12 @@ const Footer = () => {
         maxWidth="xl" 
         sx={{ 
           px: { xs: 4, sm: 8, md: 12 },
-          pt: { xs: 60, sm: 28, md: 32 },
+          pt: { xs: 40, sm: 24, md: 28 },
           position: 'relative'
         }}
       >
         {/* Top Section */}
-        <Grid container spacing={4} sx={{ mb: 8 }}>
+        <Grid container spacing={4} sx={{ mb: 4 }}>
           {/* Left Section */}
           <Grid 
             item 
@@ -86,16 +86,16 @@ const Footer = () => {
             md={4.5}
             sx={{
               textAlign: { xs: 'center', md: 'left' },
-              mb: { xs: 6, md: 0 }
+              mb: { xs: 4, md: 0 }
             }}
           >
             <Typography 
               variant="h1" 
               sx={{ 
                 fontWeight: 400, 
-                mb: 6, 
+                mb: 4, 
                 color: 'white',
-                fontSize: '2.5rem',
+                fontSize: '2.2rem',
                 fontFamily: "'Montserrat', sans-serif",
                 textAlign: { xs: 'center', md: 'left' }
               }}
@@ -106,8 +106,8 @@ const Footer = () => {
               variant="h6" 
               sx={{ 
                 fontWeight: 400, 
-                mb: 3,
-                fontSize: '1.5rem',
+                py: 1.2,
+                fontSize: '1.2rem',
                  textTransform: 'uppercase'
               }}
             >
@@ -116,9 +116,9 @@ const Footer = () => {
             </Typography>
             {/*upercase CONTACT US */}
             <Typography sx={{ 
-              mb: 4, 
-              fontSize: '1.125rem', 
-              lineHeight: 1.8,
+              mb: 3, 
+              fontSize: '0.95rem', 
+              lineHeight: 1.6,
               opacity: 0.9
             }}>
               A/202, Kalpatru Habitat,<br />
@@ -133,7 +133,7 @@ const Footer = () => {
                 mb: 2,
                 color: 'white',
                 textDecoration: 'underline',
-                fontSize: '1.125rem',
+                fontSize: '0.95rem',
                 opacity: 0.9,
                 '&:hover': { opacity: 1 }
               }}
@@ -177,7 +177,7 @@ const Footer = () => {
               sx={{ 
                 fontWeight: 400, 
                 mb: 3,
-                fontSize: '2.25rem',
+                fontSize: '1.8rem',
                 textAlign: 'center'
               }}
             >
@@ -185,9 +185,9 @@ const Footer = () => {
             </Typography>
             <Typography sx={{ 
               mb: 4, 
-              fontSize: '1.125rem',
+              fontSize: '0.95rem',
               opacity: 0.9,
-              lineHeight: 1.6,
+              lineHeight: 1.5,
               textAlign: 'center'
             }}>
               Subscribe to our Newsletter for<br />
@@ -222,20 +222,24 @@ const Footer = () => {
             md={3} 
             sx={{ 
               pl: { xs: 0, md: 6 },
-              mt: { xs: 6, md: 0 }
+              mt: { xs: 6, md: 0 },
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: { xs: 'flex-start', md: 'flex-start' }
             }}
           >
             <Box sx={{ 
               display: 'flex', 
               justifyContent: { xs: 'center', md: 'flex-end' },
               flexDirection: 'column',
-              alignItems: { xs: 'center', md: 'flex-end' }
+              alignItems: { xs: 'center', md: 'flex-end' },
+              mt: { xs: 0, md: '2.4rem' }
             }}>
               {[
                 'About Us',
-                'Destinations',
-                'Book Now',
                 'Blog',
+                'Terms and Conditions',
+                'Privacy Policy',
                 'Contact Us',
                 ['Sent Us Text', '→']
               ].map((text, index) => (
@@ -247,11 +251,11 @@ const Footer = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: { xs: 'center', md: 'flex-end' },
-                    mb: index === 5 ? 0 : 3,
+                    mb: index === 7 ? 0 : 2,
                     color: 'white',
                     textDecoration: 'none',
                     opacity: 0.9,
-                    fontSize: '1.25rem',
+                    fontSize: '1.05rem',
                     fontWeight: 400,
                     '&:hover': { opacity: 1 }
                   }}
@@ -272,12 +276,13 @@ const Footer = () => {
         <Box sx={{ 
           justifyContent: 'center',
           display: 'flex',
-          pt: 4,
+          pt: 2,
+          mt: 2,
           borderTop: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <Typography sx={{ 
             opacity: 0.9,
-            fontSize: { xs: '0.9rem', sm: '1.125rem' },
+              fontSize: { xs: '0.8rem', sm: '0.9rem' },
             display: 'flex',
             alignItems: 'center',
             gap: { xs: 1, sm: 2 },

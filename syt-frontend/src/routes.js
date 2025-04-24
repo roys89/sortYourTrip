@@ -16,6 +16,8 @@ const ItineraryInquiryPage = lazy(() =>
 );
 const AboutUs = lazy(() => import("./pages/AboutUs/AboutUs"));
 const ContactUs = lazy(() => import("./pages/ContactUs/ContactUs"));
+const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions/TermsAndConditions"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy/PrivacyPolicy"));
 const ItineraryPage = lazy(() => import("./pages/ItineraryPage/ItineraryPage"));
 const ActivitiesPage = lazy(() => import("./pages/ChangingPage/Activities"));
 const HotelsPage = lazy(() => import("./pages/ChangingPage/Hotels"));
@@ -54,6 +56,8 @@ const AppRoutes = () => {
         />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
+        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/destination-input" element={<DestinationInput />} />
         <Route path="/itinerary-inquiry" element={<ItineraryInquiryPage />} />
 

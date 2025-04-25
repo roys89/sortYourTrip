@@ -26,49 +26,12 @@ const HotelBookingSchema = new mongoose.Schema({
     type: String,
     default: 'TC'
   },
-  hotelDetails: {
-    hotelId: String,
-    name: String,
-    starRating: Number,
-    address: {
-      line1: String,
-      line2: String,
-      city: String,
-      state: String,
-      country: String,
-      postalCode: String
-    },
-    images: [String],
-    facilities: [String]
-  },
-  bookingDetails: {
-    checkIn: {
-      type: Date,
-      required: true
-    },
-    checkOut: {
-      type: Date,
-      required: true
-    },
-    rooms: [{
-      roomType: String,
-      occupancy: {
-        adults: Number,
-        children: Number,
-        childAges: [Number]
-      },
-      mealPlan: String,
-      cancellationPolicy: String,
-      price: {
-        amount: Number,
-        currency: String
-      },
-      bookingStatus: String,
-      providerConfirmationNumber: String
-    }]
+  providerBookingResponse: {
+    type: mongoose.Schema.Types.Mixed, // Store the entire booking response
+    required: true
   },
   paymentDetails: {
-    totalAmount: {
+    finalRate: {
       type: Number,
       required: true
     },
@@ -76,13 +39,23 @@ const HotelBookingSchema = new mongoose.Schema({
       type: String,
       default: 'INR'
     },
-    paymentMethod: String,
+    paymentMethod: {
+      type: String,
+      default: 'Pending'
+    },
     paymentStatus: {
       type: String,
-      enum: ['Paid', 'Pending', 'Failed'],
-      default: 'Paid'
+      enum: ['Paid', 'Pending', 'Failed', 'Refunded'],
+      default: 'Pending'
     },
-    transactionId: String
+    transactionId: {
+      type: String,
+      default: 'N/A'
+    },
+    amountPaid: {
+      type: Number,
+      default: 0
+    }
   },
   guestDetails: [{
     title: String,

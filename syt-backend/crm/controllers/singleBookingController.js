@@ -19,6 +19,13 @@ const singleBookingController = {
         });
       }
 
+      if (!bookingData.providerBookingResponse) {
+        return res.status(400).json({
+          success: false,
+          message: 'Provider booking response is required'
+        });
+      }
+
       // Check if booking already exists
       const existingBooking = await HotelBooking.findOne({ bookingRefId: bookingData.bookingRefId });
       if (existingBooking) {
@@ -159,7 +166,7 @@ const singleBookingController = {
     }
   },
 
-  // Update hotel booking
+  // Update hotel booking payment details 
   updateHotelBooking: async (req, res) => {
     try {
       const { HotelBooking } = getModels();
@@ -170,10 +177,34 @@ const singleBookingController = {
       // Get update data from request body
       const updateData = req.body;
       
+      // If payment details are being updated, prepare the update object using $set
+      const updatePayload = { $set: {} };
+      
+      if (updateData.paymentDetails) {
+        // Use dot notation for updating nested fields within paymentDetails
+        if (updateData.paymentDetails.paymentMethod !== undefined) {
+          updatePayload.$set['paymentDetails.paymentMethod'] = updateData.paymentDetails.paymentMethod;
+        }
+        if (updateData.paymentDetails.transactionId !== undefined) {
+          updatePayload.$set['paymentDetails.transactionId'] = updateData.paymentDetails.transactionId;
+        }
+        if (updateData.paymentDetails.paymentStatus !== undefined) {
+          updatePayload.$set['paymentDetails.paymentStatus'] = updateData.paymentDetails.paymentStatus;
+        }
+        if (updateData.paymentDetails.amountPaid !== undefined) {
+          updatePayload.$set['paymentDetails.amountPaid'] = updateData.paymentDetails.amountPaid;
+        }
+      }
+      
+      // If no specific fields to update, update the entire object
+      if (Object.keys(updatePayload.$set).length === 0) {
+        updatePayload.$set = updateData;
+      }
+      
       // Update booking
       const updatedBooking = await HotelBooking.findByIdAndUpdate(
         id,
-        { $set: updateData },
+        updatePayload,
         { new: true, runValidators: true }
       );
       

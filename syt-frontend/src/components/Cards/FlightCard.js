@@ -1,13 +1,16 @@
+import { CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   Briefcase,
   Clock,
   Eye,
-  Plane
+  Plane,
+  Trash2
 } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { fetchItinerary } from '../../redux/slices/itinerarySlice';
 import { openSeatModal, setSelectedFlight } from '../../redux/slices/flightSlice';
 import './Card.css';
 
@@ -42,11 +45,16 @@ const FlightCard = ({
   itineraryToken,
   travelersDetails,
   showChange = false,
-  showTimelineIcon = false
+  showTimelineIcon = false,
+  showRemove = false,
+  city,
+  date
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [error, setError] = useState(null);
   const flightData = flight?.flightData;
 
   // Apply theme classes directly
@@ -100,6 +108,48 @@ const FlightCard = ({
         existingFlightPrice: flightData.fareDetails?.finalFare
       }
     });
+  };
+  
+  const handleRemoveFlight = async () => {
+    if (!itineraryToken || !inquiryToken || !city || !date || !flightData.flightCode) {
+      setError("Cannot remove flight: Missing required information.");
+      console.error("Missing data for remove flight:", { itineraryToken, inquiryToken, city, date, flightCode: flightData.flightCode });
+      return;
+    }
+
+    setIsRemoving(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/itinerary/${itineraryToken}/flight`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Inquiry-Token': inquiryToken,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            cityName: city,
+            date: date,
+            flightCode: flightData.flightCode
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to remove flight');
+      }
+
+      await dispatch(fetchItinerary({ itineraryToken, inquiryToken })).unwrap();
+
+    } catch (error) {
+      console.error('Error removing flight:', error);
+      setError(`Error removing flight: ${error.message}`);
+    } finally {
+      setIsRemoving(false);
+    }
   };
 
   const handleChooseSeats = () => {
@@ -374,9 +424,31 @@ const FlightCard = ({
                 </div>
               </button>
             )}
+            
+            {showRemove && (
+              <button 
+                onClick={handleRemoveFlight}
+                disabled={isRemoving}
+                className="premium-button btn-remove"
+              >
+                {isRemoving ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <div className="btn-icon-container">
+                    <Trash2 size={16} />
+                  </div>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
+      
+      {error && (
+        <div className="mt-3 px-3 py-2 rounded bg-red-100 border border-red-300" style={{ color: '#dc2626' }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 };

@@ -4,6 +4,7 @@ import {
 import axios from 'axios';
 import { AlertTriangle, BriefcaseIcon, CheckCircle, CheckCircleIcon, Loader2, ShoppingBagIcon, TicketIcon, X, XCircleIcon } from 'lucide-react';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // --- NEW: Helper to format currency ---
 const formatCurrency = (amount, currencyCode = 'INR') => {
@@ -67,6 +68,7 @@ const FlightDetailModal = ({
   oldFlightCode        // --- NEW: Code of the flight being replaced ---
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [bookingStatus, setBookingStatus] = useState({
     loading: false,
     success: false,
@@ -217,11 +219,9 @@ const FlightDetailModal = ({
            // Maybe set a state to show this warning prominently after modal closes
        }
 
-       // Close modal after a short delay to show success message
+       // Navigate to itinerary page after a short delay to show success message
        setTimeout(() => {
-      onClose();
-           // Optional: Trigger navigation or page refresh here if needed
-           // navigate('/itinerary', { state: { itineraryToken, inquiryToken } }); // Example navigation
+         navigate(`/itinerary?itineraryToken=${itineraryToken}&inquiryToken=${inquiryToken}`, { state: { origin: 'flightDetail' } });
        }, 1500);
 
 
@@ -236,6 +236,23 @@ const FlightDetailModal = ({
     }
   };
   // --- END REVISED Handler ---
+
+  // Handle navigation back to itinerary page
+  const handleBackToItinerary = () => {
+    // Navigate back using URL parameters
+    if (itineraryToken && inquiryToken) {
+      const params = new URLSearchParams({
+        itineraryToken,
+        inquiryToken
+      });
+      navigate(`/itinerary?${params.toString()}`, { 
+        state: { origin: 'flightDetail' }
+      });
+    } else {
+      console.warn("Missing itineraryToken or inquiryToken for back navigation. Navigating to home.");
+      navigate('/'); // Fallback navigation
+    }
+  };
 
   return (
     <Dialog

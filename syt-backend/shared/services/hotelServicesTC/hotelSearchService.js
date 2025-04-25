@@ -190,7 +190,7 @@ class HotelSearchService {
 
       // --- Make API Call (using the modified requestBody) ---
       const response = await axios.post(
-        'https://hotel-api-sandbox.travclan.com/api/v2/hotels/search',
+        'https://hms-api-sandbox.travclan.com/hms/external/api/v1/hotels/search',
         requestBody, // Send the pruned body
         {
           headers: {

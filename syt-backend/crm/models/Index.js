@@ -2,6 +2,8 @@
 const connectCRMDB = require('../config/db');
 const UserModel = require('./User');
 const LeadModel = require('./Lead');
+const HotelBookingModel = require('./HotelBooking');
+const FlightBookingModel = require('./FlightBooking');
 
 // Models object to hold all CRM models
 const models = {};
@@ -15,6 +17,8 @@ const initModels = async () => {
     // Initialize models with the connection
     models.User = UserModel(crmConnection);
     models.Lead = LeadModel(crmConnection);
+    models.HotelBooking = HotelBookingModel(crmConnection);
+    models.FlightBooking = FlightBookingModel(crmConnection);
     
     console.log('CRM models initialized successfully');
     

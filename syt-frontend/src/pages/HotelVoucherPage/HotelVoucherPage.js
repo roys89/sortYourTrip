@@ -1,6 +1,7 @@
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BedIcon from '@mui/icons-material/Bed';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import EmailIcon from '@mui/icons-material/Email';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -15,6 +16,7 @@ import {
     Box,
     Button,
     Chip,
+    Divider,
     Grid,
     Paper,
     Stack,
@@ -27,14 +29,21 @@ import {
     Typography
 } from '@mui/material';
 import { Download } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const HotelVoucher = () => {
   const location = useLocation();
-  const voucherData = location.state?.voucherData;
+  // Accept data directly or from voucherData property
+  const voucherData = location.state?.voucherData || location.state;
+  // Get hotel itinerary data from the response
   const hotelData = voucherData?.data?.results?.hotel_itinerary?.[0];
   const [expandedSection, setExpandedSection] = useState(false);
+  const voucherRef = useRef(null);
+
+  console.log('Voucher Data:', voucherData);
 
   if (!hotelData) {
     return (
@@ -44,10 +53,17 @@ const HotelVoucher = () => {
     );
   }
 
-  const roomDetails = hotelData.items[0].selectedRoomsAndRates[0];
-  const room = roomDetails.room;
-  const rate = roomDetails.rate;
-  const staticContent = hotelData.staticContent[0];
+  // Extract all necessary data from the API response
+  const item = hotelData.items[0];
+  const selectedRoomsAndRates = item.selectedRoomsAndRates || [];
+  const roomDetails = selectedRoomsAndRates[0];
+  const room = roomDetails?.room;
+  const rate = roomDetails?.rate;
+  const staticContent = hotelData.staticContent?.[0];
+  const guestCollectionData = voucherData?.data?.results?.guestCollectionData?.[0];
+  
+  console.log('Room Details:', roomDetails);
+  console.log('Guest Collection Data:', guestCollectionData);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -69,6 +85,43 @@ const HotelVoucher = () => {
     window.print();
   };
 
+  const handleDownloadPDF = () => {
+    const voucherElement = voucherRef.current;
+    if (!voucherElement) return;
+    
+    // Set the scale to improve quality
+    const scale = 2;
+    const options = {
+      scale: scale,
+      useCORS: true,
+      logging: true,
+      scrollX: 0,
+      scrollY: 0
+    };
+
+    // Temporarily hide accordions for PDF
+    const accordions = voucherElement.querySelectorAll('.print-hide-for-pdf');
+    accordions.forEach(acc => acc.style.display = 'none');
+
+    html2canvas(voucherElement, options).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save(`Hotel_Voucher_${hotelData.code || 'Booking'}.pdf`);
+
+      // Restore accordions
+      accordions.forEach(acc => acc.style.display = '');
+    });
+  };
+
   const handleAccordionChange = (panel) => (event, isExpanded) => {
     setExpandedSection(isExpanded ? panel : false);
   };
@@ -77,7 +130,7 @@ const HotelVoucher = () => {
     <Accordion 
       expanded={expandedSection === title}
       onChange={handleAccordionChange(title)}
-      className={printHide ? 'print:hidden' : ''}
+      className={printHide ? 'print:hidden print-hide-for-pdf' : ''}
       sx={{ 
         '&:before': { display: 'none' },
         boxShadow: 'none',
@@ -104,7 +157,7 @@ const HotelVoucher = () => {
 
   return (
     <Box sx={{ maxWidth: '1200px', mx: 'auto', p: 3, mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+      <Paper elevation={3} sx={{ p: 4, mb: 4 }} ref={voucherRef}>
         {/* Header Section */}
         <Box sx={{ 
           display: 'flex', 
@@ -120,22 +173,24 @@ const HotelVoucher = () => {
             </Typography>
             <Stack spacing={1}>
               <Typography variant="subtitle2">
-                Booking Reference: {hotelData.code}
+                Booking Reference: {hotelData.code || 'N/A'}
               </Typography>
               <Typography variant="subtitle2">
-                Provider Reference: {voucherData.data.results.providerConfirmationNumber}
+                Provider Reference: {voucherData?.data?.results?.providerConfirmationNumber || 'N/A'}
               </Typography>
-              {/* <Typography variant="subtitle2">
-                Total Amount: {formatCurrency(hotelData.totalAmount)}
-              </Typography> */}
               <Typography variant="subtitle2">
-                Trace ID: {hotelData.traceId}
+                Total Amount: {formatCurrency(hotelData.totalAmount || 0)}
               </Typography>
-              <Chip 
-                label={voucherData.data.results.status} 
-                color="success" 
-                size="small"
-              />
+              <Typography variant="subtitle2">
+                Trace ID: {hotelData.traceId || 'N/A'}
+              </Typography>
+              {voucherData?.data?.results?.status && (
+                <Chip 
+                  label={voucherData.data.results.status} 
+                  color="success" 
+                  size="small"
+                />
+              )}
             </Stack>
           </Box>
         </Box>
@@ -172,7 +227,14 @@ const HotelVoucher = () => {
                     <Box>
                       <Typography variant="body2" color="text.secondary">Stay Duration</Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {formatDate(hotelData.searchRequestLog.checkIn)} - {formatDate(hotelData.searchRequestLog.checkOut)}
+                        {rate?.dailyRates?.length > 0 ? (
+                          <>
+                            {formatDate(rate.dailyRates[0].date)} - 
+                            {formatDate(rate.dailyRates[rate.dailyRates.length - 1].date)}
+                          </>
+                        ) : (
+                          'Check dates with hotel'
+                        )}
                       </Typography>
                     </Box>
                   </Stack>
@@ -184,7 +246,8 @@ const HotelVoucher = () => {
                     <Box>
                       <Typography variant="body2" color="text.secondary">Check-in/out Times</Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {staticContent.checkinInfo.beginTime} / {staticContent.checkoutInfo.time}
+                        {rate?.policies?.find(p => p.type === 'Check-in')?.text?.replace('Check-in ', '') || 'Standard check-in time'} / 
+                        {rate?.policies?.find(p => p.type === 'Check-out')?.text?.replace('Check-out ', '') || 'Standard check-out time'}
                       </Typography>
                     </Box>
                   </Stack>
@@ -255,7 +318,7 @@ const HotelVoucher = () => {
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Bed Configuration
                 </Typography>
-                {room.beds.map((bed, index) => (
+                {room?.beds?.map((bed, index) => (
                   <Chip
                     key={index}
                     icon={<BedIcon />}
@@ -269,7 +332,7 @@ const HotelVoucher = () => {
                   Key Features
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {room.facilities.slice(0, 5).map((facility, index) => (
+                  {room?.facilities?.slice(0, 5).map((facility, index) => (
                     <Chip
                       key={index}
                       label={facility.name}
@@ -284,7 +347,7 @@ const HotelVoucher = () => {
         </Paper>
 
         {/* Rate Details */}
-        {/* <Paper elevation={1} sx={{ mb: 4 }}>
+        <Paper elevation={1} sx={{ mb: 4 }}>
           <Box sx={{ 
             p: 2, 
             bgcolor: 'primary.main', 
@@ -353,7 +416,7 @@ const HotelVoucher = () => {
               </Box>
             )}
           </Box>
-        </Paper> */}
+        </Paper>
 
         {/* Guest Details */}
         <Paper elevation={1} sx={{ mb: 4 }}>
@@ -376,15 +439,17 @@ const HotelVoucher = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {room.guests.map((guest, index) => (
-                  <TableRow key={index}>
+                {hotelData.items[0].selectedRoomsAndRates.map((roomRate, roomIndex) => (
+                roomRate.room.guests.map((guest, guestIndex) => (
+                  <TableRow key={`${roomIndex}-${guestIndex}`}>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
                         <Box>
                           <Typography variant="body1" sx={{ fontWeight: 500 }}>
                             {guest.title} {guest.firstName} {guest.lastName}
-                          </Typography>{guest.isLeadGuest && (
+                          </Typography>
+                          {guest.isLeadGuest && (
                             <Chip 
                               label="Lead Guest" 
                               size="small" 
@@ -438,7 +503,8 @@ const HotelVoucher = () => {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                ))
+              ))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -499,7 +565,7 @@ const HotelVoucher = () => {
           title="Hotel Description & Amenities"
           content={
             <Stack spacing={3}>
-              {staticContent.descriptions?.map((desc, index) => (
+              {staticContent?.descriptions?.map((desc, index) => (
                 <Box key={index}>
                   <Typography variant="subtitle1" color="primary.main" gutterBottom sx={{ textTransform: 'capitalize' }}>
                     {desc.type.replace(/_/g, ' ')}
@@ -515,7 +581,7 @@ const HotelVoucher = () => {
         <DetailAccordion
           title="Nearby Attractions"
           content={
-            <div dangerouslySetInnerHTML={{ __html: staticContent.descriptions.find(d => d.type === 'attractions')?.text || '' }} />
+            <div dangerouslySetInnerHTML={{ __html: staticContent?.descriptions?.find(d => d.type === 'attractions')?.text || 'No attraction information available' }} />
           }
         />
 
@@ -528,27 +594,34 @@ const HotelVoucher = () => {
                 <Typography variant="subtitle1" color="primary.main" gutterBottom>
                   Spoken Languages
                 </Typography>
-                <Typography variant="body2">{staticContent.spoken_languages}</Typography>
+                <Typography variant="body2">{staticContent?.descriptions?.find(d => d.type === 'spoken_languages')?.text || 'Information not available'}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle1" color="primary.main" gutterBottom>
                   Available Payment Methods
                 </Typography>
-                <Typography variant="body2">{staticContent.onsite_payments}</Typography>
+                <Typography variant="body2">{staticContent?.descriptions?.find(d => d.type === 'onsite_payments')?.text || 'Information not available'}</Typography>
               </Grid>
             </Grid>
           }
         />
 
-        {/* Print Button */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }} className="print:hidden">
+        {/* Print and Download Buttons */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 4 }} className="print:hidden print-hide-for-pdf">
           <Button
-            variant="contained"
-            startIcon={<Download />}
+            variant="outlined"
             onClick={handlePrint}
             size="large"
           >
-            Download Voucher
+            Print Voucher
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Download />}
+            onClick={handleDownloadPDF}
+            size="large"
+          >
+            Download PDF
           </Button>
         </Box>
       </Paper>

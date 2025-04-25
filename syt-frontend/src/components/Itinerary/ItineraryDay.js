@@ -249,6 +249,9 @@ const ItineraryDay = ({
                     travelersDetails={travelersDetails}
                     showChange={true}
                     showTimelineIcon={false}
+                    showRemove={true}
+                    city={cityName}
+                    date={day.date}
                   />
                 </div>
               ))}
@@ -272,7 +275,15 @@ const ItineraryDay = ({
                   >
                     <CarIcon sx={{ fontSize: 24, color: "#FFFFFF" }} />
                   </div>
-                  <TransferCard transfer={transfer} showTimelineIcon={false} />
+                  <TransferCard 
+                    transfer={transfer} 
+                    showTimelineIcon={false} 
+                    showRemove={true}
+                    itineraryToken={itineraryToken}
+                    inquiryToken={inquiryToken}
+                    city={cityName}
+                    date={day.date}
+                  />
                 </div>
               ))}
             </motion.div>

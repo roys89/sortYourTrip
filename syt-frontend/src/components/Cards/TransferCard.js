@@ -1,7 +1,9 @@
+import { CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Clock, Eye, Info, MapPin } from 'lucide-react';
-import React from 'react';
+import { Clock, Eye, Info, MapPin, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { fetchItinerary } from '../../redux/slices/itinerarySlice';
 import { setChangeTransfer, setSelectedTransfer } from '../../redux/slices/transferSlice';
 import './Card.css';
 
@@ -13,9 +15,18 @@ const truncateAddress = (address, maxLength = 40) => {
     : address;
 };
 
-const TransferCard = ({ transfer }) => {
+const TransferCard = ({ 
+  transfer, 
+  itineraryToken, 
+  inquiryToken, 
+  city,
+  date,
+  showRemove = false 
+}) => {
   const dispatch = useDispatch();
   const theme = useTheme();
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [error, setError] = useState(null);
 
   // Apply theme classes directly
   const themeClass = theme.palette.mode === 'light' ? 'light-theme' : '';
@@ -28,6 +39,54 @@ const TransferCard = ({ transfer }) => {
 
   const formatTransferType = (type) => {
     return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+  
+  const handleRemoveTransfer = async () => {
+    if (!itineraryToken || !inquiryToken || !city || !date || !transfer.details.quotation_id) {
+      setError("Cannot remove transfer: Missing required information.");
+      console.error("Missing data for remove transfer:", { 
+        itineraryToken, 
+        inquiryToken, 
+        city, 
+        date, 
+        quotation_id: transfer.details.quotation_id 
+      });
+      return;
+    }
+
+    setIsRemoving(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/itinerary/${itineraryToken}/transfer`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Inquiry-Token': inquiryToken,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            cityName: city,
+            date: date,
+            quotation_id: transfer.details.quotation_id
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to remove transfer');
+      }
+
+      await dispatch(fetchItinerary({ itineraryToken, inquiryToken })).unwrap();
+
+    } catch (error) {
+      console.error('Error removing transfer:', error);
+      setError(`Error removing transfer: ${error.message}`);
+    } finally {
+      setIsRemoving(false);
+    }
   };
 
   const vehicle = transfer.details.selectedQuote?.quote?.vehicle;
@@ -244,10 +303,32 @@ const TransferCard = ({ transfer }) => {
         <span>Change Transfer</span>
       </div>
     </button>
+    
+    {showRemove && (
+      <button 
+        onClick={handleRemoveTransfer}
+        disabled={isRemoving}
+        className="premium-button btn-remove"
+      >
+        {isRemoving ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : (
+          <div className="btn-icon-container">
+            <Trash2 size={16} />
+          </div>
+        )}
+      </button>
+    )}
   </div>
 </div>
 
       </div>
+      
+      {error && (
+        <div className="mt-3 px-3 py-2 rounded bg-red-100 border border-red-300" style={{ color: '#dc2626' }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 };

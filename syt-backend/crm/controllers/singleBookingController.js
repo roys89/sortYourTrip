@@ -84,7 +84,7 @@ const singleBookingController = {
   // Get all hotel bookings
   getAllHotelBookings: async (req, res) => {
     try {
-      const { HotelBooking } = getModels();
+      const { HotelBooking, User } = getModels();
       
       // Get query parameters
       const { page = 1, limit = 10, status, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -94,6 +94,14 @@ const singleBookingController = {
       if (status) {
         query.status = status;
       }
+
+      // --- ADDED: Agent/Admin Filtering ---
+      // Assuming 'admin' role allows seeing all, otherwise filter by agentId
+      // You might need to adjust role checking based on your actual User model/auth setup
+      if (req.user.role !== 'admin') { 
+        query['agentDetails.agentId'] = req.user.id; 
+      }
+      // --- END: Agent/Admin Filtering ---
       
       // Build sort object
       const sort = {};
@@ -376,6 +384,13 @@ const singleBookingController = {
       if (flightType) {
         query.flightType = flightType;
       }
+
+      // --- ADDED: Agent/Admin Filtering ---
+      // Assuming 'admin' role allows seeing all, otherwise filter by agentId
+      if (req.user.role !== 'admin') { 
+        query['agentDetails.agentId'] = req.user.id; 
+      }
+      // --- END: Agent/Admin Filtering ---
       
       // Build sort object
       const sort = {};

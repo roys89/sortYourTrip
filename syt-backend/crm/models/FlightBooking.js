@@ -70,7 +70,7 @@ const FlightBookingSchema = new mongoose.Schema({
   agentDetails: { // As requested
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'CRMUser',
       required: true
     },
     name: String,

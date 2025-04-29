@@ -22,10 +22,7 @@ exports.createItineraryInquiry = async (req, res) => {
        return res.status(400).json({ message: "Missing required itinerary information." });
     }
 
-    // Check if departureCity object exists (basic validation)
-    if (!itineraryData.departureCity) {
-       return res.status(400).json({ message: "Missing departureCity information." });
-    }
+   
 
     // Generate a unique token for the itinerary inquiry
     const itineraryInquiryToken = Math.random().toString(36).substring(2, 10).toUpperCase();

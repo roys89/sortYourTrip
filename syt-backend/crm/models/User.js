@@ -49,7 +49,23 @@ const UserSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
-    bookings: {
+    canBookFlights: {
+      type: Boolean,
+      default: false
+    },
+    canBookHotels: {
+      type: Boolean,
+      default: false
+    },
+    canBookActivities: {
+      type: Boolean,
+      default: false
+    },
+    canBookTransfers: {
+      type: Boolean,
+      default: false
+    },
+    canBookItineraries: {
       type: Boolean,
       default: false
     }

@@ -26,6 +26,28 @@ const FlightBookingSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  // --- NEW: Add Origin/Destination/Stops --- 
+  originCode: {
+    type: String,
+    required: false 
+  },
+  destinationCode: {
+    type: String,
+    required: false
+  },
+  stops: {
+    type: Number,
+    required: false
+  },
+  originCity: { // NEW: Add city name
+    type: String,
+    required: false
+  },
+  destinationCity: { // NEW: Add city name
+    type: String,
+    required: false
+  },
+  // -----------------------------------------------
   providerBookingResponse: {
     type: mongoose.Schema.Types.Mixed, // Store the raw JSON response from the provider
     required: false

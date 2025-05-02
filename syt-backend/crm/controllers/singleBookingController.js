@@ -285,7 +285,14 @@ const singleBookingController = {
         traceId, 
         flightType, 
         passengerDetails, 
-        paymentDetails // Expecting { currency, totalFlightAmount, totalAncillariesAmount } 
+        paymentDetails, // Expecting { currency, totalFlightAmount, totalAncillariesAmount } 
+        // --- NEW: Expect origin/destination details ---
+        originCode,
+        destinationCode,
+        originCity,
+        destinationCity,
+        stops
+        // --- END NEW --- 
       } = req.body;
 
       // --- Basic Validation ---
@@ -333,6 +340,13 @@ const singleBookingController = {
       bookingData.agentDetails = agentDetails;
       
       // Create and save the booking directly using the request payload
+      // --- NEW: Include origin/dest/stops/city in the data to save ---
+      bookingData.originCode = originCode;
+      bookingData.destinationCode = destinationCode;
+      bookingData.originCity = originCity;
+      bookingData.destinationCity = destinationCity;
+      bookingData.stops = stops;
+      // --- END NEW ---
       const newBooking = new FlightBooking(bookingData);
       await newBooking.save();
 

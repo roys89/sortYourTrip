@@ -2,6 +2,11 @@ const TransferGetQuotesService = require('../../shared/services/transferServices
 const TransferQuoteDetailsService = require('../../shared/services/transferServicesLA/transferQuoteDetailsService');
 const TransferBookingService = require('../../shared/services/transferServicesLA/transferBookingService');
 const TransferBookingDetailsService = require('../../shared/services/transferServicesLA/TransferBookingDetailsService');
+const TransferCancelService = require('../../shared/services/transferServicesLA/transferCancelService');
+// Import getModels from the Index file
+const { getModels } = require('../models/Index');
+// Assuming the model is attached to the request object by middleware
+// const TransferBooking = require('../models/TransferBooking'); // Adjust path if needed
 
 const searchTransfers = async (req, res) => {
   try {
@@ -193,14 +198,88 @@ const getBookingStatus = async (req, res) => {
 
 const cancelBooking = async (req, res) => {
   try {
-    const { id } = req.params;
-    // Implement booking cancellation logic
-    res.json({ message: 'Booking cancellation endpoint' });
+    const { id: booking_id } = req.params; // Provider Booking ID
+    // Get the TransferBooking model using getModels()
+    const { TransferBooking } = getModels(); 
+
+    if (!booking_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking ID is required in the URL path.'
+      });
+    }
+    // Model is now guaranteed to be available if getModels() works
+    // No need for the req.db check
+
+    console.log(`[TransferController] Received cancellation request for provider booking ID: ${booking_id}`);
+
+    // 1. Call the provider cancel service
+    const cancelResponse = await TransferCancelService.cancelBooking({ 
+        booking_id: booking_id, 
+        inquiryToken: req.query.inquiryToken 
+    });
+
+    if (cancelResponse.success) {
+      console.log(`[TransferController] Provider successfully cancelled booking ID: ${booking_id}`);
+      
+      // 2. Update the status in CRM database
+      try {
+          const updatedBooking = await TransferBooking.findOneAndUpdate(
+              { bookingRefId: booking_id }, // Find by provider booking ID
+              {
+                  $set: {
+                      status: 'Cancelled',
+                      'cancellationDetails.isCancelled': true,
+                      'cancellationDetails.cancellationDate': new Date(),
+                      'cancellationDetails.cancellationReason': 'Cancelled via CRM action'
+                      // Add refund details later if applicable
+                  }
+              },
+              { new: true } // Return the updated document
+          );
+
+          if (!updatedBooking) {
+              console.warn(`[TransferController] Provider booking ${booking_id} cancelled, but corresponding CRM record not found.`);
+              return res.status(404).json({ 
+                  success: false, // Or true with a warning message?
+                  message: `Booking ${booking_id} cancelled with provider, but CRM record not found.`,
+                  providerData: cancelResponse.data
+              });
+          }
+
+          console.log(`[TransferController] Successfully updated CRM status for booking Ref ID: ${booking_id}`);
+          res.json({
+              success: true,
+              message: cancelResponse.message || 'Booking cancelled successfully and CRM updated.',
+              data: cancelResponse.data, // Provider response
+              updatedCrmRecord: updatedBooking // Optional: return updated CRM data
+          });
+
+      } catch (dbError) {
+          console.error(`[TransferController] Error updating CRM status for booking ${booking_id} after successful provider cancellation:`, dbError);
+          res.status(500).json({ 
+              success: false, 
+              message: `Booking ${booking_id} cancelled with provider, but failed to update CRM status. Please check manually.`,
+              error: dbError.message,
+              providerData: cancelResponse.data
+          });
+      }
+
+    } else {
+      // Provider cancellation failed
+      console.error(`[TransferController] Provider failed to cancel booking ID: ${booking_id}`, cancelResponse);
+      res.status(500).json({ 
+        success: false,
+        message: cancelResponse.message || 'Failed to cancel booking with provider.',
+        error: cancelResponse.error || cancelResponse.data 
+      });
+    }
+
   } catch (error) {
-    console.error('Error in cancelBooking:', error);
+    console.error('[TransferController] Unexpected error in cancelBooking:', error);
     return res.status(500).json({
-      status: false,
-      message: error.message || 'Failed to cancel booking'
+      success: false,
+      message: error.message || 'An unexpected error occurred during cancellation.'
     });
   }
 };

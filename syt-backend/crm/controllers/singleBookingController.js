@@ -650,6 +650,210 @@ const singleBookingController = {
         error: error.message
       });
     }
+  },
+
+  // --- Transfer Booking Controllers ---
+
+  // Save transfer booking data
+  saveTransferBooking: async (req, res) => {
+    try {
+      const { TransferBooking, User } = getModels();
+      const bookingData = req.body;
+
+      // Validate required fields
+      if (!bookingData.bookingRefId) {
+        return res.status(400).json({ success: false, message: 'Booking reference ID is required' });
+      }
+      if (!bookingData.providerBookingResponse) {
+        return res.status(400).json({ success: false, message: 'Provider booking response is required' });
+      }
+      if (!bookingData.guestDetails) {
+        return res.status(400).json({ success: false, message: 'Guest details are required' });
+      }
+      if (!bookingData.transferDetails) {
+        return res.status(400).json({ success: false, message: 'Transfer details are required' });
+      }
+      if (!bookingData.paymentDetails) {
+         return res.status(400).json({ success: false, message: 'Payment details are required' });
+      }
+
+      // Check if booking already exists
+      const existingBooking = await TransferBooking.findOne({ bookingRefId: bookingData.bookingRefId });
+      if (existingBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'Transfer booking with this reference ID already exists'
+        });
+      }
+
+      // Get agent details from authenticated user
+      const agentDetails = {
+        agentId: req.user.id,
+        name: req.user.name,
+        email: req.user.email,
+        employeeId: req.user.employeeId
+      };
+
+      // Create new booking with agent details
+      const newBooking = new TransferBooking({
+        ...bookingData,
+        agentDetails
+      });
+
+      // Save booking to database
+      await newBooking.save();
+
+      return res.status(201).json({
+        success: true,
+        message: 'Transfer booking saved successfully',
+        data: newBooking
+      });
+    } catch (error) {
+      console.error('Error saving transfer booking:', error);
+       if (error.code === 11000) {
+        return res.status(400).json({ success: false, message: 'Duplicate booking reference ID.' });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: 'Validation Error: ' + error.message, errors: error.errors });
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save transfer booking',
+        error: error.message
+      });
+    }
+  },
+
+  // Get all transfer bookings
+  getAllTransferBookings: async (req, res) => {
+    try {
+      const { TransferBooking } = getModels();
+      const { page = 1, limit = 10, status, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+      
+      const query = {};
+      if (status) query.status = status;
+
+      if (req.user.role !== 'admin') { 
+        query['agentDetails.agentId'] = req.user.id; 
+      }
+      
+      const sort = {};
+      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      
+      const total = await TransferBooking.countDocuments(query);
+      const bookings = await TransferBooking.find(query)
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit))
+        .populate('agentDetails.agentId', 'name email employeeId');
+      
+      return res.status(200).json({
+        success: true,
+        count: bookings.length,
+        total,
+        data: bookings,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      console.error('Error getting transfer bookings:', error);
+      return res.status(500).json({ success: false, message: 'Failed to get transfer bookings', error: error.message });
+    }
+  },
+
+  // Get transfer booking by ID
+  getTransferBookingById: async (req, res) => {
+    try {
+      const { TransferBooking } = getModels();
+      const { id } = req.params;
+      const booking = await TransferBooking.findById(id)
+        .populate('agentDetails.agentId', 'name email employeeId');
+      
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Transfer booking not found' });
+      }
+      
+      return res.status(200).json({ success: true, data: booking });
+    } catch (error) {
+      console.error('Error getting transfer booking:', error);
+      return res.status(500).json({ success: false, message: 'Failed to get transfer booking', error: error.message });
+    }
+  },
+
+  // Update transfer booking
+  updateTransferBooking: async (req, res) => {
+    try {
+      const { TransferBooking } = getModels();
+      const { id } = req.params;
+      const updateData = req.body;
+
+      // Prepare update payload using $set for specific fields
+      const updatePayload = { $set: {} };
+
+      // Example: Update payment details
+      if (updateData.paymentDetails) {
+        Object.keys(updateData.paymentDetails).forEach(key => {
+          updatePayload.$set[`paymentDetails.${key}`] = updateData.paymentDetails[key];
+        });
+      }
+      // Example: Update status
+      if (updateData.status) {
+         updatePayload.$set.status = updateData.status;
+      }
+       // Example: Update notes
+      if (updateData.notes) {
+         updatePayload.$set.notes = updateData.notes;
+      }
+      // Add other fields as needed
+
+      // If no specific fields targeted, update the whole doc (less safe)
+      if (Object.keys(updatePayload.$set).length === 0) {
+         updatePayload.$set = updateData;
+      }
+      
+      const updatedBooking = await TransferBooking.findByIdAndUpdate(
+        id,
+        updatePayload,
+        { new: true, runValidators: true }
+      );
+      
+      if (!updatedBooking) {
+        return res.status(404).json({ success: false, message: 'Transfer booking not found' });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Transfer booking updated successfully',
+        data: updatedBooking
+      });
+    } catch (error) {
+      console.error('Error updating transfer booking:', error);
+       if (error.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: 'Validation Error: ' + error.message, errors: error.errors });
+      }
+      return res.status(500).json({ success: false, message: 'Failed to update transfer booking', error: error.message });
+    }
+  },
+
+  // Delete transfer booking
+  deleteTransferBooking: async (req, res) => {
+    try {
+      const { TransferBooking } = getModels();
+      const { id } = req.params;
+      const deletedBooking = await TransferBooking.findByIdAndDelete(id);
+      
+      if (!deletedBooking) {
+        return res.status(404).json({ success: false, message: 'Transfer booking not found' });
+      }
+      
+      return res.status(200).json({ success: true, message: 'Transfer booking deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting transfer booking:', error);
+      return res.status(500).json({ success: false, message: 'Failed to delete transfer booking', error: error.message });
+    }
   }
 };
 

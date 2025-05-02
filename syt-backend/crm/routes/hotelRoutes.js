@@ -8,7 +8,8 @@ const {
   allocateGuests,
   recheckPrice,
   bookHotel,
-  getBookingDetails
+  getBookingDetails,
+  cancelHotelBooking
 } = require('../controllers/hotelController');
 const { protect, checkPermission } = require('../middleware/auth');
 
@@ -21,6 +22,7 @@ router.post('/:provider?/allocate-guests', protect, checkPermission('bookings'),
 router.get('/:provider?/recheck-price', protect, checkPermission('bookings'), recheckPrice);
 router.post('/:provider?/book', protect, checkPermission('bookings'), bookHotel);
 router.get('/:provider?/booking-details/:bookingCode', protect, checkPermission('bookings'), getBookingDetails);
+router.post('/:provider?/cancel/:bookingCode', protect, checkPermission('bookings'), cancelHotelBooking);
 
 // Keep backward compatibility with old routes
 router.get('/locations/search', protect, checkPermission('bookings'), searchLocation);
@@ -31,5 +33,6 @@ router.post('/allocate-guests', protect, checkPermission('bookings'), allocateGu
 router.get('/recheck-price', protect, checkPermission('bookings'), recheckPrice);
 router.post('/book', protect, checkPermission('bookings'), bookHotel);
 router.get('/booking-details/:bookingCode', protect, checkPermission('bookings'), getBookingDetails);
+router.post('/cancel/:bookingCode', protect, checkPermission('bookings'), cancelHotelBooking);
 
 module.exports = router; 

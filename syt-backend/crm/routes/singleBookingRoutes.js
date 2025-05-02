@@ -21,4 +21,11 @@ router.get('/flight/:id', singleBookingController.getFlightBookingById);
 router.put('/flight/:id', singleBookingController.updateFlightBooking);
 router.delete('/flight/:id', singleBookingController.deleteFlightBooking);
 
+// Transfer booking routes
+router.post('/transfer', singleBookingController.saveTransferBooking);
+router.get('/transfer', singleBookingController.getAllTransferBookings);
+router.get('/transfer/:id', singleBookingController.getTransferBookingById);
+router.put('/transfer/:id', singleBookingController.updateTransferBooking);
+router.delete('/transfer/:id', singleBookingController.deleteTransferBooking);
+
 module.exports = router;

@@ -10,6 +10,7 @@ const HotelBookingService = require('../../shared/services/hotelServicesTC/hotel
 const HotelBookingDetailsService = require('../../shared/services/hotelServicesTC/hotelBookingDetailsService');
 const logger = require('../../shared/utils/logger');
 const { handleError } = require('../../shared/helpers/errorHandler');
+const hotelCancelService = require('../../shared/services/hotelServicesTC/hotelCancelService');
 
 module.exports = {
   searchLocation: async (req, res) => {
@@ -422,6 +423,59 @@ module.exports = {
         success: false,
         message: error.message || 'Failed to get booking details',
         error: error.response?.data || {}
+      });
+    }
+  },
+
+  cancelHotelBooking: async (req, res) => {
+    try {
+      const { bookingCode } = req.params;
+      const { traceId } = req.body;
+      const inquiryToken = req.headers['x-inquiry-token'] || 'unknown';
+
+      if (!bookingCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Booking code is required in the URL path.'
+        });
+      }
+      if (!traceId) {
+        return res.status(400).json({
+          success: false,
+          message: 'traceId is required in the request body.'
+        });
+      }
+
+      // Get auth token
+      const authToken = await HotelTokenManager.getOrSetToken(async () => {
+        const authResponse = await HotelAuthService.getAuthToken();
+        return authResponse.token;
+      });
+
+      // Call the cancellation service, passing traceId
+      const response = await hotelCancelService.cancelBooking(
+        bookingCode,
+        traceId,
+        authToken,
+        inquiryToken
+      );
+
+      logger.info(`Cancellation request processed for booking code: ${bookingCode}`);
+
+      // TODO: Add logic here to update the booking status in the CRM database
+      // E.g., find the HotelBooking by bookingRefId (bookingCode) and set status to 'Cancelled'
+      // const { HotelBooking } = require('../models/Index'); // Get model
+      // await HotelBooking.findOneAndUpdate({ bookingRefId: bookingCode }, { status: 'Cancelled' });
+
+      res.json(response); // Forward the response from the service
+
+    } catch (error) {
+      // The service layer (handleAxiosError) should format the error
+      logger.error('Error in cancelHotelBooking controller:', error);
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || 'Failed to process cancellation request.',
+        error: error.details || error.response?.data || {}
       });
     }
   }

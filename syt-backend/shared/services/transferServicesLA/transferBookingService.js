@@ -40,10 +40,6 @@ class TransferBookingService {
       const bookingArrayItem = transformedTransfer.bookingArray[0];
 
       const bookingPayload = {
-        booking_date: bookingArrayItem.booking_date,
-        booking_time: bookingArrayItem.booking_time || '00:00',
-        return_date: bookingArrayItem.return_date,
-        return_time: bookingArrayItem.return_time || '00:00',
         guest_details: bookingArrayItem.guest_details,
         quotation_id: String(bookingArrayItem.quotation_id),
         quotation_child_id: String(bookingArrayItem.quotation_child_id),

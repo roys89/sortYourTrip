@@ -3,6 +3,7 @@ const TransferQuoteDetailsService = require('../../shared/services/transferServi
 const TransferBookingService = require('../../shared/services/transferServicesLA/transferBookingService');
 const TransferBookingDetailsService = require('../../shared/services/transferServicesLA/TransferBookingDetailsService');
 const TransferCancelService = require('../../shared/services/transferServicesLA/transferCancelService');
+const TransferCancellationDetailsService = require('../../shared/services/transferServicesLA/transferCancellationDetailsService');
 // Import getModels from the Index file
 const { getModels } = require('../models/Index');
 // Assuming the model is attached to the request object by middleware
@@ -196,6 +197,88 @@ const getBookingStatus = async (req, res) => {
   }
 };
 
+const getCancellationDetails = async (req, res) => {
+  try {
+    const { booking_id } = req.body;
+    if (!booking_id) {
+      return res.status(400).json({ success: false, message: 'Provider Booking ID is required in the request body.' });
+    }
+    const { TransferBooking } = getModels();
+    // 1. Fetch CRM booking
+    const crmBooking = await TransferBooking.findOne({ bookingRefId: booking_id });
+    if (!crmBooking) {
+      return res.status(404).json({ success: false, message: 'CRM booking not found for this provider booking ID.' });
+    }
+    // 2. Fetch provider booking details (for pickup time)
+    const providerResp = await TransferCancellationDetailsService.getProviderBookingDetails({
+      booking_id,
+      inquiryToken: req.query.inquiryToken
+    });
+    if (!providerResp.success || !providerResp.data?.data?.booking_date || !providerResp.data?.data?.booking_time) {
+      return res.status(500).json({ success: false, message: providerResp.message || 'Failed to fetch provider booking details.' });
+    }
+    const bookingData = providerResp.data.data;
+    const pickupDateTimeString = `${bookingData.booking_date}T${bookingData.booking_time}`;
+    const pickupDateTime = new Date(pickupDateTimeString);
+    if (isNaN(pickupDateTime.getTime())) {
+      return res.status(500).json({ success: false, message: 'Invalid pickup date/time received from provider.' });
+    }
+    const now = new Date();
+    const hoursDifference = (pickupDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    let policyText = "";
+    let fee = 0;
+    const currency = crmBooking?.paymentDetails?.currency || bookingData.currency || 'INR';
+    const totalFare = crmBooking?.paymentDetails?.fare || parseFloat(bookingData.fare) || 0;
+    let canCancel = true;
+    let deadline = null;
+    // Apply Cancellation Policy Logic
+    if (hoursDifference >= 48) {
+      policyText = "Free cancellation up to 48 hours before ride.";
+      fee = 0;
+      const deadlineDate = new Date(pickupDateTime.getTime() - 48 * 60 * 60 * 1000);
+      deadline = deadlineDate.toLocaleString('en-GB');
+    } else if (hoursDifference >= 24) {
+      policyText = "50% charge for cancellations between 48 and 24 hours before ride.";
+      fee = totalFare * 0.50;
+      const deadlineDate = new Date(pickupDateTime.getTime() - 24 * 60 * 60 * 1000);
+      deadline = deadlineDate.toLocaleString('en-GB');
+    } else if (hoursDifference >= 4) {
+      policyText = "No refund for cancellations within 24 hours (but more than 4 hours) before ride.";
+      fee = totalFare;
+      const deadlineDate = new Date(pickupDateTime.getTime() - 4 * 60 * 60 * 1000);
+      deadline = deadlineDate.toLocaleString('en-GB');
+    } else {
+      policyText = "Cancellation not possible within 4 hours of the ride.";
+      fee = totalFare;
+      canCancel = false;
+      deadline = "Passed";
+    }
+    if (crmBooking?.status === 'Cancelled' || bookingData.status === 'cancelled') {
+      policyText = "This booking is already cancelled.";
+      canCancel = false;
+      fee = crmBooking?.cancellationDetails?.fee ?? fee;
+    }
+    return res.json({
+      success: true,
+      data: {
+        policyText,
+        fee: parseFloat(fee.toFixed(2)),
+        currency,
+        canCancel,
+        deadline,
+        pickupTime: pickupDateTime.toLocaleString('en-GB'),
+        currentTime: now.toLocaleString('en-GB')
+      }
+    });
+  } catch (error) {
+    console.error('[TransferController] Unexpected error in getCancellationDetails:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'An unexpected error occurred while fetching cancellation details.'
+    });
+  }
+};
+
 const cancelBooking = async (req, res) => {
   try {
     const { id: booking_id } = req.params; // Provider Booking ID
@@ -289,5 +372,6 @@ module.exports = {
   getTransferDetails,
   bookTransfer,
   getBookingStatus,
+  getCancellationDetails,
   cancelBooking
 }; 

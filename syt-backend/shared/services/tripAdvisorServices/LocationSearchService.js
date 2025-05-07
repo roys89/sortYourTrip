@@ -32,13 +32,13 @@ class LocationSearchService {
         params.address = encodeURIComponent(address);
       }
 
-      console.log(`Searching for ${searchQuery} with params:`, 
-        Object.keys(params).reduce((result, key) => {
-          // Hide API key from logs
-          result[key] = key === 'key' ? '[HIDDEN]' : params[key];
-          return result;
-        }, {})
-      );
+      // console.log(`Searching for ${searchQuery} with params:`, 
+      //   Object.keys(params).reduce((result, key) => {
+      //     // Hide API key from logs
+      //     result[key] = key === 'key' ? '[HIDDEN]' : params[key];
+      //     return result;
+      //   }, {})
+      // );
       
       const response = await axios.get(url, {
         params,
@@ -69,8 +69,7 @@ class LocationSearchService {
       return null;
     }
 
-    // Log the number of results found
-    console.log(`Found ${searchResults.data.length} results from TripAdvisor`);
+
 
     // Try to find exact name match first
     const exactNameMatch = searchResults.data.find(
@@ -101,7 +100,7 @@ class LocationSearchService {
     );
 
     if (partialNameMatch) {
-      console.log(`Found partial name match: ${partialNameMatch.name} (${partialNameMatch.location_id})`);
+      // console.log(`Found partial name match: ${partialNameMatch.name} (${partialNameMatch.location_id})`);
       return partialNameMatch.location_id;
     }
 
@@ -113,12 +112,12 @@ class LocationSearchService {
     );
 
     if (cityCountryMatch) {
-      console.log(`Found city/country match: ${cityCountryMatch.name} (${cityCountryMatch.location_id})`);
+      // console.log(`Found city/country match: ${cityCountryMatch.name} (${cityCountryMatch.location_id})`);
       return cityCountryMatch.location_id;
     }
 
     // If no match, just return the first result
-    console.log(`Using first result: ${searchResults.data[0].name} (${searchResults.data[0].location_id})`);
+    // console.log(`Using first result: ${searchResults.data[0].name} (${searchResults.data[0].location_id})`);
     return searchResults.data[0].location_id;
   }
 }

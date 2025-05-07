@@ -465,7 +465,7 @@ const transformActivityBookings = (bookingItinerary, travelers, specialRequireme
               age: parseInt(travelers[0].age),
             },
             agentRef: generateAgentReference(),
-            rateKey: rateKey,
+            ratekey: rateKey,
             fromDate: day.date,
             toDate: day.date,
             groupCode: groupCode,

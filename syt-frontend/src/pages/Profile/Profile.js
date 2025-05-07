@@ -1,11 +1,12 @@
 import {
   Cake as CakeIcon,
   CalendarMonth as CalendarIcon,
+  Cancel as CancelIcon,
   Email as EmailIcon,
   Flag as FlagIcon,
   LocationCity as LocationIcon,
   Phone as PhoneIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -14,6 +15,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Container,
   Divider,
   Grid,
@@ -21,7 +23,7 @@ import {
   Skeleton,
   Snackbar,
   Typography,
-  useTheme
+  useTheme,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import axios from 'axios';
@@ -29,6 +31,7 @@ import { CreditCard, RefreshCw, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import CancellationQuoteModal from '../../components/Modals/CancellationQuoteModal'; // Placeholder for Phase 3
 import { logout } from '../../redux/slices/authSlice';
 
 const Profile = () => {
@@ -41,6 +44,14 @@ const Profile = () => {
   const [deleteLoading, setDeleteLoading] = useState({});
   const [error, setError] = useState(null);
 
+  // --- Cancellation State ---
+  const [quotingBookingId, setQuotingBookingId] = useState(null); // Track which booking is being quoted
+  const [cancellingBookingId, setCancellingBookingId] = useState(null); // Store bookingId for execution
+  const [cancellationQuoteData, setCancellationQuoteData] = useState(null);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [isExecutingCancellation, setIsExecutingCancellation] = useState(false);
+  // --- End Cancellation State ---
+
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -48,8 +59,12 @@ const Profile = () => {
     severity: 'info'
   });
 
-  useEffect(() => {
-    const fetchItineraries = async () => {
+  // Moved fetchItineraries outside useEffect to make it callable elsewhere
+  const fetchItineraries = async () => {
+      if (!user?._id) {
+          setLoading(false);
+          return; // Exit if no user ID
+      }
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
@@ -67,6 +82,10 @@ const Profile = () => {
           // Fetch booking status for each itinerary
           const itinerariesWithBookingStatus = await Promise.all(
             itinerariesData.map(async (itinerary) => {
+              // Add bookingId to itinerary object if it exists in bookingData
+              const bookingId = itinerary.bookingData?.bookingId;
+              let updatedItinerary = { ...itinerary, bookingId };
+
               try {
                 const bookingResponse = await axios.get(
                   `http://localhost:5000/api/booking/itinerary/by-itinerary/${itinerary.itineraryToken}`,
@@ -78,16 +97,22 @@ const Profile = () => {
                 );
                 
                 if (bookingResponse.data.data) {
-                  return {
-                    ...itinerary,
-                    bookingData: bookingResponse.data.data
+                  // Ensure bookingId is correctly assigned even if fetched separately
+                   updatedItinerary = {
+                    ...updatedItinerary,
+                    bookingData: bookingResponse.data.data,
+                    bookingId: bookingResponse.data.data.bookingId || updatedItinerary.bookingId // Prioritize fetched bookingId
                   };
+                   return updatedItinerary;
                 }
                 
-                return itinerary;
+                return updatedItinerary; // Return itinerary possibly without bookingData but with bookingId
               } catch (error) {
-                console.error('Error fetching booking for itinerary:', itinerary.itineraryToken, error);
-                return itinerary;
+                // If error fetching booking, still return itinerary with potential bookingId
+                 if (error.response?.status !== 404) { // Don't log expected 404s
+                     console.error('Error fetching booking for itinerary:', itinerary.itineraryToken, error);
+                 }
+                return updatedItinerary; // Return itinerary with bookingId if available
               }
             })
           );
@@ -105,14 +130,12 @@ const Profile = () => {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
-    if (user?._id) {
-      fetchItineraries();
-    } else {
-      setLoading(false);
-    }
-  }, [user?._id]);
+  useEffect(() => {
+    // Call the standalone fetch function on mount/user change
+    fetchItineraries();
+  }, [user?._id]); // Dependency remains user ID
 
   const handleLogout = () => {
     dispatch(logout());
@@ -173,7 +196,7 @@ const Profile = () => {
       // If no booking data exists, proceed to itinerary page
       if (!bookingData) {
         const { completeItinerary, params } = await fetchCompleteItinerary();
-        console.log('Navigating to itinerary with data:', {
+        console.log('Navigating to itinerary (no booking) with data:', {
           params: params.toString(),
           state: {
             origin: 'profile',
@@ -367,6 +390,126 @@ const Profile = () => {
     }
   };
 
+  // --- Phase 1: Initiate Cancellation Quote ---
+  const handleCancelInitiate = async (itinerary) => {
+    const bookingId = itinerary.bookingId; // Get bookingId from itinerary object
+    if (!bookingId) {
+      console.error("Cannot initiate cancellation: Booking ID is missing for itinerary", itinerary.itineraryToken);
+       setSnackbar({
+           open: true,
+           message: 'Cannot initiate cancellation: Booking ID missing.',
+           severity: 'error'
+       });
+       return;
+    }
+
+    console.log(`Initiating cancellation quote for Booking ID: ${bookingId}`);
+    setQuotingBookingId(bookingId); // Set loading state for this specific booking
+    setCancellationQuoteData(null); // Clear previous quote data
+    setCancellingBookingId(bookingId); // Store the bookingId for confirmation step
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `http://localhost:5000/api/booking/itinerary/${bookingId}/cancellation-quote`,
+        { cancelAll: true }, // Request quote for the whole itinerary
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      console.log("Cancellation Quote Response:", response.data);
+
+      if (response.data.success) { // Assuming backend returns a success flag
+        setCancellationQuoteData(response.data.quote); // Store the quote data
+        setShowCancellationModal(true); // Open the modal (to be implemented in Phase 3)
+      } else {
+        throw new Error(response.data.message || "Failed to get cancellation quote.");
+      }
+
+    } catch (error) {
+      console.error('Error fetching cancellation quote:', error.response || error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to fetch cancellation quote',
+        severity: 'error'
+      });
+    } finally {
+      setQuotingBookingId(null); // Reset loading state
+    }
+  };
+  // --- End Phase 1 ---
+
+  // --- Phase 4 Placeholder ---
+  // --- Phase 4/5 Trigger ---
+  const handleConfirmCancellation = async () => {
+      if (!cancellingBookingId) {
+          console.error("No booking ID available for cancellation execution.");
+          setSnackbar({
+              open: true,
+              message: 'An error occurred. Cannot confirm cancellation.',
+              severity: 'error'
+          });
+          return;
+      }
+
+      console.log(`Executing cancellation for Booking ID: ${cancellingBookingId}`);
+      setIsExecutingCancellation(true);
+      setShowCancellationModal(false); // Close modal immediately
+
+      try {
+           const token = localStorage.getItem('token');
+           const response = await axios.post(
+               `http://localhost:5000/api/booking/${cancellingBookingId}/execute-cancellation`,
+               { /* Payload might be needed if backend expects confirmed items, otherwise empty */ },
+               {
+                   headers: {
+                       'Authorization': `Bearer ${token}`
+                   }
+               }
+           );
+
+           console.log("Cancellation Execution Response:", response.data);
+
+           if (response.data.success) {
+               setSnackbar({
+                   open: true,
+                   message: response.data.message || 'Booking cancelled successfully!',
+                   severity: 'success'
+               });
+               // Refresh the itinerary list to show updated status
+               // Re-fetch logic (assuming fetchItineraries is defined and accessible)
+               if (user?._id) { fetchItineraries(); } // Re-trigger fetch
+           } else {
+                // Handle partial success or known failures reported by backend
+               setSnackbar({
+                   open: true,
+                   message: response.data.message || 'Cancellation request processed, but some items may require attention.',
+                   severity: response.data.requiresAttention ? 'warning' : 'error' // Example: Check a backend flag
+               });
+                if (user?._id) { fetchItineraries(); } // Refresh even on partial success/failure
+           }
+
+      } catch (error) {
+           console.error('Error executing cancellation:', error.response || error);
+           setSnackbar({
+               open: true,
+               message: error.response?.data?.message || 'Failed to execute cancellation. Please contact support.',
+               severity: 'error'
+           });
+           // Consider if refresh is needed even on error
+           // if (user?._id) { fetchItineraries(); }
+      } finally {
+           setIsExecutingCancellation(false);
+           setCancellingBookingId(null);
+           setCancellationQuoteData(null); // Clear quote data after execution attempt
+      }
+  };
+  // --- End Phase 4 Placeholder ---
+  // --- End Phase 4/5 Trigger ---
+
   const InfoItem = ({ icon, label, value }) => (
     <Box 
       sx={{ 
@@ -512,7 +655,7 @@ const Profile = () => {
     // Get payment status and booking ID if available
     const bookingData = itinerary.bookingData;
     const paymentStatus = bookingData?.paymentStatus || 'new'; // Default to 'new' if no booking
-    const bookingId = bookingData?.bookingId;
+    const bookingId = itinerary.bookingId;
     
     // Determine button text and icon based on payment status
     let buttonText = "View Itinerary";
@@ -560,6 +703,10 @@ const Profile = () => {
         chipText = "NEW";
         break;
     }
+
+    // Determine if cancellation button should be shown
+    const canCancel = paymentStatus === 'completed';
+    const isCurrentlyQuoting = quotingBookingId === bookingId; // Check if this card's booking is being quoted
 
     // Get theme-safe color
     const getThemeColor = (color) => {
@@ -667,6 +814,7 @@ const Profile = () => {
                   variant="contained"
                   startIcon={buttonIcon}
                   onClick={() => handleViewItinerary(itinerary)}
+                  disabled={isCurrentlyQuoting || deleteLoading[itinerary.inquiryToken]}
                   sx={{
                     borderRadius: '30px',
                     textTransform: 'none',
@@ -683,12 +831,39 @@ const Profile = () => {
                 >
                   {buttonText}
                 </Button>
+
+                {/* Cancel Booking Button - Conditionally Rendered */}
+                {canCancel && (
+                   <Button
+                       variant="outlined"
+                       color="warning" // Use warning color for cancellation
+                       startIcon={isCurrentlyQuoting ? <CircularProgress size={18} color="inherit" /> : <CancelIcon sx={{ fontSize: 18 }} />}
+                       onClick={() => handleCancelInitiate(itinerary)}
+                       disabled={isCurrentlyQuoting || deleteLoading[itinerary.inquiryToken]}
+                       sx={{
+                         borderRadius: '30px',
+                         textTransform: 'none',
+                         height: '36px',
+                         borderColor: theme => theme.palette.warning.main,
+                         color: theme => theme.palette.warning.main,
+                         '&:hover': {
+                             backgroundColor: theme => alpha(theme.palette.warning.main, 0.1),
+                             borderColor: theme => theme.palette.warning.dark,
+                             transform: 'translateY(-2px)',
+                         },
+                         transition: 'all 0.3s ease',
+                       }}
+                   >
+                       {isCurrentlyQuoting ? 'Quoting...' : 'Cancel Booking'}
+                   </Button>
+                )}
+
                 <Button
                   variant="outlined"
                   color="error"
-                  startIcon={<Trash2 size={18} />}
+                  startIcon={deleteLoading[itinerary.inquiryToken] ? <CircularProgress size={18} color="inherit"/> : <Trash2 size={18} />}
                   onClick={() => handleDelete(itinerary.inquiryToken)}
-                  disabled={deleteLoading[itinerary.inquiryToken]}
+                  disabled={isCurrentlyQuoting || deleteLoading[itinerary.inquiryToken]}
                   sx={{
                     borderRadius: '30px',
                     textTransform: 'none',
@@ -818,6 +993,18 @@ const Profile = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Cancellation Quote Modal Placeholder (Implement in Phase 3) */}
+      {showCancellationModal && cancellationQuoteData && (
+        <CancellationQuoteModal
+          open={showCancellationModal}
+          onClose={() => setShowCancellationModal(false)}
+          quoteData={cancellationQuoteData}
+          onConfirm={handleConfirmCancellation}
+          isExecuting={isExecutingCancellation}
+        />
+      )}
+
     </Container>
   );
 };

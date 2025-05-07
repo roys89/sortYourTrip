@@ -23,7 +23,7 @@ class LocationDetailsService {
         currency: currency
       };
 
-      console.log(`Fetching details for location ID: ${locationId}`);
+      // console.log(`Fetching details for location ID: ${locationId}`);
       
       const response = await axios.get(url, {
         params,

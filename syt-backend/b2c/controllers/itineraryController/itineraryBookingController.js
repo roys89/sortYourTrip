@@ -130,8 +130,12 @@ class BookingService {
     try {
       await session.startTransaction();
   
+      // Generate the bookingId before creating the document
+      const bookingId = Math.random().toString(36).substring(2, 10).toUpperCase();
+  
       const booking = new ItineraryBooking({
         ...bookingData,
+        bookingId, // Assign the generated bookingId
         status: 'draft',
         paymentStatus: 'pending',
         paymentId: null,
@@ -160,7 +164,7 @@ class BookingService {
     } finally {
       session.endSession();
     }
-}
+  }
 }
 
 class ItineraryBookingController {
@@ -480,9 +484,7 @@ class ItineraryBookingController {
       const booking = await ItineraryBooking.findOne({
         itineraryToken,
         'userInfo.userId': req.user._id,
-        status: { $in: ['draft', 'pending'] }, // Only get draft or pending bookings
-        paymentStatus: 'pending' // Only get pending payments
-      }).select('bookingId paymentStatus rooms specialRequirements razorpay');
+      }).select('bookingId paymentStatus status rooms specialRequirements razorpay bookingDate');
   
       if (!booking) {
         return res.status(404).json({

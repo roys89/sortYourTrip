@@ -479,11 +479,6 @@ const BookingForm = () => {
     return isValid;
   };
 
-  const generateBookingId = () => {
-    // Generate a random 8-character alphanumeric string
-    return Math.random().toString(36).substring(2, 10).toUpperCase();
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -495,10 +490,7 @@ const BookingForm = () => {
       setLoading(true);
       setError(null);
 
-      const bookingId = generateBookingId();
-
       const result = await dispatch(createBooking({
-        bookingId,
         itineraryToken: tokens.itinerary,
         inquiryToken: tokens.inquiry,
         userInfo: itinerary?.userInfo || {},
@@ -509,12 +501,14 @@ const BookingForm = () => {
         tcsRate: itinerary.priceTotals.tcsRate
       })).unwrap();
 
-      if (result.success) {
+      if (result.success && result.data.bookingId) {
         setFormData(prev => ({
           ...prev,
-          bookingId
+          bookingId: result.data.bookingId
         }));
         setShowReviewModal(true);
+      } else {
+        throw new Error(result.message || "Booking update/creation failed to return an ID.");
       }
 
     } catch (error) {

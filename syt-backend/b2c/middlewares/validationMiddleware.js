@@ -49,7 +49,7 @@ const validateBooking = (req, res, next) => {
   });
 
   const bookingSchema = Joi.object({
-    bookingId: Joi.string().required(),
+    bookingId: Joi.string(),
     itineraryToken: Joi.string().required(),
     inquiryToken: Joi.string().required(),
     userInfo: userInfoSchema.required(),

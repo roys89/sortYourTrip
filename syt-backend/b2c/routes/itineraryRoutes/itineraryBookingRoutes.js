@@ -11,6 +11,8 @@ const transferController = require('../../controllers/transferController/transfe
 const { bookTransfer } = transferController;
 const activityController = require('../../controllers/activityController/activityControllerGRNC');
 const { bookActivity } = activityController;
+const bookingController = require('../../controllers/bookingController');
+
 
 // Error handling wrapper
 const asyncHandler = (handler) => (req, res, next) => {
@@ -88,6 +90,12 @@ router.patch('/:bookingId/cancel',
 router.get('/:bookingId/voucher/:type/:itemId',
   asyncHandler(ItineraryBookingController.getBookingVoucher)
 );
+
+// POST - Get cancellation quote for a booking
+router.post('/:bookingId/cancellation-quote',  bookingController.getCancellationQuote);
+
+// POST - Execute cancellation for a booking
+router.post('/:bookingId/execute-cancellation', bookingController.executeCancellation);
 
 // Error handling for undefined routes
 router.use('*', (req, res, next) => {

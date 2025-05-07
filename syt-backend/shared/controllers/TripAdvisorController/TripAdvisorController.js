@@ -42,8 +42,7 @@ class TripAdvisorController {
           searchParams.address = city;
         }
   
-        console.log(`TripAdvisor API: Searching for ${name} with params:`, searchParams);
-  
+       
         // Step 1: Call LocationSearchService to search for the location
         const searchResults = await LocationSearchService.searchLocation(
           searchParams.searchQuery,
@@ -66,7 +65,7 @@ class TripAdvisorController {
           });
         }
   
-        console.log(`TripAdvisor API: Found location ID ${locationId}, fetching details`);
+
   
         // Step 2: Call LocationDetailsService to get location details
         const locationDetails = await LocationDetailsService.getLocationDetails(locationId);

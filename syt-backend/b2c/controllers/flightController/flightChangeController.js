@@ -88,7 +88,7 @@ module.exports = {
       // Get metadata for the entire dataset (for filter UI)
       
       // Calculate price ranges from ALL flights
-      const allPrices = allFlights.map(f => f?.pF).filter(Boolean);
+      const allPrices = allFlights.map(f => f?.fF).filter(Boolean);
       const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
       const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 0;
       

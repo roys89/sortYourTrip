@@ -136,8 +136,8 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode, 
 
   // Calculate price comparison with existing price - using modern trend icons
   const getPriceComparison = () => {
-    // Ensure flight price (pF) is a number
-    const currentPrice = typeof flight.pF === 'number' ? flight.pF : null;
+    // Ensure flight price (fF) is a number
+    const currentPrice = typeof flight.fF === 'number' ? flight.fF : null;
     const previousPrice = typeof existingPrice === 'number' ? existingPrice : null;
 
     if (previousPrice === null || currentPrice === null) return null; // Cannot compare if prices are invalid
@@ -359,7 +359,7 @@ const FlightCard = React.memo(({ flight, onViewFlight, existingPrice, viewMode, 
                   fontWeight: 600
                 }}
               >
-                {`₹${priceComparison.diff.toLocaleString()} ${flight.pF > existingPrice ? 'more' : 'less'}`}
+                {`₹${priceComparison.diff.toLocaleString()} ${flight.fF > existingPrice ? 'more' : 'less'}`}
               </Typography>
             )}
             {priceComparison.diff === 0 && (
@@ -926,7 +926,7 @@ const FlightsPage = () => {
     // Apply filters (same logic as before)
     if (filters.priceRange && filters.priceRange.length === 2) {
       filtered = filtered.filter(flight =>
-        flight.pF >= filters.priceRange[0] && flight.pF <= filters.priceRange[1]
+        flight.fF >= filters.priceRange[0] && flight.fF <= filters.priceRange[1]
       );
     }
     if (filters.airlines && filters.airlines.length > 0) {
@@ -958,10 +958,10 @@ const FlightsPage = () => {
     // Apply sorting (mutable sort is okay here as we start with a copy)
     switch (currentSort) {
       case "priceAsc":
-        filtered.sort((a, b) => a.pF - b.pF);
+        filtered.sort((a, b) => a.fF - b.fF);
         break;
       case "priceDesc":
-        filtered.sort((a, b) => b.pF - a.pF);
+        filtered.sort((a, b) => b.fF - a.fF);
         break;
       case "durationAsc":
         filtered.sort((a, b) => {
@@ -972,7 +972,7 @@ const FlightsPage = () => {
         break;
       case "recommended":
         // --- Optimization: Pre-calculate min/max values before sorting --- 
-        const prices = filtered.map(f => f.pF).filter(p => typeof p === 'number');
+        const prices = filtered.map(f => f.fF).filter(p => typeof p === 'number');
         const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
         const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
         const priceRangeSize = (maxPrice - minPrice) > 0 ? (maxPrice - minPrice) : 1; // Avoid division by zero
@@ -988,8 +988,8 @@ const FlightsPage = () => {
 
         filtered.sort((a, b) => {
           // Calculate scores using pre-calculated ranges
-          const aPriceScore = typeof a.pF === 'number' ? (a.pF - minPrice) / priceRangeSize : 0.5; 
-          const bPriceScore = typeof b.pF === 'number' ? (b.pF - minPrice) / priceRangeSize : 0.5;
+          const aPriceScore = typeof a.fF === 'number' ? (a.fF - minPrice) / priceRangeSize : 0.5; 
+          const bPriceScore = typeof b.fF === 'number' ? (b.fF - minPrice) / priceRangeSize : 0.5;
 
           const aDuration = a.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);
           const bDuration = b.sg.reduce((total, seg) => total + (seg?.dr || 0), 0);

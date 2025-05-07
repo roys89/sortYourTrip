@@ -11,6 +11,7 @@ const HotelBookingDetailsService = require('../../shared/services/hotelServicesT
 const logger = require('../../shared/utils/logger');
 const { handleError } = require('../../shared/helpers/errorHandler');
 const hotelCancelService = require('../../shared/services/hotelServicesTC/hotelCancelService');
+const getCrmDatabaseConnection = require('../config/db'); // Assuming db connection logic exists here
 
 module.exports = {
   searchLocation: async (req, res) => {
@@ -428,6 +429,7 @@ module.exports = {
   },
 
   cancelHotelBooking: async (req, res) => {
+    let crmDbConnection; // Define connection variable outside try
     try {
       const { bookingCode } = req.params;
       const { traceId } = req.body;
@@ -453,30 +455,74 @@ module.exports = {
       });
 
       // Call the cancellation service, passing traceId
-      const response = await hotelCancelService.cancelBooking(
+      const cancellationApiResponse = await hotelCancelService.cancelBooking(
         bookingCode,
         traceId,
         authToken,
         inquiryToken
       );
 
-      logger.info(`Cancellation request processed for booking code: ${bookingCode}`);
+      logger.info(`Cancellation request processed for booking code: ${bookingCode}. API Response: ${JSON.stringify(cancellationApiResponse)}`);
 
-      // TODO: Add logic here to update the booking status in the CRM database
-      // E.g., find the HotelBooking by bookingRefId (bookingCode) and set status to 'Cancelled'
-      // const { HotelBooking } = require('../models/Index'); // Get model
-      // await HotelBooking.findOneAndUpdate({ bookingRefId: bookingCode }, { status: 'Cancelled' });
+      // Check if the cancellation API call was successful
+      if (cancellationApiResponse && cancellationApiResponse.success === true) {
+        // Get CRM DB connection
+        crmDbConnection = await getCrmDatabaseConnection();
+        const HotelBooking = require('../models/HotelBooking')(crmDbConnection); // Get model with connection
 
-      res.json(response); // Forward the response from the service
+        // Update the booking status in the CRM database
+        const updatedBooking = await HotelBooking.findOneAndUpdate(
+          { bookingRefId: bookingCode },
+          {
+            $set: {
+              status: 'Cancelled',
+              'cancellationDetails.isCancelled': true,
+              'cancellationDetails.cancellationDate': new Date(),
+              'cancellationDetails.cancellationReason': cancellationApiResponse.message || 'Cancelled via CRM', // Use API message or default
+              // Optional: update refund details if available in cancellationApiResponse.data
+              // 'cancellationDetails.refundAmount': cancellationApiResponse.data?.refundDetails?.amount,
+              // 'cancellationDetails.refundStatus': cancellationApiResponse.data?.refundDetails?.status,
+            }
+          },
+          { new: true } // Return the updated document
+        );
+
+        if (updatedBooking) {
+          logger.info(`CRM HotelBooking status updated to Cancelled for bookingRefId: ${bookingCode}`);
+        } else {
+          // Log a warning if the booking wasn't found in CRM DB, but API succeeded
+          logger.warn(`Cancellation API succeeded for ${bookingCode}, but corresponding HotelBooking not found in CRM DB.`);
+          // Decide if this should alter the response to the client
+          // For now, we still forward the API response
+        }
+      } else {
+         // Log if the API call itself failed but didn't throw an error handled by the catch block
+         logger.warn(`Hotel cancellation API call for ${bookingCode} did not report success: ${JSON.stringify(cancellationApiResponse)}`);
+      }
+
+
+      res.json(cancellationApiResponse); // Forward the response from the service
 
     } catch (error) {
       // The service layer (handleAxiosError) should format the error
-      logger.error('Error in cancelHotelBooking controller:', error);
+      logger.error('Error in cancelHotelBooking controller:', {
+         message: error.message,
+         bookingCode: req.params.bookingCode,
+         traceId: req.body.traceId,
+         inquiryToken: req.headers['x-inquiry-token'] || 'unknown',
+         status: error.status,
+         details: error.details || error.response?.data || {}
+      });
       res.status(error.status || 500).json({
         success: false,
         message: error.message || 'Failed to process cancellation request.',
         error: error.details || error.response?.data || {}
       });
+    } finally {
+        // Optional: Close DB connection if necessary
+        // if (crmDbConnection) {
+        //    await crmDbConnection.close();
+        // }
     }
   }
 }; 

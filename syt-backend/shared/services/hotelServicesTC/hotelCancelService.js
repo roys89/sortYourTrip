@@ -17,11 +17,10 @@ const hotelCancelService = {
   cancelBooking: async (bookingCode, traceId, authToken, inquiryToken = 'unknown') => {
     const url = `https://hotel-api-sandbox.travclan.com/api/v1/hotels/itineraries/bookings/${bookingCode}/cancel`; // Use direct URL
     const headers = {
-      accept: 'application/json',
       'Authorization-Type': 'external-service',
       source: 'website',
       'content-type': 'application/json',
-      Authorization: authToken // Use Authorization header
+      Authorization: `Bearer ${authToken}` // Use Authorization header with Bearer prefix
     };
     const body = { traceId }; // Include traceId in the body
 

@@ -171,7 +171,7 @@ module.exports = {
       }
 
       // Sort flights by price for more predictable retry behavior
-      const sortedFlights = [...validFlights].sort((a, b) => a.pF - b.pF);
+      const sortedFlights = [...validFlights].sort((a, b) => a.fF - b.fF);
 
       // Common params for booking attempts
       const bookingParams = {

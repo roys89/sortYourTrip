@@ -103,304 +103,12 @@ const transformers = {
     };
   },
 
-  // Transform flight for domestic round trip format
-  transformDomesticFlight: (flight) => {
-    return {
-      resultIndex: flight.rI,
-      isRefundable: flight.iR,
-      airlineRemark: flight.aR,
-      isLowCost: flight.iL,
-      provider: flight.pr,
-      price: {
-        amount: flight.pF,
-        currency: flight.cr,
-        baseFare: flight.bF,
-        tax: flight.tAS
-      },
-      segments: (flight.sg || []).map(segment => ({
-        baggage: segment.bg,
-        cabinBaggage: segment.cBg,
-        duration: segment.dr,
-        airline: {
-          code: segment.al.alC,
-          name: segment.al.alN,
-          flightNumber: segment.al.fN ? segment.al.fN.trim() : '',
-          fareClass: segment.al.fC
-        },
-        departure: {
-          airport: {
-            code: segment.or.aC,
-            name: segment.or.aN,
-            terminal: segment.or.tr || ''
-          },
-          city: {
-            code: segment.or.cC,
-            name: segment.or.cN
-          },
-          country: segment.or.cnN,
-          time: segment.or.dT
-        },
-        arrival: {
-          airport: {
-            code: segment.ds.aC,
-            name: segment.ds.aN,
-            terminal: segment.ds.tr || ''
-          },
-          city: {
-            code: segment.ds.cC,
-            name: segment.ds.cN
-          },
-          country: segment.ds.cnN,
-          time: segment.ds.aT
-        }
-      })),
-      stopCount: flight.sC || 0,
-      availableSeats: flight.sA,
-      fareClass: flight.pFC,
-      fareIdentifier: flight.fareIdentifier
-    };
-  },
 
-  // Transform flight for one-way format
-  transformOneWayFlight: (flight) => {
-    return {
-      // Flight basic info
-      resultIndex: flight.rI,
-      isRefundable: flight.iR,
-      airlineRemark: flight.aR,
-      isLowCost: flight.iL,
-      provider: flight.pr,
-      
-      // Segments
-      segments: (flight.sg || []).map(transformers.transformSegment),
-      
-      // Flight fare info
-      price: {
-        amount: flight.pF,
-        currency: flight.cr,
-        baseFare: flight.bF,
-        tax: flight.tAS,
-        finalFare: flight.fF,
-        fareWithoutAncillary: flight.fFWAM,
-        serviceFee: flight.sF
-      },
-      fareClass: flight.pFC,
-      fareBreakup: flight.paxFareBreakUp,
-      
-      // Flight operational info
-      availableSeats: flight.sA,
-      stopCount: flight.sC || 0,
-      segmentCount: flight.sc,
-      database: flight.db,
-      groupId: flight.groupId,
-      fareIdentifier: flight.fareIdentifier,
-      
-      isRoundTrip: false
-    };
-  },
-
-  // Transform flight for round trip format
-  transformRoundTripFlight: (flight) => {
-    // Handle outbound segments
-    const outboundSegments = (flight.outboundFlight || []).map(segment => ({
-      // Use the common segment transformer with different field names
-      baggage: segment.bg,
-      cabinBaggage: segment.cBg,
-      duration: segment.dr,
-      groundTime: segment.gT,
-      stopoverDuration: segment.sD,
-      cabinClass: segment.cC,
-      availableSeats: segment.nOSA,
-      accumulatedDuration: segment.aD,
-      
-      // Stopover info
-      isStopover: segment.sO,
-      stopoverPoint: segment.sP,
-      stopoverArrivalTime: segment.sPAT,
-      stopoverDepartureTime: segment.sPDT,
-      
-      // Departure info
-      departure: {
-        airport: {
-          code: segment.or.aC,
-          name: segment.or.aN,
-          terminal: segment.or.tr || ''
-        },
-        city: {
-          code: segment.or.cC,
-          name: segment.or.cN
-        },
-        country: segment.or.cnN,
-        time: segment.or.dT
-      },
-      
-      // Arrival info
-      arrival: {
-        airport: {
-          code: segment.ds.aC,
-          name: segment.ds.aN,
-          terminal: segment.ds.tr || ''
-        },
-        city: {
-          code: segment.ds.cC,
-          name: segment.ds.cN
-        },
-        country: segment.ds.cnN,
-        time: segment.ds.aT
-      },
-      
-      // Airline info
-      airline: {
-        code: segment.al.alC,
-        name: segment.al.alN,
-        flightNumber: segment.al.fN ? segment.al.fN.trim() : '',
-        fareClass: segment.al.fC,
-        fareClassFullCode: segment.al.fCFC,
-        operatingCarrier: segment.al.oC
-      }
-    }));
-
-    // Handle inbound options
-    const inboundOptions = (flight.inboundFlights || []).map(option => {
-      if (!Array.isArray(option) || option.length === 0) return null;
-      
-      // Map each option's segments while preserving original structure
-      return option.map(inboundFlight => {
-        if (!inboundFlight || !inboundFlight.sg) return null;
-        
-        return {
-          // Flight basic info
-          resultIndex: inboundFlight.rI,
-          isRefundable: inboundFlight.iR,
-          airlineRemark: inboundFlight.aR,
-          isLowCost: inboundFlight.iL,
-          provider: inboundFlight.pr,
-          
-          // Flight fare info
-          price: {
-            amount: inboundFlight.pF,
-            currency: inboundFlight.cr,
-            baseFare: inboundFlight.bF,
-            tax: inboundFlight.tAS,
-            finalFare: inboundFlight.fF,
-            fareWithoutAncillary: inboundFlight.fFWAM,
-            serviceFee: inboundFlight.sF
-          },
-          fareClass: inboundFlight.pFC,
-          fareBreakup: inboundFlight.paxFareBreakUp,
-          
-          // Flight operational info
-          availableSeats: inboundFlight.sA,
-          stopCount: inboundFlight.sC || 0,
-          segmentCount: inboundFlight.sc,
-          database: inboundFlight.db,
-          groupId: inboundFlight.groupId,
-          fareIdentifier: inboundFlight.fareIdentifier,
-          outboundSegAdditionalInfo: inboundFlight.outboundSegAdditionalInfo,
-          
-          // Segments
-          segments: inboundFlight.sg.map(segment => ({
-            // Basic segment info
-            baggage: segment.bg,
-            cabinBaggage: segment.cBg,
-            duration: segment.dr,
-            groundTime: segment.gT,
-            stopoverDuration: segment.sD,
-            cabinClass: segment.cC,
-            availableSeats: segment.nOSA,
-            accumulatedDuration: segment.aD,
-            
-            // Stopover info
-            isStopover: segment.sO,
-            stopoverPoint: segment.sP,
-            stopoverArrivalTime: segment.sPAT,
-            stopoverDepartureTime: segment.sPDT,
-            
-            // Departure info
-            departure: {
-              airport: {
-                code: segment.or.aC,
-                name: segment.or.aN,
-                terminal: segment.or.tr || ''
-              },
-              city: {
-                code: segment.or.cC,
-                name: segment.or.cN
-              },
-              country: segment.or.cnN,
-              time: segment.or.dT
-            },
-            
-            // Arrival info
-            arrival: {
-              airport: {
-                code: segment.ds.aC,
-                name: segment.ds.aN,
-                terminal: segment.ds.tr || ''
-              },
-              city: {
-                code: segment.ds.cC,
-                name: segment.ds.cN
-              },
-              country: segment.ds.cnN,
-              time: segment.ds.aT
-            },
-            
-            // Airline info
-            airline: {
-              code: segment.al.alC,
-              name: segment.al.alN,
-              flightNumber: segment.al.fN ? segment.al.fN.trim() : '',
-              fareClass: segment.al.fC,
-              fareClassFullCode: segment.al.fCFC,
-              operatingCarrier: segment.al.oC
-            }
-          }))
-        };
-      }).filter(Boolean);
-    }).filter(Boolean);
-
-    return {
-      // Flight basic info
-      resultIndex: flight.rI,
-      isRefundable: flight.iR,
-      airlineRemark: flight.aR,
-      isLowCost: flight.iL,
-      provider: flight.pr,
-      
-      // Flight structure
-      outboundSegments,
-      inboundOptions,
-      
-      // Flight fare info
-      price: {
-        amount: flight.pF,
-        currency: flight.cr,
-        baseFare: flight.bF,
-        tax: flight.tAS,
-        finalFare: flight.fF,
-        fareWithoutAncillary: flight.fFWAM,
-        serviceFee: flight.sF
-      },
-      fareClass: flight.pFC,
-      fareBreakup: flight.paxFareBreakUp,
-      
-      // Flight operational info
-      availableSeats: flight.sA,
-      stopCount: flight.sC || 0,
-      segmentCount: flight.sc,
-      database: flight.db,
-      groupId: flight.groupId,
-      fareIdentifier: flight.fareIdentifier,
-      
-      isRoundTrip: true
-    };
-  },
 
   // Generate filter metadata from all flights
   generateFilterMetadata: (allFlights, isRoundTrip) => {
     // Calculate price ranges from ALL flights
-    const allPrices = allFlights.map(f => f.pF).filter(Boolean);
+    const allPrices = allFlights.map(f => f.fF).filter(Boolean);
     const minPrice = Math.min(...allPrices);
     const maxPrice = Math.max(...allPrices);
     
@@ -588,7 +296,7 @@ module.exports = {
         });
         
         // Calculate metadata for filters
-        const allPrices = [...outboundFlights, ...inboundFlights].map(f => f.pF).filter(Boolean);
+        const allPrices = [...outboundFlights, ...inboundFlights].map(f => f.fF).filter(Boolean);
         const minPrice = Math.min(...allPrices);
         const maxPrice = Math.max(...allPrices);
         
@@ -637,7 +345,7 @@ module.exports = {
       const allFlights = searchResults.data.results.outboundFlights;
       
       // Calculate metadata for filters from ALL flights
-      const allPrices = allFlights.map(f => f.pF).filter(Boolean);
+      const allPrices = allFlights.map(f => f.fF).filter(Boolean);
       const minPrice = Math.min(...allPrices);
       const maxPrice = Math.max(...allPrices);
       
@@ -996,7 +704,7 @@ module.exports = {
           isLowCost: flight.iL,
           provider: flight.pr,
           price: {
-            amount: flight.pF,
+            amount: flight.fF,
             currency: flight.cr,
             baseFare: flight.bF,
             tax: flight.tAS
@@ -1054,7 +762,7 @@ module.exports = {
           isLowCost: flight.iL,
           provider: flight.pr,
           price: {
-            amount: flight.pF,
+            amount: flight.fF,
             currency: flight.cr,
             baseFare: flight.bF,
             tax: flight.tAS

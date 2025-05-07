@@ -1,36 +1,36 @@
 // src/pages/Payment/PaymentPage.js
 import {
-    Alert,
-    Box,
-    Button,
-    Checkbox,
-    CircularProgress,
-    Container,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    FormControlLabel,
-    Grid,
-    IconButton,
-    Paper,
-    Snackbar,
-    Stack,
-    Typography,
-    alpha,
-    useTheme
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  CircularProgress,
+  Container,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControlLabel,
+  Grid,
+  IconButton,
+  Paper,
+  Snackbar,
+  Stack,
+  Typography,
+  alpha,
+  useTheme
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
-    AlertTriangle,
-    ArrowRight,
-    CheckCircle2,
-    CreditCard,
-    FileText,
-    Receipt,
-    Shield,
-    Wallet,
-    X
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CreditCard,
+  FileText,
+  Receipt,
+  Shield,
+  Wallet,
+  X
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import ReactDOM from 'react-dom/client';
@@ -38,17 +38,17 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSummary from "../../components/BookingSummary/BookingSummary";
 import {
-    searchReplacementFlight, updateItineraryFlight
+  searchReplacementFlight, updateItineraryFlight
 } from '../../redux/slices/flightReplacementSlice';
 import {
-    searchReplacementHotel, updateItineraryHotel
+  searchReplacementHotel, updateItineraryHotel
 } from '../../redux/slices/hotelReplacementSlice';
 import {
-    createPaymentOrder,
-    setPaymentLoading,
-    setTermsAccepted,
-    validateItineraryComponents,
-    verifyPayment
+  createPaymentOrder,
+  setPaymentLoading,
+  setTermsAccepted,
+  validateItineraryComponents,
+  verifyPayment
 } from "../../redux/slices/paymentSlice";
 
 
@@ -736,10 +736,6 @@ const PaymentPage = () => {
       }
 
       // Proceed with payment if all checks pass
-      if (!window.Razorpay) {
-        throw new Error("Payment gateway not loaded. Please try again.");
-      }
-
       const orderResult = await dispatch(
         createPaymentOrder({
           bookingId,
@@ -748,68 +744,44 @@ const PaymentPage = () => {
         })
       ).unwrap();
 
-      const rzp = new window.Razorpay({
-        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-        amount: orderResult.data.amount,
-        currency: orderResult.data.currency,
-        name: "SortYourTrip",
-        description: `Booking ID: ${bookingId}`,
-        order_id: orderResult.data.orderId,
-        prefill: {
-          name: `${itinerary.userInfo.firstName} ${itinerary.userInfo.lastName}`,
-          email: itinerary.userInfo.email,
-          contact: itinerary.userInfo.phoneNumber
-        },
-        handler: async (response) => {
-          try {
-            await dispatch(
-              verifyPayment({
-                bookingId,
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                signature: response.razorpay_signature,
-              })
-            ).unwrap();
+      try {
+        const verificationData = {
+          bookingId,
+          orderId: orderResult.data.orderId,
+        };
 
-            setSnackbar({
-              open: true,
-              message: "Payment successful! Redirecting...",
-              severity: "success",
-            });
+        await dispatch(verifyPayment(verificationData)).unwrap();
 
-            setTimeout(() => {
-              navigate("/booking-confirmation", {
-                state: {
-                  bookingId,
-                  paymentSuccess: true,
-                  itinerary: {         // Keep the minimal required itinerary info
-                    itineraryToken: itinerary.itineraryToken,
-                    inquiryToken: itinerary.inquiryToken
-                  },
-                  bookingData        // Keep the full booking data
-                },
-                replace: true
-              });
-            }, 1000);
+        setSnackbar({
+          open: true,
+          message: "Payment successful! Redirecting...",
+          severity: "success",
+        });
 
-          } catch (error) {
-            setSnackbar({
-              open: true,
-              message: error.message || "Payment verification failed",
-              severity: "error",
-            });
-          } finally {
-            dispatch(setPaymentLoading(false));
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            dispatch(setPaymentLoading(false));
-          }
-        }
-      });
-      
-      rzp.open();
+        setTimeout(() => {
+          navigate("/booking-confirmation", {
+            state: {
+              bookingId,
+              paymentSuccess: true,
+              itinerary: {         // Keep the minimal required itinerary info
+                itineraryToken: itinerary.itineraryToken,
+                inquiryToken: itinerary.inquiryToken
+              },
+              bookingData        // Keep the full booking data
+            },
+            replace: true
+          });
+        }, 1000);
+
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: error.message || "Payment verification failed (Dummy Mode)",
+          severity: "error",
+        });
+      } finally {
+        dispatch(setPaymentLoading(false));
+      }
 
     } catch (error) {
       console.error("Payment process error:", error);

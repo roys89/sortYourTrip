@@ -93,12 +93,7 @@ export const createPaymentOrder = createAsyncThunk(
         {
           bookingId,
           amount,
-          itineraryToken: itinerary.itineraryToken,
-          inquiryToken: itinerary.inquiryToken,
-          totalAmount: itinerary.priceTotals.grandTotal,
-          tcsAmount: itinerary.priceTotals.tcsAmount,
-          tcsRate: itinerary.priceTotals.tcsRate,
-          userInfo: itinerary.userInfo
+          itinerary
         },
         {
           headers: {

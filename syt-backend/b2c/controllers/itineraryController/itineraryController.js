@@ -526,7 +526,6 @@ exports.createItinerary = async (req, res) => {
 
     const itineraryToken = Math.random().toString(36).substring(2, 10).toUpperCase();
     
-    // Delete existing itinerary with the same inquiry token
     try {
       const deletionResult = await Itinerary.deleteOne({ inquiryToken: inquiry.itineraryInquiryToken });
       if (deletionResult.deletedCount > 0) {
@@ -534,31 +533,25 @@ exports.createItinerary = async (req, res) => {
       }
     } catch (deleteError) {
       console.error(`Error deleting existing itinerary: ${deleteError.message}`);
-      // Decide if this error should halt the process or just be logged
-      // For now, we'll log and continue
     }
 
-    // Initialize activity tracker for each city at the start
     const cityActivitiesTracker = {};
     inquiry.selectedCities.forEach(city => {
       cityActivitiesTracker[city.destination_id] = new Set();
     });
 
-    // Step 1: Distribute days across cities
     const cityDayDistribution = distributeDaysAcrossCities(
       inquiry.departureDates.startDate,
       inquiry.departureDates.endDate,
       inquiry.selectedCities
     );
 
-    // Step 2: Get flights and hotels concurrently
     console.log("Getting flights and hotels concurrently...");
     const { departureFlights, returnFlights, hotelResponses } = 
       await processFlightsAndHotels(inquiry, cityDayDistribution);
 
-    // Step 3: Process cities sequentially
     const processedCities = [];
-    const itineraryDaysByCity = []; // Initialize array for transfer orchestration
+    const itineraryDaysByCity = []; 
 
     for (let cityIndex = 0; cityIndex < cityDayDistribution.length; cityIndex++) {
       const { city, startDate, endDate } = cityDayDistribution[cityIndex];
@@ -577,32 +570,42 @@ exports.createItinerary = async (req, res) => {
 
       const daysForThisCity = getDifferenceInDays(startDate, endDate) + 1;
 
-      // Process days sequentially for this city
       for (let dayOffset = 0; dayOffset < daysForThisCity; dayOffset++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(currentDate.getDate() + dayOffset);
         const formattedDate = currentDate.toISOString().split("T")[0];
 
-        const isFirstDay = dayOffset === 0;
-        const isLastDay = dayOffset === daysForThisCity - 1;
+        const isFirstDayInCurrentCity = (dayOffset === 0);
+        const isLastDayInCurrentCity = (dayOffset === daysForThisCity - 1);
+        const isLastCityOfItinerary = (cityIndex === cityDayDistribution.length - 1);
+        
+        let dayActivities;
 
-        // Process activities for this day
-        const dayActivities = await processActivitiesForDay(
-          city,
-          inquiry,
-          formattedDate,
-          {
-            adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
-            childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat(),
-          },
-          inquiryToken,
-          cityActivitiesTracker
-        );
+        if (isFirstDayInCurrentCity || (isLastCityOfItinerary && isLastDayInCurrentCity)) {
+          console.log(`Skipping activities for ${city.city} on ${formattedDate} due to policy (First day of city or Last day of entire itinerary).`);
+          dayActivities = {
+            date: formattedDate,
+            activities: [],
+            error: "Activities skipped as per itinerary policy (first day of city / last day of trip)."
+          };
+        } else {
+          dayActivities = await processActivitiesForDay(
+            city,
+            inquiry,
+            formattedDate,
+            {
+              adults: inquiry.travelersDetails.rooms.map(room => room.adults).flat(),
+              childAges: inquiry.travelersDetails.rooms.map(room => room.children).flat(),
+            },
+            inquiryToken,
+            cityActivitiesTracker 
+          );
+        }
 
         const dayObject = {
           date: formattedDate,
           flights: [],
-          hotels: isFirstDay ? [{
+          hotels: isFirstDayInCurrentCity ? [{ // Hotel on the first day of stay in a city
             ...hotelResponse,
             checkIn: startDate.toISOString().split("T")[0],
             checkOut: new Date(endDate.getTime() + 24*60*60*1000).toISOString().split("T")[0],
@@ -611,11 +614,11 @@ exports.createItinerary = async (req, res) => {
           transfers: [],
         };
 
-        // Handle flights
-        if (cityIndex === 0 && isFirstDay && departureFlights[0]) {
+        // Handle flights (departure, return) - these are distinct from inter-city flights handled by transfers
+        if (cityIndex === 0 && isFirstDayInCurrentCity && departureFlights[0]) {
           dayObject.flights.push({ flightData: departureFlights[0] });
         }
-        if (cityIndex === cityDayDistribution.length - 1 && isLastDay && returnFlights[0]) {
+        if (isLastCityOfItinerary && isLastDayInCurrentCity && returnFlights[0]) {
           dayObject.flights.push({ flightData: returnFlights[0] });
         }
 
@@ -626,15 +629,16 @@ exports.createItinerary = async (req, res) => {
       processedCities.push(cityDetails);
       console.log(`=== Completed processing city: ${city.city} ===\n`);
 
-      // Log city activity summary
-      console.log(`Total unique activities used: ${cityActivitiesTracker[city.destination_id].size}`);
-      console.log(`Activity codes: ${Array.from(cityActivitiesTracker[city.destination_id]).join(", ")}\n`);
+      if (cityActivitiesTracker[city.destination_id] && cityActivitiesTracker[city.destination_id].size > 0) {
+        console.log(`Total unique activities used in ${city.city}: ${cityActivitiesTracker[city.destination_id].size}`);
+        console.log(`Activity codes: ${Array.from(cityActivitiesTracker[city.destination_id]).join(", ")}\n`);
+      } else {
+        console.log(`No activities selected or tracked for ${city.city}.\n`);
+      }
     }
 
-    // Add processed cities to itineraryDaysByCity
     itineraryDaysByCity.push(...processedCities);
 
-    // Step 4: Orchestrate Transfers
     const itineraryWithTransfers = await orchestrateTransfersForItinerary({
       itineraryDaysByCity,
       inquiry,
@@ -643,17 +647,15 @@ exports.createItinerary = async (req, res) => {
       inquiryToken
     });
 
-    // Step 5: Create the itinerary data object
     const itineraryData = {
       itineraryToken,
       inquiryToken: inquiry.itineraryInquiryToken,
       userInfo: inquiry.userInfo,
       travelersDetails: inquiry.travelersDetails,
       preferences: inquiry.preferences,
-      cities: itineraryWithTransfers, // Assuming this is the result from transfer orchestration
+      cities: itineraryWithTransfers,
     };
 
-    // Add agent details if they exist in the inquiry
     if (inquiry.agents && inquiry.agents.length > 0) {
       itineraryData.agents = inquiry.agents.map(agent => ({
         agentId: agent.agentId,
@@ -664,16 +666,11 @@ exports.createItinerary = async (req, res) => {
       console.log("Agent details added to itinerary data:", itineraryData.agents);
     }
 
-    // Create and save the itinerary model instance
     const itinerary = new Itinerary(itineraryData);
-
     console.log("Saving itinerary...");
     const savedItinerary = await itinerary.save();
-
-    // Format the response (already includes transformation logic from model)
     const formattedResponse = savedItinerary.toJSON(); 
 
-    // Save debug file
     const debugFilePath = path.join(
       __dirname,
       "../../logs/itineraries",
@@ -681,12 +678,15 @@ exports.createItinerary = async (req, res) => {
     );
     ensureDirectoryExistsAndSave(debugFilePath, formattedResponse);
 
-    // Log final activity distribution
     console.log("\nFinal activity distribution by city:");
-    Object.entries(cityActivitiesTracker).forEach(([cityId, activities]) => {
-      const cityName = inquiry.selectedCities.find(c => c.destination_id === cityId)?.city;
-      console.log(`${cityName}: ${Array.from(activities).length} unique activities used`);
-      console.log(`Activity codes: ${Array.from(activities)}`);
+    Object.entries(cityActivitiesTracker).forEach(([cityId, activitiesSet]) => {
+      const cityName = inquiry.selectedCities.find(c => c.destination_id === cityId)?.city || cityId;
+      if (activitiesSet.size > 0) {
+        console.log(`${cityName}: ${activitiesSet.size} unique activities used`);
+        console.log(`Activity codes: ${Array.from(activitiesSet)}`);
+      } else {
+        console.log(`${cityName}: 0 unique activities used`);
+      }
     });
 
     res.status(201).json(formattedResponse);

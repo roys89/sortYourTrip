@@ -12,6 +12,13 @@ class TransferGetQuoteService {
           returnDate,
           inquiryToken // Ensure inquiryToken is destructured
         } = params;
+
+        console.log('Transfer quotes service input:', { 
+          pickupDate, 
+          returnDate,
+          originCity: origin.city,
+          destinationCity: destination.city
+        });
   
         // Prepare the request body
         const requestBody = {
@@ -30,6 +37,13 @@ class TransferGetQuoteService {
           pickupDate: this.formatDate(pickupDate),
           returnDate: this.formatDate(returnDate || this.getNextDay(pickupDate))
         };
+
+        console.log('Formatted dates for LeAmigo API:', {
+          originalPickup: pickupDate,
+          formattedPickup: requestBody.pickupDate,
+          originalReturn: returnDate,
+          formattedReturn: requestBody.returnDate
+        });
   
         // Prepare axios request configuration
         const config = {
@@ -98,14 +112,68 @@ class TransferGetQuoteService {
       }
     }
   
-    static formatDate(date) {
-      const formattedDate = new Date(date);
-      return formattedDate.toISOString().replace('Z', '').replace('T', ' ');
+    static formatDate(dateStr) {
+      try {
+        // The LeAmigo API expects format: "YYYY-MM-DD HH:MM:SS"
+        
+        if (!dateStr) return null;
+        
+        console.log(`Formatting date for LeAmigo API: ${dateStr}`);
+        
+        // Create a Date object (this will handle various input formats)
+        const date = new Date(dateStr);
+        
+        if (isNaN(date.getTime())) {
+          console.error(`Invalid date: ${dateStr}`);
+          return null;
+        }
+        
+        // Extract and format date parts using standard JavaScript
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        // Extract time parts
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        // Format as YYYY-MM-DD HH:MM:SS
+        const formatted = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        
+        console.log(`Formatted date result: ${formatted}`);
+        return formatted;
+      }
+      catch (error) {
+        console.error('Error in formatDate:', error, { dateStr });
+        // Return a sensible default as fallback
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} 00:00:00`;
+      }
     }
   
     static getNextDay(date) {
-      const nextDay = new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000);
-      return nextDay.toISOString().replace('Z', '').replace('T', ' ');
+      try {
+        // Extract date components
+        const currentDate = new Date(date);
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const day = currentDate.getDate() + 1; // Add one day
+        
+        // Create new date with same time but next day
+        const nextDay = new Date(year, month, day, 
+                               currentDate.getHours(), 
+                               currentDate.getMinutes());
+        
+        // Format using our fixed formatDate method
+        return this.formatDate(nextDay.toISOString());
+      }
+      catch (error) {
+        console.error('Error in getNextDay:', error, { date });
+        // Return tomorrow as fallback
+        const tomorrow = new Date(new Date().getTime() + 24 * 60 * 60 * 1000);
+        return tomorrow.toISOString().replace('Z', '').replace('T', ' ');
+      }
     }
   }
   

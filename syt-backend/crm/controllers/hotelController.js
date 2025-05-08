@@ -108,16 +108,50 @@ module.exports = {
       let processedSortBy = null;
       if (searchParams.sortBy && typeof searchParams.sortBy === 'object') {
           processedSortBy = {}; 
+          
+          // Add label if it exists
           if (typeof searchParams.sortBy.label === 'string') {
               processedSortBy.label = searchParams.sortBy.label;
           }
-          if (searchParams.sortBy.hasOwnProperty('finalRate') && typeof searchParams.sortBy.finalRate === 'number' && !isNaN(searchParams.sortBy.finalRate)) {
-              processedSortBy.finalRate = searchParams.sortBy.finalRate;
+          
+          // Handle finalRate correctly - can be a number OR string ('asc'/'desc')
+          if (searchParams.sortBy.hasOwnProperty('finalRate')) {
+              // Handle string sorting directions ('asc'/'desc')
+              if (searchParams.sortBy.finalRate === 'asc' || searchParams.sortBy.finalRate === 'desc') {
+                  processedSortBy.finalRate = searchParams.sortBy.finalRate; 
+                  // Also set id/value for correct API handling
+                  processedSortBy.id = 2; // Price sort type
+                  processedSortBy.value = searchParams.sortBy.finalRate === 'asc' ? 1 : 2; // 1=asc, 2=desc
+              } 
+              // Handle numeric max price as-is
+              else if (typeof searchParams.sortBy.finalRate === 'number' && !isNaN(searchParams.sortBy.finalRate)) {
+                  processedSortBy.finalRate = searchParams.sortBy.finalRate;
+              }
+              // Handle 'default' string (fallback/relevance)
+              else if (searchParams.sortBy.finalRate === 'default') {
+                  processedSortBy.finalRate = 'default';
+                  processedSortBy.id = 1;
+                  processedSortBy.value = 1;
+              }
           }
-          // Add specific sort keys if they exist (passed from frontend)
-          if (searchParams.sortBy.finalRate === 'asc' || searchParams.sortBy.finalRate === 'desc') processedSortBy.finalRate = searchParams.sortBy.finalRate;
-          if (searchParams.sortBy.rating === 'desc') processedSortBy.rating = 'desc';
-          if (searchParams.sortBy.name === 'asc') processedSortBy.name = 'asc';
+          
+          // Add other sort options if they exist
+          if (searchParams.sortBy.rating === 'desc') {
+              processedSortBy.rating = 'desc';
+              processedSortBy.id = 3; // Rating sort type 
+              processedSortBy.value = 2; // Descending value
+          }
+          if (searchParams.sortBy.name === 'asc') {
+              processedSortBy.name = 'asc';
+              processedSortBy.id = 4; // Name sort type
+              processedSortBy.value = 1; // Ascending value
+          }
+          
+          // Ensure id/value exist for default relevance sort
+          if (!processedSortBy.id && processedSortBy.label === 'Relevance') {
+              processedSortBy.id = 1;
+              processedSortBy.value = 1;
+          }
 
           if (Object.keys(processedSortBy).length === 0) {
               processedSortBy = null; // Let service handle default if empty

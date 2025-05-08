@@ -122,35 +122,79 @@ class HotelSearchService {
         }
       }
       
-      // --- NEW: Validate sortBy object structure (example validation) ---
+      // --- Improved sortBy validation to handle id and value properties ---
       if (requestBody.sortBy && typeof requestBody.sortBy === 'object') {
-          // Ensure finalRate, if present, is a number
-          if (requestBody.sortBy.hasOwnProperty('finalRate') && typeof requestBody.sortBy.finalRate !== 'number') {
-              console.warn("HotelSearchService: Invalid finalRate in sortBy, removing.", requestBody.sortBy);
-              delete requestBody.sortBy.finalRate;
+          // Special handling for finalRate - could be string ('asc'/'desc') or number
+          if (requestBody.sortBy.hasOwnProperty('finalRate')) {
+              const finalRateValue = requestBody.sortBy.finalRate;
+              // Allow string values 'asc', 'desc', or 'default'
+              if (typeof finalRateValue === 'string' && 
+                  !['asc', 'desc', 'default'].includes(finalRateValue)) {
+                  console.warn("HotelSearchService: Invalid string finalRate in sortBy, defaulting to 'default'", requestBody.sortBy);
+                  requestBody.sortBy.finalRate = 'default';
+              }
+              // For numbers, ensure they're valid positive numbers
+              else if (typeof finalRateValue === 'number' && 
+                      (isNaN(finalRateValue) || finalRateValue < 0)) {
+                  console.warn("HotelSearchService: Invalid numeric finalRate in sortBy, removing", requestBody.sortBy);
+                  delete requestBody.sortBy.finalRate;
+              }
           }
           
-          // IMPORTANT: If finalRate doesn't exist at all, set it to 'default'
+          // If finalRate doesn't exist at all, set it to 'default' (API requirement)
           if (!requestBody.sortBy.hasOwnProperty('finalRate')) {
               requestBody.sortBy.finalRate = 'default';
               console.log("HotelSearchService: Added default finalRate='default' to sortBy", requestBody.sortBy);
           }
           
-          // IMPORTANT: Check if id and value are missing, add defaults if needed
-          if (!requestBody.sortBy.hasOwnProperty('id') || !requestBody.sortBy.hasOwnProperty('value')) {
-              if (requestBody.sortBy.label === 'Relevance') {
-                  // For relevance sort, add default id and value
+          // Check if id and value are missing or invalid
+          const hasValidId = requestBody.sortBy.hasOwnProperty('id') && 
+                            typeof requestBody.sortBy.id === 'number' && 
+                            !isNaN(requestBody.sortBy.id);
+          const hasValidValue = requestBody.sortBy.hasOwnProperty('value') && 
+                               typeof requestBody.sortBy.value === 'number' && 
+                               !isNaN(requestBody.sortBy.value);
+                               
+          // If either is missing or invalid, determine the correct values based on sort type
+          if (!hasValidId || !hasValidValue) {
+              // Determine sort type based on properties and value
+              if (requestBody.sortBy.finalRate === 'asc') {
+                  // Price Low to High (ascending)
+                  requestBody.sortBy.id = 2;
+                  requestBody.sortBy.value = 1;
+                  console.log("HotelSearchService: Set id/value for Price Ascending sort", requestBody.sortBy);
+              } 
+              else if (requestBody.sortBy.finalRate === 'desc') {
+                  // Price High to Low (descending)
+                  requestBody.sortBy.id = 2;
+                  requestBody.sortBy.value = 2;
+                  console.log("HotelSearchService: Set id/value for Price Descending sort", requestBody.sortBy);
+              } 
+              else if (requestBody.sortBy.hasOwnProperty('rating') && requestBody.sortBy.rating === 'desc') {
+                  // Rating High to Low
+                  requestBody.sortBy.id = 3;
+                  requestBody.sortBy.value = 2;
+                  console.log("HotelSearchService: Set id/value for Rating sort", requestBody.sortBy);
+              } 
+              else if (requestBody.sortBy.hasOwnProperty('name') && requestBody.sortBy.name === 'asc') {
+                  // Name A-Z
+                  requestBody.sortBy.id = 4;
+                  requestBody.sortBy.value = 1;
+                  console.log("HotelSearchService: Set id/value for Name sort", requestBody.sortBy);
+              } 
+              else {
+                  // Default to Relevance for any other case
                   requestBody.sortBy.id = 1;
                   requestBody.sortBy.value = 1;
-                  console.log("HotelSearchService: Added default id/value for Relevance sort", requestBody.sortBy);
+                  console.log("HotelSearchService: Set id/value for Relevance sort", requestBody.sortBy);
               }
           }
       } else {
-          // If sortBy is invalid or missing, default it
-          console.warn("HotelSearchService: Invalid or missing sortBy, using default.", requestBody.sortBy);
+          // If sortBy is missing or invalid, create a default one
+          console.warn("HotelSearchService: Invalid or missing sortBy, using default relevance sort");
           requestBody.sortBy = { id: 1, value: 1, label: 'Relevance', finalRate: 'default' };
       }
-      // --- END: Validate sortBy ---
+      // --- End improved sortBy validation ---
       
       // --- Create a deep copy for logging BEFORE deleting null fields ---
       requestBodyForLogging = JSON.parse(JSON.stringify(requestBody));

@@ -1,40 +1,40 @@
 import {
-  Attractions as AttractionsIcon,
-  CalendarMonth as CalendarIcon,
-  KeyboardArrowDown as ChevronDownIcon,
-  ArrowForwardIos as ChevronRightIcon,
-  Paid as DollarIcon,
-  Edit as EditIcon,
-  Flight as FlightIcon,
-  Restaurant as FoodIcon,
-  Favorite as HeartIcon,
-  Hotel as HotelIcon,
-  Luggage as LuggageIcon,
-  LocationOn as MapPinIcon,
-  PictureAsPdf as PdfIcon,
-  PeopleAlt as PeopleIcon,
-  SupportAgent as SupportIcon,
-  DirectionsCar as TransportIcon,
+    Attractions as AttractionsIcon,
+    CalendarMonth as CalendarIcon,
+    KeyboardArrowDown as ChevronDownIcon,
+    ArrowForwardIos as ChevronRightIcon,
+    Paid as DollarIcon,
+    Edit as EditIcon,
+    Flight as FlightIcon,
+    Restaurant as FoodIcon,
+    Favorite as HeartIcon,
+    Hotel as HotelIcon,
+    Luggage as LuggageIcon,
+    LocationOn as MapPinIcon,
+    PictureAsPdf as PdfIcon,
+    PeopleAlt as PeopleIcon,
+    SupportAgent as SupportIcon,
+    DirectionsCar as TransportIcon,
 } from "@mui/icons-material";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Button,
-  Chip,
-  CircularProgress,
-  Container,
-  Drawer,
-  Grid,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Alert as MuiAlert,
-  AlertTitle as MuiAlertTitle,
-  Snackbar,
-  Typography,
-  useTheme,
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Button,
+    Chip,
+    CircularProgress,
+    Container,
+    Drawer,
+    Grid,
+    IconButton,
+    List,
+    ListItemButton,
+    ListItemText,
+    Alert as MuiAlert,
+    AlertTitle as MuiAlertTitle,
+    Snackbar,
+    Typography,
+    useTheme,
 } from "@mui/material";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
@@ -52,9 +52,9 @@ import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import { useAuth } from "../../context/AuthContext";
 import { clearAllActivityStates } from "../../redux/slices/activitySlice";
 import {
-  createItinerary,
-  fetchItinerary,
-  resetItineraryState,
+    createItinerary,
+    fetchItinerary,
+    resetItineraryState,
 } from "../../redux/slices/itinerarySlice";
 import { generateItineraryPDF } from "../../utils/pdfGenerator";
 import { calculateItineraryTotal } from "../../utils/priceCalculations";
@@ -135,20 +135,6 @@ const ItineraryPage = () => {
   const urlItineraryToken = searchParams.get('itineraryToken');
   const urlInquiryToken = searchParams.get('inquiryToken');
   
-  // Get inquiry token from URL parameter, state, or route param
-  const inquiryToken = urlInquiryToken || location.state?.inquiryToken || routeInquiryToken;
-  const itineraryToken = urlItineraryToken || location.state?.itineraryToken;
-
-  console.log('Initial Component State:', {
-    routeInquiryToken,
-    locationState: location.state,
-    inquiryToken,
-    itineraryToken,
-    isAuthenticated,
-    pathname: location.pathname,
-    searchParams: location.search
-  });
-
   // Redux selectors
   const {
     data: itinerary,
@@ -159,6 +145,21 @@ const ItineraryPage = () => {
   } = useSelector((state) => state.itinerary);
 
   const { markups, tcsRates } = useSelector((state) => state.markup);
+  
+  // Get inquiry token from URL parameter, state, or route param
+  const inquiryToken = urlInquiryToken || location.state?.inquiryToken || routeInquiryToken;
+  const itineraryToken = urlItineraryToken || location.state?.itineraryToken || reduxItineraryToken;
+
+  console.log('Initial Component State:', {
+    routeInquiryToken,
+    locationState: location.state,
+    inquiryToken,
+    itineraryToken,
+    reduxItineraryToken,
+    isAuthenticated,
+    pathname: location.pathname,
+    searchParams: location.search
+  });
 
   // Toggle sidebar
   const toggleSidebar = () => {
@@ -237,8 +238,11 @@ const ItineraryPage = () => {
         }
       );
 
+      // Use reduxItineraryToken as fallback
+      const currentItineraryToken = itineraryToken || reduxItineraryToken;
+      
       await axios.put(
-        `http://localhost:5000/api/itinerary/${itineraryToken}/activity/booking-ref`,
+        `http://localhost:5000/api/itinerary/${currentItineraryToken}/activity/booking-ref`,
         {
           cityName,
           date,
@@ -262,9 +266,12 @@ const ItineraryPage = () => {
 
   const handlePriceUpdate = async () => {
     try {
+      // Use reduxItineraryToken as fallback
+      const currentItineraryToken = itineraryToken || reduxItineraryToken;
+      
       const totals = calculateItineraryTotal(itinerary, markups, tcsRates);
       await axios.put(
-        `http://localhost:5000/api/itinerary/${itineraryToken}/prices`,
+        `http://localhost:5000/api/itinerary/${currentItineraryToken}/prices`,
         {
           priceTotals: {
             ...totals.segmentTotals,
@@ -402,6 +409,10 @@ const ItineraryPage = () => {
       setIsBooking(true);
       setBookingError(null);
 
+      // Use the reduxItineraryToken if itineraryToken is undefined
+      const currentItineraryToken = itineraryToken || reduxItineraryToken;
+      console.log("Using itinerary token for booking:", currentItineraryToken);
+
       const onlineActivities = itinerary.cities.flatMap((city) =>
         city.days.flatMap(
           (day) =>
@@ -452,7 +463,7 @@ const ItineraryPage = () => {
       navigate("/booking-form", {
         state: {
           itinerary,
-          itineraryToken,
+          itineraryToken: currentItineraryToken || itineraryToken,
           inquiryToken,
         },
       });
@@ -505,6 +516,20 @@ const ItineraryPage = () => {
           console.log("Creating new itinerary with inquiry token:", inquiryToken);
           const result = await dispatch(createItinerary(inquiryToken)).unwrap();
           console.log("Successfully created new itinerary:", result);
+          
+          // Store the newly created itinerary token in URL search params
+          const newSearchParams = new URLSearchParams(location.search);
+          newSearchParams.set('itineraryToken', result.itineraryToken);
+          newSearchParams.set('inquiryToken', inquiryToken);
+          
+          // Update the URL without causing a navigation
+          window.history.replaceState(
+            null, 
+            '', 
+            `${location.pathname.split('?')[0]}?${newSearchParams.toString()}`
+          );
+          
+          console.log("Updated URL with new itinerary token:", result.itineraryToken);
           return;
         }
 
@@ -530,6 +555,20 @@ const ItineraryPage = () => {
         console.log("Creating new itinerary (fallback) with inquiry token:", inquiryToken);
         const result = await dispatch(createItinerary(inquiryToken)).unwrap();
         console.log("Successfully created new itinerary (fallback):", result);
+        
+        // Store the newly created itinerary token in URL search params
+        const newSearchParams = new URLSearchParams(location.search);
+        newSearchParams.set('itineraryToken', result.itineraryToken);
+        newSearchParams.set('inquiryToken', inquiryToken);
+        
+        // Update the URL without causing a navigation
+        window.history.replaceState(
+          null, 
+          '', 
+          `${location.pathname.split('?')[0]}?${newSearchParams.toString()}`
+        );
+        
+        console.log("Updated URL with new itinerary token:", result.itineraryToken);
       } catch (err) {
         console.error("Error in handleItinerary:", err);
         navigate("/", { replace: true });

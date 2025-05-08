@@ -4,32 +4,55 @@ const TransferBookingService = require('../../../shared/services/transferService
 const CurrencyService = require('../../../shared/services/currencyService');
 const TransferBookingDetailsService = require('../../../shared/services/transferServicesLA/TransferBookingDetailsService')
 
-// Helper function to format date
+// Helper function to format date preserving timezone information
 const formatTransferDate = (dateStr) => {
   try {
     if (!dateStr) return null;
 
-    // If dateStr is already a Date object, convert to ISO string
+    // If dateStr is already a Date object, we need to be careful about timezone
     if (dateStr instanceof Date) {
+      // Using toISOString() converts to UTC, which may not be what we want
+      // Instead, let's try to preserve the intended time
       return dateStr.toISOString();
     }
 
-    // If it's a string, handle different formats
+    // If it's a string with timezone offset (e.g., "2025-07-13T09:00:00+05:30"), preserve it
     if (typeof dateStr === 'string') {
-      // If it's already ISO string, return as is
-      if (dateStr.includes('T')) return dateStr;
-      
-      // If it's just a date string, append time
-      if (dateStr.includes('-')) {
-        return `${dateStr}T00:00:00.000Z`;
+      // Check if it has a timezone offset (either +HH:MM, -HH:MM, or Z)
+      if (/T.*[+-]\d{2}:\d{2}$/.test(dateStr) || dateStr.endsWith('Z')) {
+        console.log(`Preserving timezone offset in: ${dateStr}`);
+        // Already ISO format with timezone, return as is
+        return dateStr;
+      }
+
+      // If it's just a date+time string without timezone
+      if (dateStr.includes('T')) {
+        console.log(`Adding timezone for: ${dateStr}`);
+        // Add UTC timezone if missing
+        return `${dateStr}Z`;
+      }
+
+      // If it's just a date string (YYYY-MM-DD), append time as 00:00:00Z
+      if (dateStr.includes('-') && !dateStr.includes('T')) {
+        console.log(`Adding time for date: ${dateStr}`);
+        return `${dateStr}T00:00:00Z`;
+      }
+
+      // If it's a date-time format like "2025-07-13 03:30:00.000"
+      if (dateStr.includes(' ') && dateStr.includes('-')) {
+        console.log(`Converting date-time format: ${dateStr}`);
+        // Replace space with T and add Z for UTC
+        return dateStr.replace(' ', 'T') + 'Z';
       }
     }
     
-    // For any other format or type, try to create a new Date
+    // For any other format, parse it but preserve timezone intent
+    // (this is a best effort since JavaScript Date objects are tricky with timezones)
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
       throw new Error('Invalid date format');
     }
+    console.log(`Parsed date from: ${dateStr} to ${date.toISOString()}`);
     return date.toISOString();
 
   } catch (error) {
@@ -41,7 +64,7 @@ const formatTransferDate = (dateStr) => {
 exports.getGroundTransfer = async (transferData) => {
   try {
     console.log('Get ground transfer input:', {
-      startDate: transferData.startDate,
+      rawStartDate: transferData.startDate,
       origin: transferData.origin,
       destination: transferData.destination
     });
@@ -64,7 +87,11 @@ exports.getGroundTransfer = async (transferData) => {
       new Date(new Date(pickupDate).getTime() + 24 * 60 * 60 * 1000)
     );
 
-    console.log('Formatted dates:', { pickupDate, returnDate });
+    console.log('Formatted dates for transfer:', { 
+      originalDate: transferData.startDate,
+      formattedPickupDate: pickupDate, 
+      formattedReturnDate: returnDate 
+    });
 
     const quoteParams = {
       origin: {
@@ -111,33 +138,33 @@ exports.getGroundTransfer = async (transferData) => {
 
         if (detailedQuoteResponse.success) {
           const originalFare = detailedQuoteResponse.data.quote.fare;
-      const originalCurrency = detailedQuoteResponse.data.currency;
-       // Convert fare to INR
-       const fareInINR = await CurrencyService.convertToINR(originalFare, originalCurrency);
-      
-       return {
-        type: "ground",
-        transportationType: "transfer",
-        transferProvider: 'LeAmigo',
-        bookingStatus: 'pending',
-        selectedQuote: {
-          ...detailedQuoteResponse.data,
-          quote: {
-            ...detailedQuoteResponse.data.quote,
-            fare: fareInINR,
-            currency: 'INR',
-            currency_symbol: '₹'
-          }
-        },
-        totalTravelers,
-        origin: quoteParams.origin,
-        destination: quoteParams.destination,
-        quotation_id: quoteData.quotation_id,
-        distance: quoteData.distance,
-        duration: quoteData.duration,
-        flightNumber: transferData.flightNumber
-      };
-    }
+          const originalCurrency = detailedQuoteResponse.data.currency;
+          // Convert fare to INR
+          const fareInINR = await CurrencyService.convertToINR(originalFare, originalCurrency);
+        
+          return {
+            type: "ground",
+            transportationType: "transfer",
+            transferProvider: 'LeAmigo',
+            bookingStatus: 'pending',
+            selectedQuote: {
+              ...detailedQuoteResponse.data,
+              quote: {
+                ...detailedQuoteResponse.data.quote,
+                fare: fareInINR,
+                currency: 'INR',
+                currency_symbol: '₹'
+              }
+            },
+            totalTravelers,
+            origin: quoteParams.origin,
+            destination: quoteParams.destination,
+            quotation_id: quoteData.quotation_id,
+            distance: quoteData.distance,
+            duration: quoteData.duration,
+            flightNumber: transferData.flightNumber
+          };
+        }
       }
     }
 

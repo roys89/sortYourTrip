@@ -66,6 +66,44 @@ const HotelBookingSchema = new mongoose.Schema({
     age: Number,
     isLeadGuest: Boolean
   }],
+  hotelDetails: {
+    hotelName: {
+      type: String,
+      default: ''
+    },
+    hotelContactInfo: {
+      type: String,
+      default: ''
+    },
+    checkIn: {
+      type: String,
+      default: ''
+    },
+    checkOut: {
+      type: String,
+      default: ''
+    },
+    roomsCount: {
+      type: Number,
+      default: 1
+    },
+    totalDays: {
+      type: Number,
+      default: 1
+    },
+    hotelRating: {
+      type: String,
+      default: ''
+    },
+    hotelLocation: {
+      type: String,
+      default: ''
+    },
+    specialRequests: {
+      type: String,
+      default: ''
+    }
+  },
   agentDetails: {
     agentId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -177,7 +177,10 @@ class TransferOrchestrationService {
         flight: flight?.flightCode,
         hotel: hotel?.data?.hotelDetails?.name,
         date,
-        departureTime: flight?.departureTime
+        departureTime: flight?.departureTime,
+        flightType: flight?.type,
+        rawDepartureTime: flight?.departureTime,
+        rawLandingTime: flight?.landingTime
       });
 
       if (!flight?.originAirport || !hotel?.data?.hotelDetails) {
@@ -199,23 +202,45 @@ class TransferOrchestrationService {
         longitude: flight.originAirport.location.longitude
       }, 'airport');
 
-      // Parse and validate departure time
-      const departureDate = this.parseDepartureTime(flight.departureTime, date);
+      // Get the departure time in a properly formatted way
+      let departureDate;
       
-      // Calculate pickup time (4 hours before departure)
+      // For hotel to airport transfers, we always need to use departureTime, not landingTime
+      // For return flights, we definitely want departureTime
+      if (flight.departureTime) {
+        console.log(`Using flight departure time: ${flight.departureTime} on ${date}`);
+        
+        // If departureTime is already an ISO format, use it directly
+        if (flight.departureTime.includes('T')) {
+          departureDate = new Date(flight.departureTime);
+        } else {
+          // Otherwise parse it using date + time
+          departureDate = this.parseDepartureTime(flight.departureTime, date);
+        }
+      } 
+      // Fallback to parsing date + time if no ISO time available
+      else {
+        console.warn(`No departure time found, using date: ${date}`);
+        departureDate = new Date(`${date}T00:00:00.000Z`);  
+      }
+      
+      // Calculate pickup time (3 hours before departure for international flights)
+      // This gives plenty of time for check-in, security, etc.
       const pickupTime = new Date(departureDate);
-      pickupTime.setHours(pickupTime.getHours() - 4);
+      pickupTime.setHours(pickupTime.getHours() - 3);
 
       // Validate calculated pickup time
       if (isNaN(pickupTime.getTime())) {
-        console.warn('Invalid pickup time calculated, using 4 hours before noon');
-        pickupTime = new Date(`${date}T08:00:00.000Z`); // Fallback to 8 AM
+        console.warn('Invalid pickup time calculated, using default time');
+        // Use noon as fallback if we can't determine the right time
+        pickupTime = new Date(`${date}T12:00:00.000Z`); 
       }
 
-      console.log('Calculated times:', {
+      console.log('Hotel to airport transfer times:', {
         originalDeparture: flight.departureTime,
         parsedDeparture: departureDate.toISOString(),
-        calculatedPickup: pickupTime.toISOString()
+        calculatedPickup: pickupTime.toISOString(),
+        hoursBeforeFlight: 3
       });
 
       const transferResult = await getGroundTransfer({
@@ -253,7 +278,7 @@ class TransferOrchestrationService {
       travelersDetails,
       inquiryToken,
       preferences,
-      date,
+      date, // This is expected to be a 'YYYY-MM-DD' string for the day of transfer
       selectedCities,
       originCity,
       destinationCity
@@ -266,21 +291,24 @@ class TransferOrchestrationService {
         date
       });
 
-      // Validate hotel data
       if (!originHotel?.data?.hotelDetails || !destinationHotel?.data?.hotelDetails) {
-        console.error('Missing required hotel data:', {
+        console.error('Missing required hotel data for city-to-city transfer:', {
           originHotel: !!originHotel?.data?.hotelDetails,
           destinationHotel: !!destinationHotel?.data?.hotelDetails
         });
         return null;
       }
 
-      // First try ground transfer
+      // Set transfer time to 9:00 AM IST on the given date
+      // 'date' is expected to be 'YYYY-MM-DD'
+      const formattedTransferTime = `${date}T09:00:00+05:30`; 
+      console.log('Setting city-to-city transfer time to 9:00 AM IST:', formattedTransferTime);
+
       const transferResult = await getGroundTransfer({
         travelers: travelersDetails,
         inquiryToken: inquiryToken,
         preferences: preferences,
-        startDate: date,
+        startDate: formattedTransferTime, // Use the IST time string
         origin: {
           type: "hotel",
           ...this.formatLocationForTransfer({
@@ -301,7 +329,6 @@ class TransferOrchestrationService {
         }
       });
 
-      // If transfer duration > 300 minutes (5 hours), switch to flight
       if (transferResult.type !== "error" && transferResult.duration > 300) {
         console.log('Ground transfer duration exceeds 5 hours, attempting flight booking');
   
@@ -309,21 +336,20 @@ class TransferOrchestrationService {
         const arrivalCity = selectedCities.find(city => city.city === destinationCity.city);
   
         if (!departureCity?.code || !arrivalCity?.code) {
-          console.warn('Could not find valid city codes, falling back to ground transfer');
+          console.warn('Could not find valid city codes for inter-city flight, falling back to ground transfer');
           return {
             type: "city_to_city",
             details: transferResult
           };
         }
 
-        // Try to get a flight
         const flight = await getFlights({
           inquiryToken,
           departureCity: departureCity,
           cities: [arrivalCity],
           travelers: travelersDetails,
           departureDates: {
-            startDate: date,
+            startDate: date, // Flight search can still use the original date string
             endDate: date
           },
           type: "inter_city_flight"
@@ -332,7 +358,6 @@ class TransferOrchestrationService {
         if (flight?.[0]) {
           console.log('Found inter-city flight, processing connecting transfers');
           
-          // Get airport transfers for both ends
           const [hotelToAirport, airportToHotel] = await Promise.all([
             this.processHotelToAirportTransfer({
               flight: flight[0],
@@ -340,7 +365,7 @@ class TransferOrchestrationService {
               travelersDetails,
               inquiryToken,
               preferences,
-              date
+              date // hotel to airport transfer needs the date for departure time calculation
             }),
             this.processAirportToHotelTransfer({
               flight: flight[0],
@@ -348,6 +373,7 @@ class TransferOrchestrationService {
               travelersDetails,
               inquiryToken,
               preferences
+              // airport to hotel uses flight.landingTime which is absolute
             })
           ]);
 

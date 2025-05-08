@@ -204,6 +204,38 @@ const singleBookingController = {
         }
       }
       
+      // Handle hotelDetails updates if provided
+      if (updateData.hotelDetails) {
+        // Update individual fields of hotelDetails using dot notation
+        if (updateData.hotelDetails.hotelName !== undefined) {
+          updatePayload.$set['hotelDetails.hotelName'] = updateData.hotelDetails.hotelName;
+        }
+        if (updateData.hotelDetails.hotelContactInfo !== undefined) {
+          updatePayload.$set['hotelDetails.hotelContactInfo'] = updateData.hotelDetails.hotelContactInfo;
+        }
+        if (updateData.hotelDetails.checkIn !== undefined) {
+          updatePayload.$set['hotelDetails.checkIn'] = updateData.hotelDetails.checkIn;
+        }
+        if (updateData.hotelDetails.checkOut !== undefined) {
+          updatePayload.$set['hotelDetails.checkOut'] = updateData.hotelDetails.checkOut;
+        }
+        if (updateData.hotelDetails.roomsCount !== undefined) {
+          updatePayload.$set['hotelDetails.roomsCount'] = updateData.hotelDetails.roomsCount;
+        }
+        if (updateData.hotelDetails.totalDays !== undefined) {
+          updatePayload.$set['hotelDetails.totalDays'] = updateData.hotelDetails.totalDays;
+        }
+        if (updateData.hotelDetails.hotelRating !== undefined) {
+          updatePayload.$set['hotelDetails.hotelRating'] = updateData.hotelDetails.hotelRating;
+        }
+        if (updateData.hotelDetails.hotelLocation !== undefined) {
+          updatePayload.$set['hotelDetails.hotelLocation'] = updateData.hotelDetails.hotelLocation;
+        }
+        if (updateData.hotelDetails.specialRequests !== undefined) {
+          updatePayload.$set['hotelDetails.specialRequests'] = updateData.hotelDetails.specialRequests;
+        }
+      }
+      
       // If no specific fields to update, update the entire object
       if (Object.keys(updatePayload.$set).length === 0) {
         updatePayload.$set = updateData;
